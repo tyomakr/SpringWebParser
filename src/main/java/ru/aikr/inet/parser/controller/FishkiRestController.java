@@ -1,4 +1,4 @@
-package controller;
+package ru.aikr.inet.parser.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.aikr.inet.comimgparser.domain.WebImage;
-import ru.aikr.inet.comimgparser.repository.WebImageRepository;
-import ru.aikr.inet.comimgparser.service.parser.WebImageParserService;
+import ru.aikr.inet.parser.domain.WebImage;
+import ru.aikr.inet.parser.repository.WebImageRepository;
+import ru.aikr.inet.parser.service.WebImageParserService;
 
 import java.util.List;
 

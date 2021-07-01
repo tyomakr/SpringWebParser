@@ -1,4 +1,4 @@
-package domain;
+package ru.aikr.inet.parser.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

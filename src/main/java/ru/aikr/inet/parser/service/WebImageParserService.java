@@ -1,6 +1,6 @@
-package parser;
+package ru.aikr.inet.parser.service;
 
-import ru.aikr.inet.comimgparser.domain.WebImage;
+import ru.aikr.inet.parser.domain.WebImage;
 
 import java.util.List;
 

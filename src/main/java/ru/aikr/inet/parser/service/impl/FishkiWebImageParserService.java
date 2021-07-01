@@ -1,4 +1,4 @@
-package parser.impl;
+package ru.aikr.inet.parser.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
@@ -6,9 +6,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import ru.aikr.inet.comimgparser.domain.WebImage;
-import ru.aikr.inet.comimgparser.repository.WebImageRepository;
-import ru.aikr.inet.comimgparser.service.parser.WebImageParserService;
+import ru.aikr.inet.parser.domain.WebImage;
+import ru.aikr.inet.parser.repository.WebImageRepository;
+import ru.aikr.inet.parser.service.WebImageParserService;
 
 import java.io.IOException;
 import java.util.ArrayList;

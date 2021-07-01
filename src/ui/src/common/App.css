@@ -1,0 +1,17 @@
+.navbar-second-line{
+  height: 40px !important;
+  background-color: #293133;
+}
+
+.navbar-third-line{
+  height: 40px !important;
+  background-color: #343e40;
+}
+
+.header-section {
+  margin: 10pt;
+}
+
+.navbar-brand {
+  margin-left: 10pt;
+}
