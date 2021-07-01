@@ -1,7 +1,7 @@
 import {observable, action} from "mobx";
 import BackendApiService from "../service/BackendApiService";
 
-export default class storeFI {
+class storeFI {
     @observable webImages = [];
     @observable currentImage = null;
 
@@ -18,3 +18,5 @@ export default class storeFI {
         }
     }
 }
+
+export default new storeFI();
