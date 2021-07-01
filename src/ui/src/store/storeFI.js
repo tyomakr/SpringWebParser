@@ -17,6 +17,15 @@ class storeFI {
             console.log(e)
         }
     }
+
+    @action
+    async clearStore() {
+        try {
+            this.webImages = [];
+        } catch (e) {
+            console.log(e)
+        }
+    }
 }
 
 export default new storeFI();
