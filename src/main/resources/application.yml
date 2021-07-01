@@ -1,0 +1,11 @@
+server:
+  port: 8111
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb+srv://parser:<pass>@cluster0.qbxdr.mongodb.net/webParser?retryWrites=true&w=majority
+
+sites:
+  fishki-url: "http://fishki.net/mix/"
+  fishki-div-container-with-image: "div.embed-image-single"
