@@ -20,6 +20,7 @@ public class FishkiRestController {
     private final WebImageParserService parser;
     private final WebImageRepository webImageRepository;
 
+    //получение картинок от сайта из определенного диапазона страниц и замещение новым запросом старой коллекции в базе
     @GetMapping("/images/{num1}/to/{num2}")
     public ResponseEntity<List<WebImage>> getImagesFromPages(@PathVariable("num1") String pageBegin,
                                                              @PathVariable("num2") String pageEnd) {
@@ -31,6 +32,7 @@ public class FishkiRestController {
                 .body(linksImagesList);
     }
 
+    //получение всех ссылок на картинки из базы
     @GetMapping("/images/findAll")
     public ResponseEntity<List<WebImage>> findAll(){
         return ResponseEntity.ok(webImageRepository.findAll());
