@@ -4,7 +4,7 @@ import Pagination from "../Pagination";
 import {inject, observer} from "mobx-react";
 import storeFI from "../../store/storeFI";
 import ImagePicker from "react-image-picker"
-//import "react-image-picker/dist/index.css";
+import '../../common/image-picker.css'
 
 @inject('storeFI')
 @observer
