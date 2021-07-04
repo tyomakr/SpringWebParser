@@ -3,8 +3,9 @@ import {Helmet} from "react-helmet/es/Helmet";
 import Pagination from "../Pagination";
 import {inject, observer} from "mobx-react";
 import storeFI from "../../store/storeFI";
-import ImagePicker from "react-image-picker"
+//import ImagePicker from "react-image-picker"
 import '../../common/image-picker.css'
+import ImagePicker from "../image-picker-mod/react-image-picker";
 
 @inject('storeFI')
 @observer
