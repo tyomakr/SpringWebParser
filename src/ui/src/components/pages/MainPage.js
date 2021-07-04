@@ -14,7 +14,7 @@ class MainPage extends Component {
                 <Helmet
                     htmlAttributes={{"lang": "ru", "amp": undefined}}
                     title="Главная"
-                    titleTemplate="Spring web ru.aikr.inet.comimgparser.parser - %s" />
+                    titleTemplate="Spring web parser - %s" />
 
                 <div className="jumbotron">
                     <h3 className="header-section">Система парсинга данных</h3>

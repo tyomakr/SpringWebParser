@@ -4,6 +4,7 @@ import BackendApiService from "../service/BackendApiService";
 class storeFI {
     @observable webImages = [];
     @observable currentImage = null;
+    @observable selectedWebImages = [];
 
 
     @action
@@ -27,5 +28,6 @@ class storeFI {
         }
     }
 }
+
 
 export default new storeFI();
