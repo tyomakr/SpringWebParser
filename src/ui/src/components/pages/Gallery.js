@@ -28,7 +28,8 @@ class Gallery extends React.Component {
     onChangePage(pageOfItems) {
         // update state with new page of items
         this.setState({ pageOfItems: pageOfItems });
-        //this.setState(this.state.image = {})
+        // this.setState(this.state.image = {})
+        this.props.storeFI.clearPickerStore()
     }
 
     //select images ImagesPicker
@@ -37,9 +38,9 @@ class Gallery extends React.Component {
     }
 
     onHandleSelectImages() {
-        this.setState(this.baseState)
-
-
+        console.log(this.state.image)
+        this.props.storeFI.clearPickerStore().then(r => console.log(r));
+        this.state = []
     }
 
 
