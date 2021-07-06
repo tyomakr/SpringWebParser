@@ -3,9 +3,32 @@ import {Helmet} from "react-helmet/es/Helmet";
 import Pagination from "../Pagination";
 import {inject, observer} from "mobx-react";
 import storeFI from "../../store/storeFI";
-//import ImagePicker from "react-image-picker"
-import '../../common/image-picker.css'
-import ImagePicker from "../image-picker-mod/react-image-picker";
+
+import { withStyles } from '@material-ui/core/styles';
+import ImageList from '@material-ui/core/ImageList';
+import ImageListItem from '@material-ui/core/ImageListItem'
+import ImageListItemBar from '@material-ui/core/ImageListItemBar';
+import ListSubheader from '@material-ui/core/ListSubheader';
+import IconButton from '@material-ui/core/IconButton';
+import InfoIcon from '@material-ui/icons/Info';
+
+
+const useStyles = theme => ({
+    root: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'space-around',
+        overflow: 'hidden',
+        backgroundColor: theme.palette.background.paper,
+    },
+    gridList: {
+        width: '800',
+        height: 'flex',
+    },
+    icon: {
+        color: 'rgba(255, 255, 255, 0.54)',
+    },
+});
 
 @inject('storeFI')
 @observer
@@ -20,7 +43,6 @@ class Gallery extends React.Component {
         };
 
         this.onChangePage = this.onChangePage.bind(this);
-        this.onPick = this.onPick.bind(this);
         this.onHandleSelectImages = this.onHandleSelectImages.bind(this);
     }
 
@@ -28,24 +50,16 @@ class Gallery extends React.Component {
     onChangePage(pageOfItems) {
         // update state with new page of items
         this.setState({ pageOfItems: pageOfItems });
-        // this.setState(this.state.image = {})
-        this.props.storeFI.clearPickerStore()
     }
 
-    //select images ImagesPicker
-    onPick(image) {
-        this.setState({ image });
-    }
-
+    //click button
     onHandleSelectImages() {
-        console.log(this.state.image)
-        this.props.storeFI.clearPickerStore().then(r => console.log(r));
-        this.state = []
+
     }
 
 
     render() {
-
+        const { classes } = this.props;
         return (
             <div>
                 <Helmet
@@ -58,16 +72,25 @@ class Gallery extends React.Component {
                     <div className="container-fluid">
 
                         <div className="text-center">
-                            <ImagePicker
-                                images={this.state.pageOfItems.map((webImage, i) => ({
-                                    src: webImage.directLink,
-                                    value: i
-                            }))}
-                            onPick={this.onPick}
-                            multiple />
-                            <hr/>
 
-                            <button type="button" onClick={()=> this.onHandleSelectImages()}>OK</button>
+                            <div className={classes.root}>
+                                {/*<ImageList rowHeight={300} className={classes.gridList}>*/}
+                                <ImageList sx={{width: 500, height: 500}} cols={5} rowHeight={200}>
+                                    {this.state.pageOfItems.map((webImage) => (
+                                        <ImageListItem key={webImage.id}>
+                                            <img src={webImage.directLink} />
+                                            <ImageListItemBar
+                                                actionIcon={
+                                                    <IconButton aria-label={`info about ${webImage.id}`} className={classes.icon}>
+                                                        <InfoIcon />
+                                                    </IconButton>
+                                                }
+                                            />
+                                        </ImageListItem>
+                                    ))}
+                                </ImageList>
+                            </div>
+
 
                             {/*<button type="button" onClick={() => console.log(this.state.image)}>OK</button>*/}
                             <Pagination items={this.state.items} onChangePage={this.onChangePage}/>
@@ -80,4 +103,4 @@ class Gallery extends React.Component {
     }
 }
 
-export default Gallery
+export default withStyles(useStyles)(Gallery)
