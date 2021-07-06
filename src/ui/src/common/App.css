@@ -24,4 +24,6 @@
   cursor: pointer;
 }
 
-
+.img-gal {
+  max-width: 80%;
+}
