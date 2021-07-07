@@ -7,10 +7,12 @@ import Button from '@material-ui/core/Button';
 import Typography from '@material-ui/core/Typography';
 import FWIRequest from "../components/fragments/FWIRequest"
 import {inject, observer} from 'mobx-react';
+import Gallery from "./pages/Gallery";
 
 const useStyles = makeStyles((theme) => ({
     root: {
         width: '95%',
+        marginBottom: theme.spacing(10)
     },
     button: {
         marginLeft: theme.spacing(2),
@@ -32,7 +34,7 @@ function getStepContent(step) {
         case 0:
             return <FWIRequest/>;
         case 1:
-            return "case1";
+            return <Gallery/>;
         case 2:
             return 'This is the bit I really care about!';
         default:
@@ -105,6 +107,7 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                     </div>
                 )}
             </div>
+            <hr />
         </div>
     );
 }));
