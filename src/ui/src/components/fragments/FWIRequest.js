@@ -12,13 +12,13 @@ class FWIRequest extends React.Component {
         super(props);
     }
 
-
     //get images from backend request
     onSubmit = async values => {
         const {storeFI} = this.props;
         try {
             await storeFI.getWebImagesFromPages(values.num1, values.num2)
-            this.props.history.push("/gallery")
+            // this.props.history.push("/gallery")
+            this.props.storeFI.step1 = true;
 
         } catch (e) {console.log(e)}
     }
@@ -34,7 +34,7 @@ class FWIRequest extends React.Component {
                     titleTemplate="Spring web parser - %s" />
 
                 <div className="jumbotron">
-                    <h3 className="header-section">Запрос изображений для отбора</h3>
+                    <h4 className="header-section">Запрос изображений для отбора</h4>
                     <div className="container-fluid">
                         <div>
                             <Form

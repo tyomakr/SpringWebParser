@@ -1,10 +1,13 @@
 import {observable, action} from "mobx";
 import BackendApiService from "../service/BackendApiService";
+import {act} from "react-dom/test-utils";
 
 class storeFI {
     //main
     @observable webImages = [];
-    @observable currentImage = null;
+    @observable step1 = false;
+    @observable step2 = false;
+
 
     @action
     async getWebImagesFromPages(num1, num2) {
@@ -22,6 +25,16 @@ class storeFI {
     async clearStore() {
         try {
             this.webImages = [];
+        } catch (e) {
+            console.log(e)
+        }
+    }
+
+    @action
+    async resetStepsState() {
+        try {
+            this.step1 = false;
+            this.step2 = false;
         } catch (e) {
             console.log(e)
         }
