@@ -8,9 +8,10 @@ import { withStyles } from '@material-ui/core/styles';
 import ImageList from '@material-ui/core/ImageList';
 import ImageListItem from '@material-ui/core/ImageListItem'
 import ImageListItemBar from '@material-ui/core/ImageListItemBar';
-import ListSubheader from '@material-ui/core/ListSubheader';
 import IconButton from '@material-ui/core/IconButton';
 import InfoIcon from '@material-ui/icons/Info';
+import Fab from '@material-ui/core/Fab';
+import AddIcon from '@material-ui/icons/Add';
 
 
 const useStyles = theme => ({
@@ -18,15 +19,15 @@ const useStyles = theme => ({
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'space-around',
-        overflow: 'hidden',
+        // overflow: 'hidden',
         backgroundColor: theme.palette.background.paper,
     },
-    gridList: {
-        width: '800',
-        height: 'flex',
+    ImageList: {
+        width: '95%',
+        height: '95%',
     },
     icon: {
-        color: 'rgba(255, 255, 255, 0.54)',
+        color: 'rgba(255, 255, 255, 0.7)',
     },
 });
 
@@ -53,8 +54,8 @@ class Gallery extends React.Component {
     }
 
     //click button
-    onHandleSelectImages() {
-
+    onHandleSelectImages(webImage) {
+        console.log("clicked " + webImage.directLink)
     }
 
 
@@ -74,14 +75,16 @@ class Gallery extends React.Component {
                         <div className="text-center">
 
                             <div className={classes.root}>
-                                {/*<ImageList rowHeight={300} className={classes.gridList}>*/}
-                                <ImageList sx={{width: 500, height: 500}} cols={5} rowHeight={200}>
+                                <ImageList
+                                    sx={{width: 300, height: 300}} cols={5} rowHeight={400} gap={5} component={"image"}>
                                     {this.state.pageOfItems.map((webImage) => (
-                                        <ImageListItem key={webImage.id}>
-                                            <img src={webImage.directLink} />
+                                        <ImageListItem key={webImage.id} >
+                                            <img src={webImage.directLink} className="img-gal" />
                                             <ImageListItemBar
                                                 actionIcon={
-                                                    <IconButton aria-label={`info about ${webImage.id}`} className={classes.icon}>
+                                                    <IconButton type="button"
+                                                                onClick={()=> this.onHandleSelectImages(webImage)}
+                                                                className={classes.icon}>
                                                         <InfoIcon />
                                                     </IconButton>
                                                 }
