@@ -8,6 +8,7 @@ import Typography from '@material-ui/core/Typography';
 import FWIRequest from "../components/fragments/FWIRequest"
 import {inject, observer} from 'mobx-react';
 import Gallery from "./pages/Gallery";
+import PrepareToSendImages from "./fragments/PrepareToSendImages";
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -36,7 +37,7 @@ function getStepContent(step) {
         case 1:
             return <Gallery/>;
         case 2:
-            return 'This is the bit I really care about!';
+            return <PrepareToSendImages/>;
         default:
             return 'Unknown step';
     }
@@ -59,6 +60,7 @@ const ImageStepper = inject("storeFI")(observer((props) => {
 
     const handleReset = () => {
         setActiveStep(0);
+        props.storeFI.clearStore();
     };
 
     return (
@@ -78,9 +80,6 @@ const ImageStepper = inject("storeFI")(observer((props) => {
             <div>
                 {activeStep === steps.length ? (
                     <div>
-                        {/*<Typography className={classes.instructions}>*/}
-                        {/*    All steps completed - you&apos;re finished*/}
-                        {/*</Typography>*/}
                         <Button onClick={handleReset} className={classes.button}>
                             Reset
                         </Button>
@@ -90,24 +89,41 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                         <Typography className={classes.instructions}>{getStepContent(activeStep)}</Typography>
                         <div>
                             <Button disabled={activeStep === 0} onClick={handleBack} className={classes.button}>
-                                Back
+                                Назад
                             </Button>
 
 
                             <Button
                                 variant="contained"
                                 color="primary"
-                                disabled={!props.storeFI.step1}
+                                disabled={!props.storeFI.step1 || props.storeFI.selectedImages > 0}
+                                hidden={activeStep === steps.length - 1}
                                 onClick={handleNext}
-                                className={classes.button}
-                            >
-                                {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
+                                className={classes.button}>
+                                {activeStep === steps.length - 2 ? 'Подготовка к отправке' : 'Далее'}
+                            </Button>
+
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                disabled={activeStep === 0}
+                                onClick={handleReset}
+                                className={classes.button}>
+                                Сброс
                             </Button>
                         </div>
                     </div>
                 )}
             </div>
             <hr />
+            <div className="container-fluid">
+                <div>
+                    Выбрано изображений:
+                    <b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.length : 'нет'}</b>
+                </div>
+
+            </div>
+
         </div>
     );
 }));

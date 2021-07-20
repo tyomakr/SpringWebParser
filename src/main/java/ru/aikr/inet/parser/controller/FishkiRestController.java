@@ -30,7 +30,11 @@ public class FishkiRestController {
     }
 
     //получение списка выбранных картинок из фронтэнда и запись в БД
-
+    @PostMapping("/images")
+    public ResponseEntity<List<WebImage>> saveAndPublishSelectedImages(@RequestBody List<WebImage> webImageList) {
+        System.out.println(webImageList.size());
+        return ResponseEntity.ok().build();
+    }
 
 
     //получение всех ссылок на картинки из базы

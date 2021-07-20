@@ -65,7 +65,7 @@ class Gallery extends React.Component {
 
         this.state = {
             items: this.props.storeFI.webImages,
-            pageOfItems: [],
+            pageOfItems: []
         };
 
         this.onChangePage = this.onChangePage.bind(this);
@@ -80,7 +80,8 @@ class Gallery extends React.Component {
 
     //click button
     onHandleSelectImages(webImage) {
-        console.log("clicked " + webImage.directLink)
+        storeFI.selectedImages.push(webImage)
+        console.log(storeFI.selectedImages.length)
     }
 
 
@@ -99,38 +100,38 @@ class Gallery extends React.Component {
 
                         <div className="text-center">
 
-                            {/*<div className={classes.root}>*/}
-                            {/*    <ImageList*/}
-                            {/*        sx={{width: 300, height: 300}} cols={5} rowHeight={400} gap={5} component={"image"}>*/}
-                            {/*        {this.state.pageOfItems.map((webImage) => (*/}
-                            {/*            <ImageListItem key={webImage.id} >*/}
-                            {/*                <img src={webImage.directLink} className="img-gal" />*/}
-                            {/*                <ImageListItemBar*/}
-                            {/*                    actionIcon={*/}
-                            {/*                        <IconButton type="button"*/}
-                            {/*                                    onClick={()=> this.onHandleSelectImages(webImage)}*/}
-                            {/*                                    className={classes.icon}>*/}
-                            {/*                            <InfoIcon />*/}
-                            {/*                        </IconButton>*/}
-                            {/*                    }*/}
-                            {/*                />*/}
-                            {/*            </ImageListItem>*/}
-                            {/*        ))}*/}
-                            {/*    </ImageList>*/}
-                            {/*</div>*/}
-                            <ImageList cols={3} rowHeight={164}>
-                                {this.state.pageOfItems.map((webImage) => (
-                                    <ImageListItem key={webImage.id}>
-                                        <a className={classes.a} href="#">
-                                            <img
-                                                className={classes.img}
-                                                src={webImage.directLink}
-                                                alt={webImage.id}
+                            <div className={classes.root}>
+                                <ImageList
+                                    sx={{width: 300, height: 300}} cols={4} rowHeight={400} gap={5} component={"image"}>
+                                    {this.state.pageOfItems.map((webImage) => (
+                                        <ImageListItem key={webImage.id} >
+                                            <img src={webImage.directLink} className="img-gal" />
+                                            <ImageListItemBar
+                                                actionIcon={
+                                                    <IconButton type="button"
+                                                                onClick={()=> this.onHandleSelectImages(webImage)}
+                                                                className={classes.icon}>
+                                                        <InfoIcon />
+                                                    </IconButton>
+                                                }
                                             />
-                                        </a>
-                                    </ImageListItem>
-                                ))}
-                            </ImageList>
+                                        </ImageListItem>
+                                    ))}
+                                </ImageList>
+                            </div>
+                            {/*<ImageList cols={3} rowHeight={400}>*/}
+                            {/*    {this.state.pageOfItems.map((webImage) => (*/}
+                            {/*        <ImageListItem key={webImage.id}>*/}
+                            {/*            <a className={classes.a} href="#">*/}
+                            {/*                <img*/}
+                            {/*                    className={classes.img}*/}
+                            {/*                    src={webImage.directLink}*/}
+                            {/*                    alt={webImage.id}*/}
+                            {/*                />*/}
+                            {/*            </a>*/}
+                            {/*        </ImageListItem>*/}
+                            {/*    ))}*/}
+                            {/*</ImageList>*/}
 
 
                             {/*<button type="button" onClick={() => console.log(this.state.image)}>OK</button>*/}

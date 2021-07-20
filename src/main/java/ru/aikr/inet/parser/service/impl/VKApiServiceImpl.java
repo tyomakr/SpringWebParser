@@ -4,16 +4,12 @@ import com.vk.api.sdk.client.TransportClient;
 import com.vk.api.sdk.client.VkApiClient;
 import com.vk.api.sdk.client.actors.UserActor;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
-import com.vk.api.sdk.objects.AuthResponse;
-import com.vk.api.sdk.objects.photos.Photo;
-import com.vk.api.sdk.objects.photos.PhotoUpload;
-import com.vk.api.sdk.objects.photos.responses.GetResponse;
 import com.vk.api.sdk.objects.photos.responses.GetWallUploadServerResponse;
 import com.vk.api.sdk.objects.photos.responses.SaveWallPhotoResponse;
 import com.vk.api.sdk.objects.photos.responses.WallUploadResponse;
-import com.vk.api.sdk.objects.wall.responses.PostResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.aikr.inet.parser.service.VKApiService;
@@ -29,16 +25,11 @@ public class VKApiServiceImpl implements VKApiService {
     private static final VkApiClient vk = new VkApiClient(transportClient);
 
     @Value("${vk.user-id}")
-    private final Integer USER_ID;
+    private Integer USER_ID;
     @Value("${vk.group-id}")
-    private final Integer GROUP_ID;
+    private Integer GROUP_ID;
     @Value("${vk.access-token}")
-    private final String ACCESS_TOKEN;
-
-
-    public VkApiClient getVkApiClient() {
-        return new VkApiClient(transportClient);
-    }
+    private String ACCESS_TOKEN;
 
 
     @Override
@@ -64,7 +55,7 @@ public class VKApiServiceImpl implements VKApiService {
     private void createPost(UserActor actor, List<File> fileList) {
 
         StringBuilder attachIds = new StringBuilder();
-
+        //для каждого изображения
         for (File file : fileList) {
             GetWallUploadServerResponse serverResponse = vk.photos().getWallUploadServer(actor).execute();
 
@@ -92,7 +83,17 @@ public class VKApiServiceImpl implements VKApiService {
                 .ownerId(GROUP_ID)
                 .attachments(attachIds.toString())
                 .execute();
+
+        //del downloaded local files
+        deleteDownloadedFiles(fileList);
     }
+
+    private void deleteDownloadedFiles(List<File>fileList) {
+        for (File file : fileList) {
+            FileUtils.deleteQuietly(file);
+        }
+    }
+
 
 
 }

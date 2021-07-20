@@ -7,6 +7,7 @@ class storeFI {
     @observable webImages = [];
     @observable step1 = false;
     @observable step2 = false;
+    @observable selectedImages = [];
 
 
     @action
@@ -25,6 +26,7 @@ class storeFI {
     async clearStore() {
         try {
             this.webImages = [];
+            this.selectedImages = [];
         } catch (e) {
             console.log(e)
         }
