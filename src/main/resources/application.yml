@@ -4,7 +4,7 @@ server:
 spring:
   data:
     mongodb:
-      uri: mongodb+srv://parser:Welcome2Apelsin1@cluster0.qbxdr.mongodb.net/webParser?retryWrites=true&w=majority
+      uri: <your uri>
 
 sites:
   fishki-url: "http://fishki.net/mix/"
@@ -14,5 +14,4 @@ vk:
   app-id: 0
   user-id: 0
   group-id: 0
-  redirect-uri: "https://api.vk.com/blank.html"
   access-token: 0
