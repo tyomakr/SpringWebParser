@@ -9,3 +9,10 @@ spring:
 sites:
   fishki-url: "http://fishki.net/mix/"
   fishki-div-container-with-image: "div.embed-image-single"
+
+vk:
+  app-id: 0
+  user-id: 0
+  group-id: 0
+  redirect-uri: "https://api.vk.com/blank.html"
+  access-token: 0
