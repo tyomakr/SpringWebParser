@@ -12,6 +12,8 @@ import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.aikr.inet.parser.domain.WebImage;
+import ru.aikr.inet.parser.repository.WebImageRepository;
 import ru.aikr.inet.parser.service.VKApiService;
 
 import java.io.File;
@@ -23,6 +25,7 @@ public class VKApiServiceImpl implements VKApiService {
 
     private static final TransportClient transportClient = HttpTransportClient.getInstance();
     private static final VkApiClient vk = new VkApiClient(transportClient);
+    private final WebImageRepository imageRepository;
 
     @Value("${vk.user-id}")
     private Integer USER_ID;
@@ -33,12 +36,15 @@ public class VKApiServiceImpl implements VKApiService {
 
 
     @Override
-    public void postToWall() {
+    public void postToWall(List<WebImage> fullImagesList) {
         //get UserActor
         UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
 
         //получаем полный список картинок
         //делим количественно по 10 шт. (с округлением в большую сторону - Math.ceil(num))
+        System.out.println("Total size: " + fullImagesList.size());
+        System.out.println("DEBUG qtyPosts: " + Math.ceil((fullImagesList.size()) / 10));
+
         //createPost в цикле
 
         //после чистим локальное хранилище от скачанных картинок

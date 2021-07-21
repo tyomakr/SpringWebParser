@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.aikr.inet.parser.domain.WebImage;
 import ru.aikr.inet.parser.repository.WebImageRepository;
+import ru.aikr.inet.parser.service.VKApiService;
 import ru.aikr.inet.parser.service.WebImageParserService;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class FishkiRestController {
 
     private final WebImageParserService parser;
     private final WebImageRepository webImageRepository;
+    private final VKApiService vkApiService;
 
     //получение картинок от сайта из определенного диапазона страниц и замещение новым запросом старой коллекции в базе
     @GetMapping("/images/{num1}/to/{num2}")
@@ -32,7 +34,9 @@ public class FishkiRestController {
     //получение списка выбранных картинок из фронтэнда и запись в БД
     @PostMapping("/images")
     public ResponseEntity<List<WebImage>> saveAndPublishSelectedImages(@RequestBody List<WebImage> webImageList) {
-        System.out.println(webImageList.size());
+
+        vkApiService.postToWall(webImageList);
+
         return ResponseEntity.ok().build();
     }
 

@@ -18,7 +18,17 @@ class storeFI {
             console.log(response.data);
             this.webImages = response.data;
         } catch (e) {
-            console.log(e)
+            console.log("err on GetWebImagesFromPages method: " + e)
+        }
+    }
+
+    @action
+    async saveAndPublishSelectedImages(data) {
+        try {
+            const response = await BackendApiService.saveAndPublishSelectedImages(data);
+            return response.status;
+        } catch (e) {
+            console.log("err on saveAndPublishSelectedImages method: " + e)
         }
     }
 
@@ -28,7 +38,7 @@ class storeFI {
             this.webImages = [];
             this.selectedImages = [];
         } catch (e) {
-            console.log(e)
+            console.log("err on clearStore method: " + e)
         }
     }
 
@@ -38,7 +48,7 @@ class storeFI {
             this.step1 = false;
             this.step2 = false;
         } catch (e) {
-            console.log(e)
+            console.log("err on resetStepsState method: " + e)
         }
     }
 

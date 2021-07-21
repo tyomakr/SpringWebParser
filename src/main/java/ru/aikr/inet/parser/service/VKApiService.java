@@ -1,6 +1,10 @@
 package ru.aikr.inet.parser.service;
 
+import ru.aikr.inet.parser.domain.WebImage;
+
+import java.util.List;
+
 public interface VKApiService {
 
-    void postToWall();
+    void postToWall(List<WebImage> imageList);
 }
