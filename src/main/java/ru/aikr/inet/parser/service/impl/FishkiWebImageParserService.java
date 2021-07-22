@@ -7,7 +7,6 @@ import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.aikr.inet.parser.domain.WebImage;
-import ru.aikr.inet.parser.repository.WebImageRepository;
 import ru.aikr.inet.parser.service.WebImageParserService;
 
 import java.io.IOException;
@@ -25,8 +24,6 @@ public class FishkiWebImageParserService implements WebImageParserService {
     private String divContainerWithImage;
 
 
-    private final WebImageRepository repository;
-
     @Override
     public List<WebImage> getImageLinksFromPages(int pageBegin, int pageEnd) {
         List<WebImage> resultList = new ArrayList<>();
@@ -34,9 +31,6 @@ public class FishkiWebImageParserService implements WebImageParserService {
         for (int i = pageBegin; i <= pageEnd; i++) {
             getImgLinksPerPage(i, resultList);
         }
-
-        repository.deleteAll();
-        repository.saveAll(resultList);
 
         return resultList;
     }

@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.aikr.inet.parser.domain.WebImage;
-import ru.aikr.inet.parser.repository.WebImageRepository;
 import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageParserService;
 
@@ -16,7 +15,6 @@ import java.util.List;
 public class FishkiRestController {
 
     private final WebImageParserService parser;
-    private final WebImageRepository webImageRepository;
     private final VKPublishService vkPublishService;
 
     //получение картинок от сайта из определенного диапазона страниц и замещение новым запросом старой коллекции в базе
@@ -31,19 +29,10 @@ public class FishkiRestController {
                 .body(linksImagesList);
     }
 
-    //получение списка выбранных картинок из фронтэнда и запись в БД
+    //получение списка выбранных картинок из фронтэнда и отправка на публикацию
     @PostMapping("/images")
     public ResponseEntity<List<WebImage>> saveAndPublishSelectedImages(@RequestBody List<WebImage> webImageList) {
-
         vkPublishService.postToWall(webImageList);
-
         return ResponseEntity.ok().build();
-    }
-
-
-    //получение всех ссылок на картинки из базы
-    @GetMapping("/images/findAll")
-    public ResponseEntity<List<WebImage>> findAll(){
-        return ResponseEntity.ok(webImageRepository.findAll());
     }
 }

@@ -43,6 +43,8 @@ public class VKPublishServiceImpl implements VKPublishService {
         //get UserActor
         UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
 
+        System.out.println("DEBUG: BEGIN SENDING");
+
         //преобразуем полный список WebImage в список File, попутно выкачивая файлы
         List<File> fileList = convertWebImageListToFileList(fullImagesList);
 
