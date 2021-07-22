@@ -4,7 +4,7 @@ import ru.aikr.inet.parser.domain.WebImage;
 
 import java.util.List;
 
-public interface VKApiService {
+public interface VKPublishService {
 
     void postToWall(List<WebImage> imageList);
 }

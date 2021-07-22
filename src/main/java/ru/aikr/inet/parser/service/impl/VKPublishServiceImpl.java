@@ -10,22 +10,25 @@ import com.vk.api.sdk.objects.photos.responses.WallUploadResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.aikr.inet.parser.domain.WebImage;
-import ru.aikr.inet.parser.repository.WebImageRepository;
-import ru.aikr.inet.parser.service.VKApiService;
+import ru.aikr.inet.parser.service.VKPublishService;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class VKApiServiceImpl implements VKApiService {
+public class VKPublishServiceImpl implements VKPublishService {
 
     private static final TransportClient transportClient = HttpTransportClient.getInstance();
     private static final VkApiClient vk = new VkApiClient(transportClient);
-    private final WebImageRepository imageRepository;
 
     @Value("${vk.user-id}")
     private Integer USER_ID;
@@ -40,21 +43,51 @@ public class VKApiServiceImpl implements VKApiService {
         //get UserActor
         UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
 
-        //получаем полный список картинок
-        //делим количественно по 10 шт. (с округлением в большую сторону - Math.ceil(num))
-        System.out.println("Total size: " + fullImagesList.size());
-        System.out.println("DEBUG qtyPosts: " + Math.ceil((fullImagesList.size()) / 10));
+        //преобразуем полный список WebImage в список File, попутно выкачивая файлы
+        List<File> fileList = convertWebImageListToFileList(fullImagesList);
+
+        //делим количественно по 10 шт. (на каждый пост)
+        List<List<File>> chunkedLists = chunkify(fileList, 10);
 
         //createPost в цикле
+        for (List<File> chunkedList : chunkedLists) {
+            createPost(userActor, chunkedList);
+        }
 
-        //после чистим локальное хранилище от скачанных картинок
+        //удаляем скачанные файлы
+        deleteDownloadedFiles(fileList);
+        System.out.println("DEBUG: COMPLETE");
+    }
 
 
+    private static List<File> convertWebImageListToFileList(List<WebImage> webImageList) {
+        List<File> fileList = new ArrayList<>();
+
+        try {
+            for (WebImage webImage : webImageList) {
+                URL currentURL = new URL(webImage.getDirectLink());
+                BufferedImage img = ImageIO.read(currentURL);
+                File file = new File("file" + FilenameUtils.getName(currentURL.getPath()));
+                ImageIO.write(img, "jpg", file);
+                fileList.add(file);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return fileList;
+    }
 
 
+    //делим большой список на части
+    private static <T> List<List<T>> chunkify(List<T> list, int chunkSize){
+        List<List<T>> chunks = new ArrayList<>();
 
-
-
+        for (int i = 0; i < list.size(); i += chunkSize) {
+            List<T> chunk = new ArrayList<>(list.subList(i, Math.min(list.size(), i + chunkSize)));
+            chunks.add(chunk);
+        }
+        return chunks;
     }
 
     @SneakyThrows
@@ -79,6 +112,7 @@ public class VKApiServiceImpl implements VKApiService {
             String attachId = "photo" + photo.getOwnerId() + "_" + photo.getId();
 
             attachIds.append(attachId).append(",");
+            Thread.sleep(1000);
         }
 
         //del last comma
@@ -89,9 +123,6 @@ public class VKApiServiceImpl implements VKApiService {
                 .ownerId(GROUP_ID)
                 .attachments(attachIds.toString())
                 .execute();
-
-        //del downloaded local files
-        deleteDownloadedFiles(fileList);
     }
 
     private void deleteDownloadedFiles(List<File>fileList) {
