@@ -17,7 +17,6 @@ class FWIRequest extends React.Component {
         const {storeFI} = this.props;
         try {
             await storeFI.getWebImagesFromPages(values.num1, values.num2)
-            // this.props.history.push("/gallery")
             this.props.storeFI.step1 = true;
 
         } catch (e) {console.log(e)}

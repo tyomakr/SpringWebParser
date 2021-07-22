@@ -5,7 +5,6 @@ import FWIStepper from "./components/FWIStepper";
 import history from "./components/history";
 import {inject, observer} from "mobx-react";
 import './common/App.css';
-import Gallery from "./components/pages/Gallery";
 
 
 
@@ -25,10 +24,7 @@ class App extends Component {
                                 <Link to={"/"} className="nav-link">Главная</Link>
                             </li>
                             <li className="nav-item">
-                                <Link to={"/fwi-stepper"} className="nav-link">Степпер</Link>
-                            </li>
-                            <li className="nav-item">
-                                <Link to={"/gallery"} className="nav-link">Галерея</Link>
+                                <Link to={"/fwi-stepper"} className="nav-link">Изображения</Link>
                             </li>
                         </div>
                     </nav>
@@ -36,7 +32,6 @@ class App extends Component {
 
                     <Switch>
                         <Route exact path="/" component={MainPage}/>
-                        <Route exact path="/gallery" component={Gallery}/>
                         <Route exact path="/fwi-stepper" component={FWIStepper} />
                     </Switch>
                 </Router>

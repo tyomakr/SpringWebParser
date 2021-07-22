@@ -13,9 +13,13 @@ class PrepareToSendImages extends React.Component {
         this.onHandleSendImages = this.onHandleSendImages.bind(this);
     }
 
-
     onHandleSendImages() {
-        storeFI.saveAndPublishSelectedImages(storeFI.selectedImages).then(r => console.log(r))
+        if (storeFI.selectedImages.length > 0) {
+            storeFI.saveAndPublishSelectedImages(storeFI.selectedImages).then(r =>
+                console.log("Status: " + r)
+
+            )
+        }
     }
 
 
@@ -32,8 +36,7 @@ class PrepareToSendImages extends React.Component {
                     <h4 className="header-section">Подготовка к отправке</h4>
                     <div className="container-fluid separator-margin">
 
-                        <button className="btn btn-outline-dark" type="button"
-                                onClick={()=> this.onHandleSendImages()}>ОТПРАВИТЬ
+                        <button className="btn btn-outline-dark" type="button" onClick={()=> this.onHandleSendImages()}>ОТПРАВИТЬ
                         </button>
 
                     </div>

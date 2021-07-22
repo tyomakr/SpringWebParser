@@ -10,27 +10,9 @@ import ImageListItem from '@material-ui/core/ImageListItem'
 import ImageListItemBar from '@material-ui/core/ImageListItemBar';
 import IconButton from '@material-ui/core/IconButton';
 import InfoIcon from '@material-ui/icons/Info';
-import Fab from '@material-ui/core/Fab';
-import AddIcon from '@material-ui/icons/Add';
 
 
 const useStyles = theme => ({
-    // root: {
-    //     display: 'flex',
-    //     flexWrap: 'wrap',
-    //     justifyContent: 'space-around',
-    //     overflow: 'hidden',
-    //     backgroundColor: theme.palette.background.paper,
-    //     objectFit: 'cover'
-    // },
-    // ImageList: {
-    //     width: '95%',
-    //     height: '95%',
-    //     objectFit: 'cover'
-    // },
-    // icon: {
-    //     color: 'rgba(255, 255, 255, 0.7)',
-    // },
     a: {
         display: 'block',
         height: '100%',
@@ -105,7 +87,7 @@ class Gallery extends React.Component {
                                     sx={{width: 300, height: 300}} cols={4} rowHeight={400} gap={5} component={"image"}>
                                     {this.state.pageOfItems.map((webImage) => (
                                         <ImageListItem key={webImage.id} >
-                                            <img src={webImage.directLink} className="img-gal" />
+                                            <img src={webImage.directLink} alt={webImage.id} className="img-gal" />
                                             <ImageListItemBar
                                                 actionIcon={
                                                     <IconButton type="button"
@@ -119,22 +101,7 @@ class Gallery extends React.Component {
                                     ))}
                                 </ImageList>
                             </div>
-                            {/*<ImageList cols={3} rowHeight={400}>*/}
-                            {/*    {this.state.pageOfItems.map((webImage) => (*/}
-                            {/*        <ImageListItem key={webImage.id}>*/}
-                            {/*            <a className={classes.a} href="#">*/}
-                            {/*                <img*/}
-                            {/*                    className={classes.img}*/}
-                            {/*                    src={webImage.directLink}*/}
-                            {/*                    alt={webImage.id}*/}
-                            {/*                />*/}
-                            {/*            </a>*/}
-                            {/*        </ImageListItem>*/}
-                            {/*    ))}*/}
-                            {/*</ImageList>*/}
 
-
-                            {/*<button type="button" onClick={() => console.log(this.state.image)}>OK</button>*/}
                             <Pagination items={this.state.items} onChangePage={this.onChangePage}/>
                         </div>
 

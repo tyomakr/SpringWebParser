@@ -17,7 +17,7 @@
 }
 
 .separator-margin {
-  margin: 10pt;
+  margin: 30pt;
 }
 
 .link-p {
@@ -26,4 +26,27 @@
 
 .img-gal {
   max-width: 80%;
+}
+
+.separator-margin-stepper-btn {
+  margin-top: 40pt;
+}
+
+.separator-margin-3 {
+  margin-top: 20pt;
+  margin-left: 15pt;
+}
+
+.header-info {
+  position: sticky;
+  top: 0;
+  margin-left: 20pt;
+  margin-top: 20pt;
+  z-index: 999999;
+  background-color: white;
+
+}
+
+.header-info-td {
+  width: 25%;
 }
