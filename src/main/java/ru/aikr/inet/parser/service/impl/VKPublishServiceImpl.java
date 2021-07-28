@@ -21,7 +21,10 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -65,9 +68,22 @@ public class VKPublishServiceImpl implements VKPublishService {
     private static List<File> convertWebImageListToFileList(List<WebImage> webImageList) {
         List<File> fileList = new ArrayList<>();
 
+        //проверка на наличие проблемных расширений (типа webp)
+        Iterator<WebImage> imageIterator = webImageList.iterator();
+        while (imageIterator.hasNext()) {
+            WebImage nextWebImage = imageIterator.next();
+            if (nextWebImage.getDirectLink().matches("^.*webp$")) {
+                System.out.println("Excluding (webp ext) : " + nextWebImage.getDirectLink());
+                imageIterator.remove();
+            }
+
+        }
+
+
         try {
             for (WebImage webImage : webImageList) {
                 URL currentURL = new URL(webImage.getDirectLink());
+
                 BufferedImage img = ImageIO.read(currentURL);
                 File file = new File("file" + FilenameUtils.getName(currentURL.getPath()));
                 ImageIO.write(img, "jpg", file);
@@ -114,7 +130,7 @@ public class VKPublishServiceImpl implements VKPublishService {
             String attachId = "photo" + photo.getOwnerId() + "_" + photo.getId();
 
             attachIds.append(attachId).append(",");
-            Thread.sleep(1000);
+            Thread.sleep(500);
         }
 
         //del last comma
