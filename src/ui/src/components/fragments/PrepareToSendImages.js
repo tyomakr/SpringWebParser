@@ -16,7 +16,7 @@ class PrepareToSendImages extends React.Component {
     onHandleSendImages() {
         if (storeFI.selectedImages.length > 0) {
             storeFI.saveAndPublishSelectedImages(storeFI.selectedImages).then(r =>
-                console.log("Status: " + r)
+                console.log("Result: " + r)
 
             )
         }

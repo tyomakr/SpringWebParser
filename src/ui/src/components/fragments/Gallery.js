@@ -1,42 +1,14 @@
-import React, {useEffect} from "react";
+import React from "react";
 import {Helmet} from "react-helmet/es/Helmet";
 import Pagination from "../Pagination";
 import {inject, observer} from "mobx-react";
 import storeFI from "../../store/storeFI";
+import {ImageList} from "@mui/material";
+import {ImageListItem} from "@mui/material";
+import {ImageListItemBar} from "@mui/material";
+import {IconButton} from "@mui/material";
+import InfoIcon from '@mui/icons-material/Info';
 
-import { withStyles } from '@material-ui/core/styles';
-import ImageList from '@material-ui/core/ImageList';
-import ImageListItem from '@material-ui/core/ImageListItem'
-import ImageListItemBar from '@material-ui/core/ImageListItemBar';
-import IconButton from '@material-ui/core/IconButton';
-import InfoIcon from '@material-ui/icons/Info';
-
-
-const useStyles = theme => ({
-    a: {
-        display: 'block',
-        height: '100%',
-    },
-    root: {
-        display: "flex",
-        flexWrap: "nowrap",
-        justifyContent: "space-around",
-        overflow: "hidden",
-        backgroundColor: theme.palette.background.paper
-    },
-    imageList: {
-        flexWrap: "wrap",
-        transform: "translateZ(0)",
-        width: "100%"
-    },
-    title: {
-        color: "white"
-    },
-    titleBar: {
-        background:
-            "linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)"
-    }
-});
 
 @inject('storeFI')
 @observer
@@ -68,43 +40,43 @@ class Gallery extends React.Component {
 
 
     render() {
-        const { classes } = this.props;
         return (
             <div>
                 <Helmet
                     htmlAttributes={{"lang": "ru", "amp": undefined}}
                     title="Галерея и выбор изображений"
-                    titleTemplate="Spring web parser - %s" />
+                    titleTemplate="Spring web parser - %s"/>
 
                 <div className="jumbotron">
                     <h3 className="header-section">Просмотр и выбор изображений</h3>
                     <div className="container-fluid">
-
                         <div className="text-center">
-
-                            <div className={classes.root}>
-                                <ImageList
-                                    sx={{width: 300, height: 300}} cols={4} rowHeight={400} gap={5} component={"image"}>
-                                    {this.state.pageOfItems.map((webImage) => (
-                                        <ImageListItem key={webImage.id} >
-                                            <img src={webImage.directLink} alt={webImage.id} className="img-gal" />
-                                            <ImageListItemBar
-                                                actionIcon={
-                                                    <IconButton type="button"
-                                                                onClick={()=> this.onHandleSelectImages(webImage)}
-                                                                className={classes.icon}>
-                                                        <InfoIcon />
-                                                    </IconButton>
-                                                }
-                                            />
-                                        </ImageListItem>
-                                    ))}
-                                </ImageList>
-                            </div>
-
+                            <ImageList cols={5} rowHeight='auto'>
+                                {this.state.pageOfItems.map((webImage) => (
+                                    <ImageListItem key={webImage.id}
+                                                   // sx={{width: 300, height: 300}}
+                                    >
+                                        <img
+                                            className={"img-gal"}
+                                            src={webImage.directLink}
+                                            alt={webImage.id}
+                                            loading="lazy"
+                                        />
+                                        <ImageListItemBar
+                                            title={""}
+                                            actionIcon={
+                                                <IconButton type="button"
+                                                            sx={{color: 'rgba(255, 255, 255, 0.54)'}}
+                                                            onClick={() => this.onHandleSelectImages(webImage)}>
+                                                    <InfoIcon/>
+                                                </IconButton>
+                                            }
+                                        />
+                                    </ImageListItem>
+                                ))}
+                            </ImageList>
                             <Pagination items={this.state.items} onChangePage={this.onChangePage}/>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -112,4 +84,4 @@ class Gallery extends React.Component {
     }
 }
 
-export default withStyles(useStyles)(Gallery)
+export default Gallery;

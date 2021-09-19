@@ -1,30 +1,14 @@
 import React from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import Stepper from '@material-ui/core/Stepper';
-import Step from '@material-ui/core/Step';
-import StepLabel from '@material-ui/core/StepLabel';
-import Button from '@material-ui/core/Button';
-import Typography from '@material-ui/core/Typography';
+import {Box, Stepper} from "@mui/material";
+import {Step} from "@mui/material";
+import {StepLabel} from "@mui/material";
+import {Button} from "@mui/material"
+import {Typography} from "@mui/material";
 import FWIRequest from "../components/fragments/FWIRequest"
 import {inject, observer} from 'mobx-react';
 import Gallery from "./fragments/Gallery";
 import PrepareToSendImages from "./fragments/PrepareToSendImages";
 
-const useStyles = makeStyles((theme) => ({
-    root: {
-        width: '95%',
-        marginBottom: theme.spacing(10)
-    },
-    button: {
-        marginLeft: theme.spacing(2),
-        marginRight: theme.spacing(1),
-    },
-    instructions: {
-        marginTop: theme.spacing(1),
-        marginLeft: theme.spacing(2),
-        marginBottom: theme.spacing(1),
-    },
-}));
 
 function getSteps() {
     return ['Запрос изображений', 'Отбор изображений', 'Отправка изображений'];
@@ -45,7 +29,7 @@ function getStepContent(step) {
 
 
 const ImageStepper = inject("storeFI")(observer((props) => {
-    const classes = useStyles();
+    // const classes = useStyles();
     const [activeStep, setActiveStep] = React.useState(0);
     const steps = getSteps();
 
@@ -71,7 +55,7 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                         <td className="header-info-td">Выбрано изображений:&nbsp;<b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.length : 'нет'}</b></td>
                         <td className="header-info-td">
                             <Button
-                                variant="contained" color="warning" disabled={activeStep === 0} onClick={handleReset} className={classes.button}>Сброс
+                                variant="contained" color="warning" disabled={activeStep === 0} sx={{ mr: 1, ml: 2 }} onClick={handleReset}>Сброс
                             </Button>
                         </td>
                         <td></td>
@@ -80,9 +64,9 @@ const ImageStepper = inject("storeFI")(observer((props) => {
 
 
             </header>
-            <div className="container-fluid">
-                <div className={classes.root}>
-                    <Stepper activeStep={activeStep}>
+            <Box className="container-fluid">
+                <div sx={{width: '100%'}}>
+                    <Stepper nonLinear activeStep={activeStep}>
                         {steps.map((label, index) => {
                             const stepProps = {};
                             const labelProps = {};
@@ -97,15 +81,13 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                     <div>
                         {activeStep === steps.length ? (
                             <div>
-                                <Button onClick={handleReset} className={classes.button}>
-                                    Reset
-                                </Button>
+                                <Button onClick={handleReset}>Reset</Button>
                             </div>
                         ) : (
                             <div>
-                                <Typography className={classes.instructions}>{getStepContent(activeStep)}</Typography>
+                                <Typography sx={{ mt: 2, mb: 1 }}>{getStepContent(activeStep)}</Typography>
                                 <div className="separator-margin-stepper-btn">
-                                    <Button disabled={activeStep === 0} onClick={handleBack} className={classes.button}>
+                                    <Button disabled={activeStep === 0} onClick={handleBack} sx={{ mr: 1 }}>
                                         Назад
                                     </Button>
 
@@ -116,7 +98,7 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                                         disabled={!props.storeFI.step1 || props.storeFI.selectedImages > 0}
                                         hidden={activeStep === steps.length - 1}
                                         onClick={handleNext}
-                                        className={classes.button}>
+                                        sx={{ mr: 1 }}>
                                         {activeStep === steps.length - 2 ? 'Подготовка к отправке' : 'Далее'}
                                     </Button>
                                 </div>
@@ -124,7 +106,7 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                         )}
                     </div>
                 </div>
-            </div>
+            </Box>
         </div>
     );
 }));

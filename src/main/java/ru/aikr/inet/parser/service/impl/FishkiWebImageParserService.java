@@ -12,10 +12,13 @@ import ru.aikr.inet.parser.service.WebImageParserService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
 public class FishkiWebImageParserService implements WebImageParserService {
+
+    private static final Logger log = Logger.getLogger("FishkiParserService");
 
     @Value("${sites.fishki-url}")
     private String fishkiUrl;
@@ -31,6 +34,8 @@ public class FishkiWebImageParserService implements WebImageParserService {
         for (int i = pageBegin; i <= pageEnd; i++) {
             getImgLinksPerPage(i, resultList);
         }
+
+        log.info("Received successfully " + resultList.size() + " links");
 
         return resultList;
     }

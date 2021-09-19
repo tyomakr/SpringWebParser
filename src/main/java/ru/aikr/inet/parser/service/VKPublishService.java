@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface VKPublishService {
 
-    void postToWall(List<WebImage> imageList);
+    boolean postToWall(List<WebImage> imageList);
 }

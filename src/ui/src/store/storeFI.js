@@ -1,6 +1,5 @@
 import {observable, action} from "mobx";
 import BackendApiService from "../service/BackendApiService";
-import {act} from "react-dom/test-utils";
 
 class storeFI {
     //main
@@ -26,7 +25,7 @@ class storeFI {
     async saveAndPublishSelectedImages(data) {
         try {
             const response = await BackendApiService.saveAndPublishSelectedImages(data);
-            return response.status;
+            return response.data;
         } catch (e) {
             console.log("err on saveAndPublishSelectedImages method: " + e)
         }

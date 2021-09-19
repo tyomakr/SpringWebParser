@@ -38,7 +38,7 @@ class FWIRequest extends React.Component {
                         <div>
                             <Form
                                 onSubmit={this.onSubmit}
-                                initialValues={{ num1: '1', num2: '10' }}
+                                initialValues={{ num1: '1', num2: '20' }}
                                 render={({ handleSubmit, form, submitting, pristine, values }) => (
                                     <form onSubmit={handleSubmit}>
 

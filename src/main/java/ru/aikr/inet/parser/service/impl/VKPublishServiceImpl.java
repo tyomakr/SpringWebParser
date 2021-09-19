@@ -23,8 +23,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +31,7 @@ public class VKPublishServiceImpl implements VKPublishService {
 
     private static final TransportClient transportClient = HttpTransportClient.getInstance();
     private static final VkApiClient vk = new VkApiClient(transportClient);
+    private static final Logger log = Logger.getLogger("VKPublish");
 
     @Value("${vk.user-id}")
     private Integer USER_ID;
@@ -39,29 +39,38 @@ public class VKPublishServiceImpl implements VKPublishService {
     private Integer GROUP_ID;
     @Value("${vk.access-token}")
     private String ACCESS_TOKEN;
+    @Value("${vk.chunk-size}")
+    private Integer CHUNK_SIZE;
 
 
     @Override
-    public void postToWall(List<WebImage> fullImagesList) {
-        //get UserActor
-        UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
+    public boolean postToWall(List<WebImage> fullImagesList) {
+        try {
+            //get UserActor
+            UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
 
-        System.out.println("DEBUG: BEGIN SENDING");
+            log.info("BEGIN SENDING TO VK");
 
-        //преобразуем полный список WebImage в список File, попутно выкачивая файлы
-        List<File> fileList = convertWebImageListToFileList(fullImagesList);
+            //преобразуем полный список WebImage в список File, попутно выкачивая файлы
+            List<File> fileList = convertWebImageListToFileList(fullImagesList);
 
-        //делим количественно по 10 шт. (на каждый пост)
-        List<List<File>> chunkedLists = chunkify(fileList, 10);
+            //делим количественно по 10 шт. (на каждый пост)
+            List<List<File>> chunkedLists = chunkify(fileList, CHUNK_SIZE);
 
-        //createPost в цикле
-        for (List<File> chunkedList : chunkedLists) {
-            createPost(userActor, chunkedList);
+            //createPost в цикле
+            for (List<File> chunkedList : chunkedLists) {
+                createPost(userActor, chunkedList);
+            }
+
+            //удаляем скачанные файлы
+            deleteDownloadedFiles(fileList);
+            log.info("SENDING COMPLETE");
+
+            return true;
+
+        } catch (Exception e) {
+            return false;
         }
-
-        //удаляем скачанные файлы
-        deleteDownloadedFiles(fileList);
-        System.out.println("DEBUG: COMPLETE");
     }
 
 
@@ -73,17 +82,17 @@ public class VKPublishServiceImpl implements VKPublishService {
         while (imageIterator.hasNext()) {
             WebImage nextWebImage = imageIterator.next();
             if (nextWebImage.getDirectLink().matches("^.*webp$")) {
-                System.out.println("Excluding (webp ext) : " + nextWebImage.getDirectLink());
+                log.warning("Excluding (webp ext) : " + nextWebImage.getDirectLink());
                 imageIterator.remove();
             }
-
         }
 
 
         try {
             for (WebImage webImage : webImageList) {
                 URL currentURL = new URL(webImage.getDirectLink());
-
+                //тут переработать механизм конвертации и можно попробовать добавлять webp
+                // без предварительной фильтрации
                 BufferedImage img = ImageIO.read(currentURL);
                 File file = new File("file" + FilenameUtils.getName(currentURL.getPath()));
                 ImageIO.write(img, "jpg", file);
@@ -91,6 +100,7 @@ public class VKPublishServiceImpl implements VKPublishService {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            log.warning("ERROR: " + e.getMessage());
         }
 
         return fileList;
@@ -148,8 +158,5 @@ public class VKPublishServiceImpl implements VKPublishService {
             FileUtils.deleteQuietly(file);
         }
     }
-
-
-
 }
 
