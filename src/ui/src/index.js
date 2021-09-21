@@ -3,15 +3,16 @@ import ReactDOM from 'react-dom';
 import App from './App';
 import { Provider } from "mobx-react";
 import mainStore from "./store/mainStore";
-import storeFI from "./store/storeFI"
+import storeFI from "./store/storeFI";
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'react-toastify/dist/ReactToastify.css';
 import './common/index.css';
 
 const stores = {mainStore, storeFI}
 
 ReactDOM.render(
         <Provider {...stores}>
-            <App />
+                <App />
         </Provider>,
     document.getElementById('root')
 );

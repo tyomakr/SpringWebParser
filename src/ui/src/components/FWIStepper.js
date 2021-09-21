@@ -9,7 +9,6 @@ import {inject, observer} from 'mobx-react';
 import Gallery from "./fragments/Gallery";
 import PrepareToSendImages from "./fragments/PrepareToSendImages";
 
-
 function getSteps() {
     return ['Запрос изображений', 'Отбор изображений', 'Отправка изображений'];
 }
@@ -29,7 +28,7 @@ function getStepContent(step) {
 
 
 const ImageStepper = inject("storeFI")(observer((props) => {
-    // const classes = useStyles();
+
     const [activeStep, setActiveStep] = React.useState(0);
     const steps = getSteps();
 
@@ -64,7 +63,7 @@ const ImageStepper = inject("storeFI")(observer((props) => {
 
 
             </header>
-            <Box className="container-fluid">
+            <Box className="container-fluid stepper-box">
                 <div sx={{width: '100%'}}>
                     <Stepper nonLinear activeStep={activeStep}>
                         {steps.map((label, index) => {
@@ -90,7 +89,6 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                                     <Button disabled={activeStep === 0} onClick={handleBack} sx={{ mr: 1 }}>
                                         Назад
                                     </Button>
-
 
                                     <Button
                                         variant="contained"

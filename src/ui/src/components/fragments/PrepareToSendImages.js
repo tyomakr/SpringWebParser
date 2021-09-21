@@ -2,48 +2,46 @@ import React from "react";
 import {Helmet} from "react-helmet/es/Helmet";
 import {inject, observer} from "mobx-react";
 import storeFI from "../../store/storeFI";
+import {toast} from "react-toastify";
 
-@inject('storeFI')
-@observer
-class PrepareToSendImages extends React.Component {
+const PrepareToSendImages = inject("storeFI")(observer((props) => {
 
-    constructor(props) {
-        super(props);
-
-        this.onHandleSendImages = this.onHandleSendImages.bind(this);
-    }
-
-    onHandleSendImages() {
+    const onHandleSendImages = () => {
         if (storeFI.selectedImages.length > 0) {
-            storeFI.saveAndPublishSelectedImages(storeFI.selectedImages).then(r =>
-                console.log("Result: " + r)
-
+            storeFI.saveAndPublishSelectedImages(storeFI.selectedImages).then(res =>
+                toast.success(
+                    res, {
+                        position: "bottom-right",
+                        autoClose: 5000,
+                        hideProgressBar: true,
+                        closeOnClick: true,
+                        pauseOnHover: true,
+                        draggable: true,
+                        progress: undefined,
+                    })
             )
         }
     }
 
+    return (
+        <div>
+            <Helmet
+                htmlAttributes={{"lang": "ru", "amp": undefined}}
+                title="Подготовка к отправке..."
+                titleTemplate="Spring web parser - %s" />
 
-    render() {
+            <div className="jumbotron">
+                <h4 className="header-section">Подготовка к отправке</h4>
 
-        return (
-            <div>
-                <Helmet
-                    htmlAttributes={{"lang": "ru", "amp": undefined}}
-                    title="Подготовка к отправке..."
-                    titleTemplate="Spring web parser - %s" />
 
-                <div className="jumbotron">
-                    <h4 className="header-section">Подготовка к отправке</h4>
-                    <div className="container-fluid separator-margin">
 
-                        <button className="btn btn-outline-dark" type="button" onClick={()=> this.onHandleSendImages()}>ОТПРАВИТЬ
-                        </button>
-
-                    </div>
+                <div className="container-fluid separator-margin">
+                    <button className="btn btn-outline-dark" type="button"
+                            onClick={()=> onHandleSendImages()}>ОТПРАВИТЬ</button>
                 </div>
             </div>
-        );
-    }
-}
+        </div>
+    );
+}));
 
 export default PrepareToSendImages

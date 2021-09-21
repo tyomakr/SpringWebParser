@@ -21,8 +21,6 @@
 }
 
 .img-gal {
-  width: 150px;
-  height: 150px;
   object-fit: contain;
 }
 /*.img-gal:hover {*/
@@ -56,4 +54,8 @@
 
 .header-info-td {
   width: 25%;
+}
+
+.stepper-box {
+  margin-bottom: 20pt;
 }
