@@ -36,7 +36,7 @@ public class FishkiRestController {
         boolean result = vkPublishService.postToWall(webImageList);
         if (result) {
             return ResponseEntity.ok()
-                    .body("COMPLETE");
+                    .body("Опубликовано " + webImageList.size() + " изображений");
         }
         return ResponseEntity.badRequest()
                 .body("PROBLEMS");

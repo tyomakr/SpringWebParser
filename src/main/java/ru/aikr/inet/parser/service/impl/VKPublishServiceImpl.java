@@ -21,6 +21,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
@@ -31,7 +32,7 @@ public class VKPublishServiceImpl implements VKPublishService {
 
     private static final TransportClient transportClient = HttpTransportClient.getInstance();
     private static final VkApiClient vk = new VkApiClient(transportClient);
-    private static final Logger log = Logger.getLogger("VKPublish");
+    private static final Logger log = Logger.getLogger("VKPublishService");
 
     @Value("${vk.user-id}")
     private Integer USER_ID;
@@ -54,6 +55,9 @@ public class VKPublishServiceImpl implements VKPublishService {
             //преобразуем полный список WebImage в список File, попутно выкачивая файлы
             List<File> fileList = convertWebImageListToFileList(fullImagesList);
 
+            //собираем коллекцию в обратном порядке для удобства просмотра связанных изображений
+            Collections.reverse(fileList);
+
             //делим количественно по 10 шт. (на каждый пост)
             List<List<File>> chunkedLists = chunkify(fileList, CHUNK_SIZE);
 
@@ -64,7 +68,7 @@ public class VKPublishServiceImpl implements VKPublishService {
 
             //удаляем скачанные файлы
             deleteDownloadedFiles(fileList);
-            log.info("SENDING COMPLETE");
+            log.info("SENDING FINISHED");
 
             return true;
 
