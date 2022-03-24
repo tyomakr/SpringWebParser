@@ -7,22 +7,19 @@ import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.photos.responses.GetWallUploadServerResponse;
 import com.vk.api.sdk.objects.photos.responses.SaveWallPhotoResponse;
 import com.vk.api.sdk.objects.photos.responses.WallUploadResponse;
+import com.vk.api.sdk.objects.wall.responses.PostResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.aikr.inet.parser.domain.WebImage;
 import ru.aikr.inet.parser.service.VKPublishService;
+import ru.aikr.inet.parser.service.WebImageParserService;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -34,6 +31,8 @@ public class VKPublishServiceImpl implements VKPublishService {
     private static final VkApiClient vk = new VkApiClient(transportClient);
     private static final Logger log = Logger.getLogger("VKPublishService");
 
+    private final WebImageParserService webImageParserService;
+
     @Value("${vk.user-id}")
     private Integer USER_ID;
     @Value("${vk.group-id}")
@@ -42,6 +41,8 @@ public class VKPublishServiceImpl implements VKPublishService {
     private String ACCESS_TOKEN;
     @Value("${vk.chunk-size}")
     private Integer CHUNK_SIZE;
+    @Value("${time.post-pub-delay}")
+    private Integer POST_PUB_DELAY_TIME;
 
 
     @Override
@@ -53,7 +54,7 @@ public class VKPublishServiceImpl implements VKPublishService {
             log.info("BEGIN SENDING TO VK");
 
             //преобразуем полный список WebImage в список File, попутно выкачивая файлы
-            List<File> fileList = convertWebImageListToFileList(fullImagesList);
+            List<File> fileList = webImageParserService.downloadImagesFromWebImageLinks(fullImagesList);
 
             //собираем коллекцию в обратном порядке для удобства просмотра связанных изображений
             Collections.reverse(fileList);
@@ -67,49 +68,17 @@ public class VKPublishServiceImpl implements VKPublishService {
             }
 
             //удаляем скачанные файлы
+            log.info("Cleaning downloaded files...");
             deleteDownloadedFiles(fileList);
             log.info("SENDING FINISHED");
 
             return true;
 
         } catch (Exception e) {
+            log.warning("Problem to post: " + e.getMessage());
             return false;
         }
     }
-
-
-    private static List<File> convertWebImageListToFileList(List<WebImage> webImageList) {
-        List<File> fileList = new ArrayList<>();
-
-        //проверка на наличие проблемных расширений (типа webp)
-        Iterator<WebImage> imageIterator = webImageList.iterator();
-        while (imageIterator.hasNext()) {
-            WebImage nextWebImage = imageIterator.next();
-            if (nextWebImage.getDirectLink().matches("^.*webp$")) {
-                log.warning("Excluding (webp ext) : " + nextWebImage.getDirectLink());
-                imageIterator.remove();
-            }
-        }
-
-
-        try {
-            for (WebImage webImage : webImageList) {
-                URL currentURL = new URL(webImage.getDirectLink());
-                //тут переработать механизм конвертации и можно попробовать добавлять webp
-                // без предварительной фильтрации
-                BufferedImage img = ImageIO.read(currentURL);
-                File file = new File("file" + FilenameUtils.getName(currentURL.getPath()));
-                ImageIO.write(img, "jpg", file);
-                fileList.add(file);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            log.warning("ERROR: " + e.getMessage());
-        }
-
-        return fileList;
-    }
-
 
     //делим большой список на части
     private static <T> List<List<T>> chunkify(List<T> list, int chunkSize){
@@ -140,21 +109,23 @@ public class VKPublishServiceImpl implements VKPublishService {
                     .hash(uploadResponse.getHash())
                     .execute();
 
+
             SaveWallPhotoResponse photo = photoList.get(0);
             String attachId = "photo" + photo.getOwnerId() + "_" + photo.getId();
 
             attachIds.append(attachId).append(",");
-            Thread.sleep(500);
+            Thread.sleep(POST_PUB_DELAY_TIME);
         }
 
         //del last comma
         attachIds.delete(attachIds.length() - 1, attachIds.length());
 
         //post to group wall
-        vk.wall().post(actor)
+        PostResponse postResponse = vk.wall().post(actor)
                 .ownerId(GROUP_ID)
                 .attachments(attachIds.toString())
                 .execute();
+        log.info(postResponse.toPrettyString());
     }
 
     private void deleteDownloadedFiles(List<File>fileList) {
