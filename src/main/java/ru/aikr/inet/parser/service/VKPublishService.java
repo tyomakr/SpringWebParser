@@ -1,0 +1,10 @@
+package ru.aikr.inet.parser.service;
+
+import ru.aikr.inet.parser.domain.WebImage;
+
+import java.util.List;
+
+public interface VKPublishService {
+
+    boolean postToWall(List<WebImage> imageList);
+}

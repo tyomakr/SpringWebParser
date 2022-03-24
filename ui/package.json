@@ -1,5 +1,5 @@
 {
-  "name": "ComImgParser",
+  "name": "SpringWebParser",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -7,6 +7,11 @@
     "@babel/plugin-proposal-decorators": "^7.12.13",
     "@babel/plugin-syntax-jsx": "^7.14.5",
     "@babel/preset-react": "^7.14.5",
+    "@emotion/react": "^11.4.1",
+    "@emotion/styled": "^11.3.0",
+    "@mui/icons-material": "^5.0.0",
+    "@mui/material": "^5.0.0",
+    "@mui/styles": "^5.0.0",
     "@popperjs/core": "^2.9.2",
     "axios": "^0.21.1",
     "bootstrap": "^5.0.2",
@@ -14,7 +19,6 @@
     "final-form": "^4.20.2",
     "history": "4.10.1",
     "http-proxy-middleware": "^2.0.0",
-    "immutable": "^4.0.0-rc.12",
     "mobx": "^5.15.4",
     "mobx-react": "^6.1.8",
     "moment": "^2.29.1",
@@ -26,9 +30,9 @@
     "react-dom": "^17.0.2",
     "react-final-form": "^6.5.2",
     "react-helmet": "^6.1.0",
-    "react-image-picker": "^1.1.1",
     "react-router-dom": "^5.2.0",
     "react-scripts": "4.0.2",
+    "react-toastify": "^8.0.2",
     "web-vitals": "^1.0.1"
   },
   "scripts": {
@@ -55,7 +59,12 @@
   },
   "babel": {
     "plugins": [
-      "@babel/plugin-proposal-decorators",
+      [
+        "@babel/plugin-proposal-decorators",
+        {
+          "legacy": true
+        }
+      ],
       "@babel/preset-react"
     ],
     "presets": [

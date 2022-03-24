@@ -1,13 +1,11 @@
 package ru.aikr.inet.parser.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import ru.aikr.inet.parser.domain.WebImage;
-import ru.aikr.inet.parser.repository.WebImageRepository;
+import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageParserService;
 
 import java.util.List;
@@ -18,7 +16,7 @@ import java.util.List;
 public class FishkiRestController {
 
     private final WebImageParserService parser;
-    private final WebImageRepository webImageRepository;
+    private final VKPublishService vkPublishService;
 
     //получение картинок от сайта из определенного диапазона страниц и замещение новым запросом старой коллекции в базе
     @GetMapping("/images/{num1}/to/{num2}")
@@ -32,9 +30,15 @@ public class FishkiRestController {
                 .body(linksImagesList);
     }
 
-    //получение всех ссылок на картинки из базы
-    @GetMapping("/images/findAll")
-    public ResponseEntity<List<WebImage>> findAll(){
-        return ResponseEntity.ok(webImageRepository.findAll());
+    //получение списка выбранных картинок из фронтэнда и отправка на публикацию
+    @PostMapping("/images")
+    public ResponseEntity<String> saveAndPublishSelectedImages(@RequestBody List<WebImage> webImageList) {
+        boolean result = vkPublishService.postToWall(webImageList);
+        if (result) {
+            return ResponseEntity.ok()
+                    .body("Опубликовано " + webImageList.size() + " изображений");
+        }
+        return ResponseEntity.badRequest()
+                .body("PROBLEMS");
     }
 }
