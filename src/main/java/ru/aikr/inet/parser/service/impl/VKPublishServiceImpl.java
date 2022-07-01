@@ -27,8 +27,6 @@ import java.util.logging.Logger;
 @RequiredArgsConstructor
 public class VKPublishServiceImpl implements VKPublishService {
 
-    private static final TransportClient transportClient = HttpTransportClient.getInstance();
-    private static final VkApiClient vk = new VkApiClient(transportClient);
     private static final Logger log = Logger.getLogger("VKPublishService");
 
     private final WebImageParserService webImageParserService;
@@ -47,6 +45,7 @@ public class VKPublishServiceImpl implements VKPublishService {
 
     @Override
     public boolean postToWall(List<WebImage> fullImagesList) {
+
         try {
             //get UserActor
             UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
@@ -93,6 +92,9 @@ public class VKPublishServiceImpl implements VKPublishService {
 
     @SneakyThrows
     private void createPost(UserActor actor, List<File> fileList) {
+
+        TransportClient transportClient = HttpTransportClient.getInstance();
+        VkApiClient vk = new VkApiClient(transportClient);
 
         StringBuilder attachIds = new StringBuilder();
         //для каждого изображения

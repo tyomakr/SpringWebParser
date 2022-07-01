@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import React from 'react';
 import {Link, Route, Router, Switch} from 'react-router-dom';
 import MainPage from './components/pages/MainPage';
 import FWIStepper from "./components/FWIStepper";

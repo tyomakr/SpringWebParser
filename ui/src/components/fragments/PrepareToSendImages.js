@@ -33,8 +33,6 @@ const PrepareToSendImages = inject("storeFI")(observer((props) => {
             <div className="jumbotron">
                 <h4 className="header-section">Подготовка к отправке</h4>
 
-
-
                 <div className="container-fluid separator-margin">
                     <button className="btn btn-outline-dark" type="button"
                             onClick={()=> onHandleSendImages()}>ОТПРАВИТЬ</button>

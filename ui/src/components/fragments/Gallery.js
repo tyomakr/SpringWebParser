@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from "react";
+import React, {useState} from "react";
 import {Helmet} from "react-helmet/es/Helmet";
 import Pagination from "../Pagination";
 import {inject, observer} from "mobx-react";
