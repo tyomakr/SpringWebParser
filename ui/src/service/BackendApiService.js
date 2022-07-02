@@ -1,5 +1,4 @@
 import axios from "axios";
-import storeFI from "../store/storeFI";
 
 // const API_URL = 'http://localhost:8111/api/v1/'
 const API_URL = '/api/v1/'

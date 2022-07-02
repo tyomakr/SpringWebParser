@@ -1,17 +1,18 @@
-import React, {Component} from 'react';
-import {Link, Route, Router, Switch} from 'react-router-dom';
+import React from 'react';
+import {Link, Route, BrowserRouter, Routes} from 'react-router-dom';
 import MainPage from './components/pages/MainPage';
-import FWIStepper from "./components/FWIStepper";
+
 import history from "./components/history";
 import {inject, observer} from "mobx-react";
 import './common/App.css';
 import {ToastContainer} from "react-toastify";
+import FWIStepper from "./components/FWIStepper";
 
 const App = inject("mainStore", "storeFI")(observer(() => {
     return (
         <div>
             <ToastContainer/>
-            <Router history={history}>
+            <BrowserRouter history={history}>
 
                 <nav className="navbar navbar-expand navbar-dark bg-dark">
                     <Link to={"/"} className="navbar-brand">Images & Media Parser</Link>
@@ -25,11 +26,11 @@ const App = inject("mainStore", "storeFI")(observer(() => {
                     </div>
                 </nav>
 
-                <Switch>
-                    <Route exact path="/" component={MainPage}/>
-                    <Route exact path="/fwi-stepper" component={FWIStepper}/>
-                </Switch>
-            </Router>
+                <Routes>
+                    <Route exact path="/" element={<MainPage/>}></Route>
+                    <Route exact path="/fwi-stepper" element={<FWIStepper/>}></Route>
+                </Routes>
+            </BrowserRouter>
         </div>
     );
 }));

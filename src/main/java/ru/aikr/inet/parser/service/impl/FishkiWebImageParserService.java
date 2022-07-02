@@ -9,12 +9,14 @@ import org.springframework.stereotype.Service;
 import ru.aikr.inet.parser.domain.WebImage;
 import ru.aikr.inet.parser.service.WebImageParserService;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -49,7 +51,6 @@ public class FishkiWebImageParserService implements WebImageParserService {
     public List<File> downloadImagesFromWebImageLinks(List<WebImage> webImageList) {
 
         List<File> fileList = new ArrayList<>();
-        //excludingWebpImages(webImageList);
 
         for(WebImage webImage : webImageList) {
             try {
@@ -83,19 +84,6 @@ public class FishkiWebImageParserService implements WebImageParserService {
         } catch (IOException e) {
             log.warning("ERROR: " + e.getMessage());
         }
-    }
-
-    private List<WebImage> excludingWebpImages (List<WebImage> webImageList) {
-        //проверка на наличие проблемных расширений (типа webp)
-        Iterator<WebImage> imageIterator = webImageList.iterator();
-        while (imageIterator.hasNext()) {
-            WebImage nextWebImage = imageIterator.next();
-            if (nextWebImage.getDirectLink().matches("^.*webp$")) {
-                log.warning("Excluding (webp ext) : " + nextWebImage.getDirectLink());
-                imageIterator.remove();
-            }
-        }
-        return webImageList;
     }
 
     private List<WebImage> getImgLinksPerPage(int numberOfPage, List<WebImage> resultList) {

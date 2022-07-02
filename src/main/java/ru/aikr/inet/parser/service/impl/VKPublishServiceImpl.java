@@ -18,17 +18,13 @@ import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageParserService;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
 public class VKPublishServiceImpl implements VKPublishService {
 
-    private static final TransportClient transportClient = HttpTransportClient.getInstance();
-    private static final VkApiClient vk = new VkApiClient(transportClient);
     private static final Logger log = Logger.getLogger("VKPublishService");
 
     private final WebImageParserService webImageParserService;
@@ -47,11 +43,18 @@ public class VKPublishServiceImpl implements VKPublishService {
 
     @Override
     public boolean postToWall(List<WebImage> fullImagesList) {
+
         try {
             //get UserActor
             UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
 
             log.info("BEGIN SENDING TO VK");
+
+            //чистим дубликаты изображений (реализация со стороны бэкэнда)
+            Set<WebImage> uniqueList = new HashSet<>(fullImagesList);
+            fullImagesList.clear();
+            fullImagesList.addAll(uniqueList);
+
 
             //преобразуем полный список WebImage в список File, попутно выкачивая файлы
             List<File> fileList = webImageParserService.downloadImagesFromWebImageLinks(fullImagesList);
@@ -94,6 +97,9 @@ public class VKPublishServiceImpl implements VKPublishService {
     @SneakyThrows
     private void createPost(UserActor actor, List<File> fileList) {
 
+        TransportClient transportClient = HttpTransportClient.getInstance();
+        VkApiClient vk = new VkApiClient(transportClient);
+
         StringBuilder attachIds = new StringBuilder();
         //для каждого изображения
         for (File file : fileList) {
@@ -134,4 +140,3 @@ public class VKPublishServiceImpl implements VKPublishService {
         }
     }
 }
-

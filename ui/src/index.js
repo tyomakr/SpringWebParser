@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import {createRoot} from 'react-dom/client'
 import App from './App';
 import { Provider } from "mobx-react";
 import mainStore from "./store/mainStore";
@@ -10,9 +10,11 @@ import './common/index.css';
 
 const stores = {mainStore, storeFI}
 
-ReactDOM.render(
-        <Provider {...stores}>
-                <App />
-        </Provider>,
-    document.getElementById('root')
+const container = document.getElementById('root');
+const root = createRoot(container);
+
+root.render(
+    <Provider {...stores}>
+        <App />
+    </Provider>
 );

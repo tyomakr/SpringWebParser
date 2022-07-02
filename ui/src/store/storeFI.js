@@ -1,4 +1,4 @@
-import {observable, action} from "mobx";
+import {action, makeAutoObservable, observable} from "mobx";
 import BackendApiService from "../service/BackendApiService";
 
 class storeFI {
@@ -7,6 +7,10 @@ class storeFI {
     @observable step1 = false;
     @observable step2 = false;
     @observable selectedImages = [];
+
+    constructor() {
+        makeAutoObservable(this)
+    }
 
 
     @action
@@ -40,6 +44,15 @@ class storeFI {
             console.log("err on clearStore method: " + e)
         }
     }
+
+
+    @action
+    async removeSelectedImageByIndex (index) {
+        const reduceArr = [...this.selectedImages];
+        reduceArr.splice(index, 1);
+        this.selectedImages = reduceArr;
+    }
+
 
     @action
     async resetStepsState() {

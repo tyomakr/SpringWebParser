@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from "react";
+import React, {useState} from "react";
 import {Helmet} from "react-helmet/es/Helmet";
 import Pagination from "../Pagination";
 import {inject, observer} from "mobx-react";
@@ -7,7 +7,7 @@ import {ImageList} from "@mui/material";
 import {ImageListItem} from "@mui/material";
 import {ImageListItemBar} from "@mui/material";
 import {IconButton} from "@mui/material";
-import InfoIcon from '@mui/icons-material/Info';
+import AddIcon from '@mui/icons-material/Add';
 
 
 const Gallery = inject("storeFI")(observer((props) => {
@@ -35,8 +35,8 @@ const Gallery = inject("storeFI")(observer((props) => {
                 <div className="container-fluid">
                     <div className="text-center">
                         <ImageList cols={5} rowHeight='auto'>
-                            {pageOfItems.map((webImage) => (
-                                <ImageListItem key={webImage.id}
+                            {pageOfItems.map((webImage, index) => (
+                                <ImageListItem key={index}
                                     // sx={{width: 300, height: 300}}
                                 >
                                     <img
@@ -51,8 +51,10 @@ const Gallery = inject("storeFI")(observer((props) => {
                                             <IconButton type="button"
                                                         title={webImage.id}
                                                         sx={{color: 'rgba(255, 255, 255, 0.54)'}}
-                                                        onClick={() => onHandleSelectImages(webImage)}>
-                                                <InfoIcon/>
+                                                        onClick={() => {
+                                                            onHandleSelectImages(webImage);
+                                                        }}>
+                                                <AddIcon/>
                                             </IconButton>
                                         }
                                     />

@@ -115,20 +115,25 @@ class Pagination extends React.Component {
         return (
             <ul className="pagination separator-margin justify-content-center">
                 <li className={pager.currentPage === 1 ? 'disabled' : 'page-item'}>
+                    {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                     <a className="link-p page-link" onClick={() => this.setPage(1)}>Первая</a>
                 </li>
                 <li className={pager.currentPage === 1 ? 'disabled' : 'page-item'}>
+                    {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                     <a className="link-p page-link" onClick={() => this.setPage(pager.currentPage - 1)}>Предыдущая</a>
                 </li>
                 {pager.pages.map((page, index) =>
                     <li key={index} className={pager.currentPage === page ? 'page-item active' : 'page-item'}>
+                        {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                         <a className="link-p page-link" onClick={() => this.setPage(page)}>{page}</a>
                     </li>
                 )}
                 <li className={pager.currentPage === pager.totalPages ? 'disabled' : 'page-item'}>
+                    {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                     <a className="link-p page-link" onClick={() => this.setPage(pager.currentPage + 1)}>Следующая</a>
                 </li>
                 <li className={pager.currentPage === pager.totalPages ? 'disabled' : 'page-item'}>
+                    {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                     <a className="link-p page-link" onClick={() => this.setPage(pager.totalPages)}>Последняя</a>
                 </li>
             </ul>
