@@ -8,6 +8,7 @@ import FWIRequest from "../components/fragments/FWIRequest"
 import {inject, observer} from 'mobx-react';
 import Gallery from "./fragments/Gallery";
 import PrepareToSendImages from "./fragments/PrepareToSendImages";
+import {configure} from 'mobx';
 
 function getSteps() {
     return ['Запрос изображений', 'Отбор изображений', 'Отправка изображений'];
@@ -50,15 +51,17 @@ const ImageStepper = inject("storeFI")(observer((props) => {
         <div className="container-fluid">
             <header className="header-info">
                 <table>
-                    <tr>
-                        <td className="header-info-td">Выбрано изображений:&nbsp;<b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.length : 'нет'}</b></td>
-                        <td className="header-info-td">
-                            <Button
-                                variant="contained" color="warning" disabled={activeStep === 0} sx={{ mr: 1, ml: 2 }} onClick={handleReset}>Сброс
-                            </Button>
-                        </td>
-                        <td></td>
-                    </tr>
+                    <tbody>
+                        <tr>
+                            <td className="header-info-td">Выбрано изображений:&nbsp;<b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.size : 'нет'}</b></td>
+                            <td className="header-info-td">
+                                <Button
+                                    variant="contained" color="warning" disabled={activeStep === 0} sx={{ mr: 1, ml: 2 }} onClick={handleReset}>Сброс
+                                </Button>
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tbody>
                 </table>
 
 
@@ -84,7 +87,7 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                             </div>
                         ) : (
                             <div>
-                                <Typography sx={{ mt: 2, mb: 1 }}>{getStepContent(activeStep)}</Typography>
+                                <Typography component={"span"} variant={"body2"} sx={{ mt: 2, mb: 1 }}>{getStepContent(activeStep)}</Typography>
                                 <div className="separator-margin-stepper-btn">
                                     <Button disabled={activeStep === 0} onClick={handleBack} sx={{ mr: 1 }}>
                                         Назад
@@ -108,5 +111,10 @@ const ImageStepper = inject("storeFI")(observer((props) => {
         </div>
     );
 }));
+
+
+configure({
+    enforceActions: "never",
+})
 
 export default ImageStepper;

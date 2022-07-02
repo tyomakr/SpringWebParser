@@ -18,9 +18,7 @@ import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageParserService;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
 
 @Service
@@ -51,6 +49,12 @@ public class VKPublishServiceImpl implements VKPublishService {
             UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
 
             log.info("BEGIN SENDING TO VK");
+
+            //чистим дубликаты изображений (реализация со стороны бэкэнда)
+            Set<WebImage> uniqueList = new HashSet<>(fullImagesList);
+            fullImagesList.clear();
+            fullImagesList.addAll(uniqueList);
+
 
             //преобразуем полный список WebImage в список File, попутно выкачивая файлы
             List<File> fileList = webImageParserService.downloadImagesFromWebImageLinks(fullImagesList);
@@ -136,4 +140,3 @@ public class VKPublishServiceImpl implements VKPublishService {
         }
     }
 }
-
