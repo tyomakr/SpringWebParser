@@ -11,7 +11,9 @@ sites:
   fishki-div-container-with-image: "div.embed-image-single"
 
 vk:
-  app-id: 0
-  user-id: 0
-  group-id: 0
-  access-token: 0
+  app-id: <your_app_id>
+  user-id: <your_user_id>
+  group-id: <-your_group_id>
+  access-token: <your_access_token>
+  chunk-size: 10
+  time-post-pub-delay: 1500

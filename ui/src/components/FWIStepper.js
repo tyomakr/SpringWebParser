@@ -53,7 +53,7 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                 <table>
                     <tbody>
                         <tr>
-                            <td className="header-info-td">Выбрано изображений:&nbsp;<b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.size : 'нет'}</b></td>
+                            <td className="header-info-td">Выбрано изображений:&nbsp;<b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.length : 'нет'}</b></td>
                             <td className="header-info-td">
                                 <Button
                                     variant="contained" color="warning" disabled={activeStep === 0} sx={{ mr: 1, ml: 2 }} onClick={handleReset}>Сброс

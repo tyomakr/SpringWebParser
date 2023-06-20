@@ -63,9 +63,6 @@ class storeFI {
             console.log("err on resetStepsState method: " + e)
         }
     }
-
-
 }
-
 
 export default new storeFI();

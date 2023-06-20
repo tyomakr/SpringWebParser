@@ -37,7 +37,7 @@ public class VKPublishServiceImpl implements VKPublishService {
     private String ACCESS_TOKEN;
     @Value("${vk.chunk-size}")
     private Integer CHUNK_SIZE;
-    @Value("${time.post-pub-delay}")
+    @Value("${vk.time-post-pub-delay}")
     private Integer POST_PUB_DELAY_TIME;
 
 
