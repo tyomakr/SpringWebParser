@@ -1,7 +1,6 @@
 package ru.aikr.inet.parser.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.aikr.inet.parser.domain.WebImage;
@@ -31,7 +30,7 @@ public class FishkiRestController {
     }
 
     //получение списка выбранных картинок из фронтэнда и отправка на публикацию
-    @PostMapping("/images")
+    @PostMapping("/images/")
     public ResponseEntity<String> saveAndPublishSelectedImages(@RequestBody List<WebImage> webImageList) {
         boolean result = vkPublishService.postToWall(webImageList);
         if (result) {
