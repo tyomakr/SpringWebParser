@@ -1,23 +1,22 @@
-import {action, makeAutoObservable, observable} from "mobx";
-import BackendApiService from "../service/BackendApiService";
+import {makeAutoObservable} from "mobx";
+import backendApiService from "../service/backendApiService";
+
 
 class storeFI {
-    //main
-    @observable webImages = [];
-    @observable step1 = false;
-    @observable step2 = false;
-    @observable selectedImages = [];
+
+    webImages = [];
+    step1 = false;
+    step2 = false;
+    selectedImages = [];
 
     constructor() {
         makeAutoObservable(this)
     }
 
-
-    @action
     async getWebImagesFromPages(num1, num2) {
         try {
             this.webImages = [];
-            const response = await BackendApiService.getWebImagesOnPages(num1, num2);
+            const response = await backendApiService.getWebImagesOnPages(num1, num2);
             console.log(response.data);
             this.webImages = response.data;
         } catch (e) {
@@ -25,28 +24,26 @@ class storeFI {
         }
     }
 
-    @action
     async saveAndPublishSelectedImages(data) {
         try {
-            const response = await BackendApiService.saveAndPublishSelectedImages(data);
+            const response = await backendApiService.saveAndPublishSelectedImages(data);
             return response.data;
         } catch (e) {
             console.log("err on saveAndPublishSelectedImages method: " + e)
         }
     }
 
-    @action
     async clearStore() {
         try {
             this.webImages = [];
             this.selectedImages = [];
+            await this.resetStepsState()
         } catch (e) {
             console.log("err on clearStore method: " + e)
         }
     }
 
 
-    @action
     async removeSelectedImageByIndex (index) {
         const reduceArr = [...this.selectedImages];
         reduceArr.splice(index, 1);
@@ -54,7 +51,6 @@ class storeFI {
     }
 
 
-    @action
     async resetStepsState() {
         try {
             this.step1 = false;
@@ -65,4 +61,5 @@ class storeFI {
     }
 }
 
+// eslint-disable-next-line
 export default new storeFI();
