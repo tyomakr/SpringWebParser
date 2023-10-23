@@ -3,13 +3,14 @@ package ru.aikr.inet.parser.service.impl;
 import com.vk.api.sdk.client.TransportClient;
 import com.vk.api.sdk.client.VkApiClient;
 import com.vk.api.sdk.client.actors.UserActor;
+import com.vk.api.sdk.exceptions.ApiException;
+import com.vk.api.sdk.exceptions.ClientException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.photos.responses.GetWallUploadServerResponse;
 import com.vk.api.sdk.objects.photos.responses.SaveWallPhotoResponse;
 import com.vk.api.sdk.objects.photos.responses.WallUploadResponse;
 import com.vk.api.sdk.objects.wall.responses.PostResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,8 @@ public class VKPublishServiceImpl implements VKPublishService {
     @Override
     public boolean postToWall(List<WebImage> fullImagesList) {
 
+        boolean isSuccess = true;
+
         try {
             //get UserActor
             UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
@@ -67,20 +70,23 @@ public class VKPublishServiceImpl implements VKPublishService {
 
             //createPost в цикле
             for (List<File> chunkedList : chunkedLists) {
-                createPost(userActor, chunkedList);
+                isSuccess = createPost(userActor, chunkedList);
+                if (!isSuccess) {
+                    break;
+                }
             }
 
             //удаляем скачанные файлы
-            log.info("Cleaning downloaded files...");
             deleteDownloadedFiles(fileList);
-            log.info("SENDING FINISHED");
 
-            return true;
+            log.info("SENDING FINISHED");
 
         } catch (Exception e) {
             log.warning("Problem to post: " + e.getMessage());
-            return false;
+            isSuccess = false;
         }
+
+        return isSuccess;
     }
 
     //делим большой список на части
@@ -94,47 +100,75 @@ public class VKPublishServiceImpl implements VKPublishService {
         return chunks;
     }
 
-    @SneakyThrows
-    private void createPost(UserActor actor, List<File> fileList) {
+
+    private boolean createPost(UserActor actor, List<File> fileList) {
+
+        boolean isSuccess = true;
 
         TransportClient transportClient = HttpTransportClient.getInstance();
         VkApiClient vk = new VkApiClient(transportClient);
 
         StringBuilder attachIds = new StringBuilder();
+
         //для каждого изображения
-        for (File file : fileList) {
-            GetWallUploadServerResponse serverResponse = vk.photos().getWallUploadServer(actor).execute();
+        try {
+            for (File file : fileList) {
+                GetWallUploadServerResponse serverResponse = vk.photos().getWallUploadServer(actor).execute();
 
-            WallUploadResponse uploadResponse = vk.upload()
-                    .photoWall(String.valueOf(serverResponse.getUploadUrl()), file)
-                    .execute();
+                WallUploadResponse uploadResponse = vk.upload()
+                        .photoWall(String.valueOf(serverResponse.getUploadUrl()), file)
+                        .execute();
 
-            List<SaveWallPhotoResponse> photoList = vk.photos()
-                    .saveWallPhoto(actor, uploadResponse.getPhoto())
-                    .server(uploadResponse.getServer())
-                    .hash(uploadResponse.getHash())
-                    .execute();
+                List<SaveWallPhotoResponse> photoList = vk.photos()
+                        .saveWallPhoto(actor, uploadResponse.getPhoto())
+                        .server(uploadResponse.getServer())
+                        .hash(uploadResponse.getHash())
+                        .execute();
 
 
-            SaveWallPhotoResponse photo = photoList.get(0);
-            String attachId = "photo" + photo.getOwnerId() + "_" + photo.getId();
+                SaveWallPhotoResponse photo = photoList.get(0);
+                String attachId = "photo" + photo.getOwnerId() + "_" + photo.getId();
 
-            attachIds.append(attachId).append(",");
-            Thread.sleep(POST_PUB_DELAY_TIME);
+                attachIds.append(attachId).append(",");
+                Thread.sleep(POST_PUB_DELAY_TIME);
+            }
+
+        } catch (ClientException e) {
+            log.warning("WARN\tClientException:\t" + e.getMessage());
+            isSuccess = false;
+        } catch (InterruptedException e) {
+            log.warning("WARN\tInterruptedException:\t" + e.getMessage());
+            isSuccess = false;
+        } catch (ApiException e) {
+            log.warning("WARN\tApiException:\t" + e.getMessage());
+            isSuccess = false;
         }
+
+
 
         //del last comma
         attachIds.delete(attachIds.length() - 1, attachIds.length());
 
         //post to group wall
-        PostResponse postResponse = vk.wall().post(actor)
-                .ownerId(GROUP_ID)
-                .attachments(attachIds.toString())
-                .execute();
-        log.info(postResponse.toPrettyString());
+        try {
+            PostResponse postResponse = vk.wall().post(actor)
+                    .ownerId(GROUP_ID)
+                    .attachments(attachIds.toString())
+                    .execute();
+            log.info(postResponse.toPrettyString());
+        } catch (ApiException e) {
+            log.warning("WARN\tApiException:\t" + e.getMessage());
+            isSuccess = false;
+        } catch (ClientException e) {
+            log.warning("WARN\tClientException:\t" + e.getMessage());
+            isSuccess = false;
+        }
+
+        return isSuccess;
     }
 
     private void deleteDownloadedFiles(List<File>fileList) {
+        log.info("Cleaning downloaded files...");
         for (File file : fileList) {
             FileUtils.deleteQuietly(file);
         }
