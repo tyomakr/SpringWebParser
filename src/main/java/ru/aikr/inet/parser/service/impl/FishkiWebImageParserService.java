@@ -16,6 +16,9 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -32,6 +35,9 @@ public class FishkiWebImageParserService implements WebImageParserService {
 
     @Value("${sites.fishki-div-container-with-image}")
     private String divContainerWithImage;
+
+    @Value("${env.parser.download-folder-name}")
+    private String downloadFolder;
 
 
     @Override
@@ -52,27 +58,29 @@ public class FishkiWebImageParserService implements WebImageParserService {
 
         List<File> fileList = new ArrayList<>();
 
-        for(WebImage webImage : webImageList) {
-            try {
-                URL currentUrl = new URL(webImage.getDirectLink());
-                String ext = getFileExtension(webImage.getDirectLink());
-                File file = new File(System.currentTimeMillis() + "." + ext);
-                downloadFile(currentUrl, file.getName());
-                log.info("Download file: " + file.getName() + " : " + file.length() + " bytes");
-                fileList.add(file);
+        try {
+            Path dir = Files.createDirectories(Paths.get(downloadFolder));
 
-            } catch (Exception e) {
-                e.printStackTrace();
-                log.warning("ERROR: " + e.getMessage());
+            for (WebImage webImage : webImageList) {
+                URL currentUrl = new URL(webImage.getDirectLink());
+                File downloadableFilePath = new File(dir + "\\" + currentUrl.getFile().replaceAll("/", ""));
+
+                if (!downloadableFilePath.exists()) {
+                    downloadFile(currentUrl, downloadableFilePath.getPath());
+                    log.info("Download file: " + downloadableFilePath.getName() + " : " + downloadableFilePath.length()/1024 + " Kb");
+                } else {
+                    log.info("File " + downloadableFilePath.getName() + " already downloaded. Skipped"); // на случай внезапного прерывания программы и ошибок во взаимодействии с api vk
+                }
+                fileList.add(downloadableFilePath);
             }
+
+        } catch (IOException e) {
+            log.warning("ERROR: " + e.getMessage());
         }
+
         return fileList;
     }
 
-    private String getFileExtension(String filePath) {
-        int extensionPos = filePath.lastIndexOf(".") + 1;
-        return filePath.substring(extensionPos);
-    }
 
     private static void downloadFile(URL url, String outputFileName) {
 
@@ -86,7 +94,7 @@ public class FishkiWebImageParserService implements WebImageParserService {
         }
     }
 
-    private List<WebImage> getImgLinksPerPage(int numberOfPage, List<WebImage> resultList) {
+    private void getImgLinksPerPage(int numberOfPage, List<WebImage> resultList) {
 
         String currentParseUrl = fishkiUrl + numberOfPage;
 
@@ -98,10 +106,9 @@ public class FishkiWebImageParserService implements WebImageParserService {
                 resultList.add(new WebImage(element.children().attr("abs:href")));
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            log.warning(e.getMessage());
         }
 
-        return resultList;
     }
 }
