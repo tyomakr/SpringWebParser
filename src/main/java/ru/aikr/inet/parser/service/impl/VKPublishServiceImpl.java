@@ -51,37 +51,40 @@ public class VKPublishServiceImpl implements VKPublishService {
             //get UserActor
             UserActor userActor = new UserActor(USER_ID, ACCESS_TOKEN);
 
-            log.info("BEGIN SENDING TO VK");
+            log.info("BEGIN POSTING TO VK");
 
+            log.info("Duplicate check...");
             //чистим дубликаты изображений (реализация со стороны бэкэнда)
             Set<WebImage> uniqueList = new HashSet<>(fullImagesList);
             fullImagesList.clear();
             fullImagesList.addAll(uniqueList);
 
-
+            log.info("Downloading...");
             //преобразуем полный список WebImage в список File, попутно выкачивая файлы
             List<File> fileList = webImageParserService.downloadImagesFromWebImageLinks(fullImagesList);
 
             //собираем коллекцию в обратном порядке для удобства просмотра связанных изображений
-            Collections.reverse(fileList);
+            //Collections.reverse(fileList); (не актуально, после реализации через SET)
 
+            log.info("Chunkify...");
             //делим количественно по 10 шт. (на каждый пост)
             List<List<File>> chunkedLists = chunkify(fileList, CHUNK_SIZE);
 
             //createPost в цикле
             for (List<File> chunkedList : chunkedLists) {
-                isSuccess = createPost(userActor, chunkedList);
-                if (!isSuccess) {
-                    break;
-                }
+//                isSuccess = createPost(userActor, chunkedList);
+                createPost(userActor, chunkedList);
+//                if (!isSuccess) {
+//                    break;
+//                }
             }
 
             //удаляем скачанные файлы
             deleteDownloadedFiles(fileList);
 
-            log.info("SENDING FINISHED");
+            log.info("POSTING FINISHED");
 
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warning("Problem to post: " + e.getMessage());
             isSuccess = false;
         }
@@ -101,15 +104,14 @@ public class VKPublishServiceImpl implements VKPublishService {
     }
 
 
-    private boolean createPost(UserActor actor, List<File> fileList) {
-
-        boolean isSuccess = true;
+    private void createPost(UserActor actor, List<File> fileList) {
 
         TransportClient transportClient = HttpTransportClient.getInstance();
         VkApiClient vk = new VkApiClient(transportClient);
 
         StringBuilder attachIds = new StringBuilder();
 
+        log.info("Upload images for post to VK...");
         //для каждого изображения
         try {
             for (File file : fileList) {
@@ -130,25 +132,20 @@ public class VKPublishServiceImpl implements VKPublishService {
                 String attachId = "photo" + photo.getOwnerId() + "_" + photo.getId();
 
                 attachIds.append(attachId).append(",");
+                log.info("Image " + photo.getId() + " uploaded. Delay: " + POST_PUB_DELAY_TIME + " ms");
                 Thread.sleep(POST_PUB_DELAY_TIME);
             }
 
-        } catch (ClientException e) {
-            log.warning("WARN\tClientException:\t" + e.getMessage());
-            isSuccess = false;
-        } catch (InterruptedException e) {
-            log.warning("WARN\tInterruptedException:\t" + e.getMessage());
-            isSuccess = false;
-        } catch (ApiException e) {
-            log.warning("WARN\tApiException:\t" + e.getMessage());
-            isSuccess = false;
+        } catch (ClientException | InterruptedException | ApiException ex) {
+            log.info("ERROR: " + ex.getMessage());
+            throw new RuntimeException(ex);
         }
-
 
 
         //del last comma
         attachIds.delete(attachIds.length() - 1, attachIds.length());
 
+        log.info("PUBLISHING POST...");
         //post to group wall
         try {
             PostResponse postResponse = vk.wall().post(actor)
@@ -156,15 +153,12 @@ public class VKPublishServiceImpl implements VKPublishService {
                     .attachments(attachIds.toString())
                     .execute();
             log.info(postResponse.toPrettyString());
-        } catch (ApiException e) {
-            log.warning("WARN\tApiException:\t" + e.getMessage());
-            isSuccess = false;
-        } catch (ClientException e) {
-            log.warning("WARN\tClientException:\t" + e.getMessage());
-            isSuccess = false;
+
+        } catch (ApiException | ClientException e) {
+            log.info("ERROR: " + e.getMessage());
+            throw new RuntimeException(e);
         }
 
-        return isSuccess;
     }
 
     private void deleteDownloadedFiles(List<File>fileList) {

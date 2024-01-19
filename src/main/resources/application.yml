@@ -10,10 +10,14 @@ sites:
   fishki-url: "http://fishki.net/mix/"
   fishki-div-container-with-image: "div.embed-image-single"
 
+env:
+  parser:
+    download-folder-name: "downloaded"
+
 vk:
-  app-id: <your_app_id>
-  user-id: <your_user_id>
-  group-id: <-your_group_id>
-  access-token: <your_access_token>
+  app-id:
+  user-id:
+  group-id:
+  access-token:
   chunk-size: 10
   time-post-pub-delay: 1500
