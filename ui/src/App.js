@@ -1,7 +1,6 @@
 import React from 'react';
 import {Link, Route, BrowserRouter, Routes} from 'react-router-dom';
 import MainPage from './components/pages/MainPage';
-
 import history from "./components/history";
 import {inject, observer} from "mobx-react";
 import './common/App.css';

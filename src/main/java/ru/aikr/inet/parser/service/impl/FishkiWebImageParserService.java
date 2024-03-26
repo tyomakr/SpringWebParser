@@ -1,6 +1,7 @@
 package ru.aikr.inet.parser.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -38,6 +39,9 @@ public class FishkiWebImageParserService implements WebImageParserService {
 
     @Value("${env.parser.download-folder-name}")
     private String downloadFolder;
+
+    @Value("${env.parser.params.user-agent}")
+    private String userAgent;
 
 
     @Override
@@ -99,7 +103,21 @@ public class FishkiWebImageParserService implements WebImageParserService {
         String currentParseUrl = fishkiUrl + numberOfPage;
 
         try {
-            Document doc = Jsoup.connect(currentParseUrl).get();
+            Document doc = Jsoup.connect(currentParseUrl)
+                    .header("Content-Type","application/x-www-form-urlencoded")
+                    .cookie("TALanguage", "ALL")
+                    .data("mode", "filterReviews")
+                    .data("filterRating", "")
+                    .data("filterSegment", "")
+                    .data("filterSeasons", "")
+                    .data("filterLang", "ALL")
+                    .referrer(currentParseUrl)
+                    .header("X-Requested-With", "XMLHttpRequest")
+                    .header("X-Puid","xpuid")
+                    .data("returnTo","returnTo")
+                    .userAgent(userAgent)
+                    .method(Connection.Method.POST)
+                    .get();
             List<Element> elements = doc.select(divContainerWithImage);
 
             for (Element element : elements) {
@@ -107,7 +125,7 @@ public class FishkiWebImageParserService implements WebImageParserService {
             }
 
         } catch (IOException e) {
-            log.warning(e.getMessage());
+            log.warning(e.toString());
         }
 
     }

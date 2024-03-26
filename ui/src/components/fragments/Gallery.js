@@ -16,7 +16,10 @@ const Gallery = inject("storeFI")(observer((props) => {
 
     const [pageOfItems, setPageOfItems] = useState([]);
 
-    const onChangePage = (pageOfItems) => {setPageOfItems(pageOfItems);}
+    const onChangePage = (pageOfItems) => {
+        setPageOfItems(pageOfItems);
+        window.scrollTo(0, 0);
+    }
 
     const onHandleSelectImages = (webImage) => {
         storeFI.selectedImages.push(webImage);

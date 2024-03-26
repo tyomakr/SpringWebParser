@@ -31,9 +31,9 @@ public class VKPublishServiceImpl implements VKPublishService {
     private final WebImageParserService webImageParserService;
 
     @Value("${vk.user-id}")
-    private Integer USER_ID;
+    private Long USER_ID;
     @Value("${vk.group-id}")
-    private Integer GROUP_ID;
+    private Long GROUP_ID;
     @Value("${vk.access-token}")
     private String ACCESS_TOKEN;
     @Value("${vk.chunk-size}")
@@ -108,6 +108,7 @@ public class VKPublishServiceImpl implements VKPublishService {
 
         TransportClient transportClient = HttpTransportClient.getInstance();
         VkApiClient vk = new VkApiClient(transportClient);
+        vk.setVersion("5.199");
 
         StringBuilder attachIds = new StringBuilder();
 

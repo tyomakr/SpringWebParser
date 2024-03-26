@@ -7,8 +7,8 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
-    id 'org.springframework.boot' version '3.1.4'
-    id 'io.spring.dependency-management' version '1.0.9.RELEASE'
+    id 'org.springframework.boot' version '3.2.3'
+    id 'io.spring.dependency-management' version '1.1.4'
     id 'java'
 }
 
@@ -20,21 +20,21 @@ repositories {
 }
 
 dependencies {
-    api 'org.springframework.boot:spring-boot-starter-web:3.1.4', {
+    api 'org.springframework.boot:spring-boot-starter-web:3.2.4', {
         exclude module : 'logback-classic'
         exclude module : 'log4j-to-slf4j'
     }
-    api 'org.springframework.boot:spring-boot-starter-log4j2:3.1.4'
-    api 'org.jsoup:jsoup:1.16.1'
-    api 'com.vk.api:sdk:1.0.14'
-    api 'commons-io:commons-io:2.14.0'
+    api 'org.springframework.boot:spring-boot-starter-log4j2:3.2.3'
+    api 'org.jsoup:jsoup:1.17.2'
+    api 'com.vk.api:sdk:1.0.15'
+    api 'commons-io:commons-io:2.15.1'
     api 'org.projectlombok:lombok:1.18.30'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.1.4'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.2.3'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
 }
 
 group = 'ru.aikr.inet'
-version = '0.0.5'
+version = '0.1.0'
 description = 'WebImgParser'
 java.sourceCompatibility = JavaVersion.VERSION_17
 
@@ -46,10 +46,10 @@ publishing {
     }
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-tasks.withType(Javadoc) {
+tasks.withType(Javadoc).configureEach {
     options.encoding = 'UTF-8'
 }
