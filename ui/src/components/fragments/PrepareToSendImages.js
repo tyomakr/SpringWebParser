@@ -72,7 +72,7 @@ const PrepareToSendImages = inject("storeFI")(observer((props) => {
                 </div>
 
                 <div className="container-fluid separator-margin">
-                    <button className="btn btn-outline-dark" type="button"
+                    <button className="btn btn-outline-success" type="button"
                             onClick={()=> onHandleSendImages()}>ОТПРАВИТЬ</button>
                 </div>
             </div>

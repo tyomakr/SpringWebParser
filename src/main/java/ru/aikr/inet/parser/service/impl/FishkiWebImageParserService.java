@@ -88,6 +88,7 @@ public class FishkiWebImageParserService implements WebImageParserService {
 
     private static void downloadFile(URL url, String outputFileName) {
 
+
         try (InputStream in = url.openStream();
              ReadableByteChannel rbc = Channels.newChannel(in);
              FileOutputStream fos = new FileOutputStream(outputFileName)) {
@@ -101,6 +102,8 @@ public class FishkiWebImageParserService implements WebImageParserService {
     private void getImgLinksPerPage(int numberOfPage, List<WebImage> resultList) {
 
         String currentParseUrl = fishkiUrl + numberOfPage;
+
+        log.info("Parsing ..... page: " + numberOfPage);
 
         try {
             Document doc = Jsoup.connect(currentParseUrl)
