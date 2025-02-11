@@ -7,8 +7,8 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
-    id 'org.springframework.boot' version '3.2.3'
-    id 'io.spring.dependency-management' version '1.1.4'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
     id 'java'
 }
 
@@ -20,23 +20,26 @@ repositories {
 }
 
 dependencies {
-    api 'org.springframework.boot:spring-boot-starter-web:3.2.4', {
+    api 'org.springframework.boot:spring-boot-starter-web:3.3.5', {
         exclude module : 'logback-classic'
         exclude module : 'log4j-to-slf4j'
     }
-    api 'org.springframework.boot:spring-boot-starter-log4j2:3.2.3'
-    api 'org.jsoup:jsoup:1.17.2'
-    api 'com.vk.api:sdk:1.0.15'
-    api 'commons-io:commons-io:2.15.1'
-    api 'org.projectlombok:lombok:1.18.30'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.2.3'
-    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    api 'org.springframework.boot:spring-boot-starter-log4j2:3.3.5'
+    api 'org.jsoup:jsoup:1.18.1'
+    api 'com.vk.api:sdk:1.0.16', {
+        exclude module : 'commons-logging'
+    }
+    api 'commons-io:commons-io:2.17.0'
+    api 'org.projectlombok:lombok:1.18.34'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.3.5'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
 }
 
 group = 'ru.aikr.inet'
-version = '0.1.0'
+version = '0.3.0'
 description = 'WebImgParser'
-java.sourceCompatibility = JavaVersion.VERSION_17
+java.sourceCompatibility = JavaVersion.VERSION_21
+
 
 publishing {
     publications {

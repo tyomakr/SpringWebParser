@@ -32,7 +32,7 @@ public class FishkiRestController {
     //получение списка выбранных картинок из фронтэнда и отправка на публикацию
     @PostMapping("/images/")
     public ResponseEntity<String> saveAndPublishSelectedImages(@RequestBody List<WebImage> webImageList) {
-        boolean result = vkPublishService.postToWall(webImageList);
+        boolean result = vkPublishService.generatePostsAndPublishToCommunityWall(webImageList);
         if (result) {
             return ResponseEntity.ok()
                     .body("Опубликовано " + webImageList.size() + " изображений");

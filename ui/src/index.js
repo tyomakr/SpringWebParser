@@ -4,11 +4,12 @@ import App from './App';
 import { Provider } from "mobx-react";
 import mainStore from "./store/mainStore";
 import storeFI from "./store/storeFI";
+import themeStore from "./store/themeStore";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-toastify/dist/ReactToastify.css';
 import './common/index.css';
 
-const stores = {mainStore, storeFI}
+const stores = {mainStore, storeFI, themeStore}
 
 const container = document.getElementById('root');
 const root = createRoot(container);

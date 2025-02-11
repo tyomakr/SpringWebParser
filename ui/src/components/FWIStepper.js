@@ -49,13 +49,13 @@ const ImageStepper = inject("storeFI")(observer((props) => {
 
     return (
         <div className="container-fluid">
-            <header className="header-info">
+            <header className="header-info-selected-images-line">
                 <table>
                     <tbody>
                         <tr>
-                            <td className="header-info-td">Выбрано изображений:&nbsp;<b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.length : 'нет'}</b></td>
-                            <td className="header-info-td">
-                                <Button
+                            <td className="header-info-selected-images-line-td">Выбрано изображений:&nbsp;<b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.length : 'нет'}</b></td>
+                            <td className="header-info-selected-images-line-td">
+                                <Button className="btn-stepper-reset-selected-images btn-stepper"
                                     variant="contained" color="warning" disabled={activeStep === 0} sx={{ mr: 1, ml: 2 }} onClick={handleReset}>Сброс
                                 </Button>
                             </td>
@@ -89,11 +89,12 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                             <div>
                                 <Typography component={"span"} variant={"body2"} sx={{ mt: 2, mb: 1 }}>{getStepContent(activeStep)}</Typography>
                                 <div className="separator-margin-stepper-btn">
-                                    <Button disabled={activeStep === 0} onClick={handleBack} sx={{ mr: 1 }}>
+                                    <Button className="btn-stepper" disabled={activeStep === 0} onClick={handleBack} sx={{ mr: 1 }}>
                                         Назад
                                     </Button>
 
                                     <Button
+                                        className="btn-stepper"
                                         variant="contained"
                                         color="primary"
                                         disabled={!props.storeFI.step1 || props.storeFI.selectedImages > 0}
