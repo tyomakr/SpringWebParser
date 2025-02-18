@@ -33,9 +33,9 @@ import java.util.logging.Logger;
 public class FishkiWebImageParserService implements WebImageParserService {
 
     private static final Logger log = Logger.getLogger("FishkiParserService");
-    private static final int MAX_RETRIES = 5 ;
-    private static final int MIN_DELAY_MS = 2000;
-    private static final int MAX_DELAY_MS = 5000;
+    private static final int MAX_RETRIES = 5;
+    private static final int MIN_DELAY_MS = 1500;
+    private static final int MAX_DELAY_MS = 4000;
 
     private static final String[] USER_AGENTS = {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...",
@@ -77,6 +77,7 @@ public class FishkiWebImageParserService implements WebImageParserService {
         return resultList;
     }
 
+
     private void parsePage(int pageNumber, List<WebImage> resultList) {
         String url = fishkiUrl + pageNumber;
         log.info("Parsing page: " + pageNumber);
@@ -84,6 +85,7 @@ public class FishkiWebImageParserService implements WebImageParserService {
         try {
             Connection connection = Jsoup.connect(url)
                     .userAgent(getRandomUserAgent())
+                    .sslSocketFactory(getUnsafeSSLContext().getSocketFactory()) // Добавлено
                     .headers(getBrowserHeaders())
                     .ignoreContentType(true)
                     .timeout(15000);
@@ -91,7 +93,7 @@ public class FishkiWebImageParserService implements WebImageParserService {
             Document doc = connection.get();
             processElements(doc.select(divContainerWithImage), resultList);
 
-        } catch (IOException e) {
+        } catch (IOException | NoSuchAlgorithmException | KeyManagementException e) {
             log.warning("Page parse error: " + e.getMessage());
         }
     }
@@ -141,13 +143,17 @@ public class FishkiWebImageParserService implements WebImageParserService {
     private void downloadFile(URI uri, Path outputPath) throws IOException {
         try (InputStream is = Jsoup.connect(uri.toString())
                 .userAgent(getRandomUserAgent())
+                .sslSocketFactory(getUnsafeSSLContext().getSocketFactory()) // Добавлено
                 .ignoreContentType(true)
                 .execute()
                 .bodyStream()) {
 
             Files.copy(is, outputPath);
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new IOException("SSL error: " + e.getMessage());
         }
     }
+
 
     // Вспомогательные методы
     private String getRandomUserAgent() {
