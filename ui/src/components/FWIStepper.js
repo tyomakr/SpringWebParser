@@ -48,8 +48,9 @@ const ImageStepper = inject("storeFI")(observer((props) => {
     };
 
     return (
-        <div className="container-fluid">
+        <div className="container-fluid bg-transparent">
             <header className="header-info-selected-images-line">
+                <div className="theme-wrapper"> {/* Добавленный враппер */}
                 <table>
                     <tbody>
                         <tr>
@@ -63,9 +64,9 @@ const ImageStepper = inject("storeFI")(observer((props) => {
                         </tr>
                     </tbody>
                 </table>
-
-
+                </div>
             </header>
+
             <Box className="container-fluid stepper-box">
                 <div sx={{width: '100%'}}>
                     <Stepper nonLinear activeStep={activeStep}>
