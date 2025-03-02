@@ -82,13 +82,17 @@ public class FishkiWebImageParserService implements WebImageParserService {
         String url = fishkiUrl + pageNumber;
         log.info("Parsing page: " + pageNumber);
 
+        String ua = getRandomUserAgent();
+        log.info("Current UserAgent value: " + ua);
+
         try {
             Connection connection = Jsoup.connect(url)
-                    .userAgent(getRandomUserAgent())
+                    .userAgent(ua)
                     .sslSocketFactory(getUnsafeSSLContext().getSocketFactory()) // Добавлено
                     .headers(getBrowserHeaders())
                     .ignoreContentType(true)
                     .timeout(15000);
+
 
             Document doc = connection.get();
             processElements(doc.select(divContainerWithImage), resultList);
@@ -141,8 +145,12 @@ public class FishkiWebImageParserService implements WebImageParserService {
     }
 
     private void downloadFile(URI uri, Path outputPath) throws IOException {
+
+        String ua = getRandomUserAgent();
+        log.info("Current UserAgent value: " + ua);
+
         try (InputStream is = Jsoup.connect(uri.toString())
-                .userAgent(getRandomUserAgent())
+                .userAgent(ua)
                 .sslSocketFactory(getUnsafeSSLContext().getSocketFactory()) // Добавлено
                 .ignoreContentType(true)
                 .execute()

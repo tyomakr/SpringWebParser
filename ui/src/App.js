@@ -10,8 +10,11 @@ import themeStore from "./store/themeStore";
 
 const App = inject("mainStore", "storeFI", "themeStore")(observer(() => {
     return (
-        <div className={themeStore?.mode}>
-            <ToastContainer/>
+        <div className={`global-theme-wrapper ${themeStore?.mode}`} style={{ flex: 1 }}>
+            <ToastContainer
+                theme={themeStore.mode === 'dark' ? 'dark' : 'light'}
+                toastClassName={themeStore.mode === 'dark' ? 'dark-toast' : ''}
+            />
             <BrowserRouter history={history}>
 
                 <nav className="navbar navbar-expand navbar-dark bg-dark">

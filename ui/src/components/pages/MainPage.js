@@ -11,9 +11,9 @@ const MainPage = inject("mainStore", "storeFI")(observer((props) => {
                 title="Главная"
                 titleTemplate="Spring web parser - %s"/>
 
-            <div className="jumbotron">
+            <div className="jumbotron m-0"> {/* Убираем внешние отступы */}
                 <h3 className="header-section">Система парсинга данных</h3>
-                <div className="container-fluid">
+                <div className="container-fluid p-4"> {/* Добавляем внутренние отступы */}
                     <span>Тут пока пустая главная страница</span>
                 </div>
             </div>
