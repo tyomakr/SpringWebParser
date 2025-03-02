@@ -41,12 +41,10 @@
 }
 
 .header-info-selected-images-line {
-  position: sticky;
-  top: 0;
-  margin-left: 20pt;
-  margin-top: 20pt;
-  margin-bottom: 10pt;
-  z-index: 999999;
+    position: sticky;
+    top: 0;
+    z-index: 999999;
+    background: inherit; /* Фон наследуется от темы */
 }
 
 .header-info-selected-images-line-td {

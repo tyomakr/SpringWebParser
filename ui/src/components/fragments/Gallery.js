@@ -6,6 +6,7 @@ import { ImageList, ImageListItem, ImageListItemBar, IconButton } from "@mui/mat
 import AddIcon from '@mui/icons-material/Add';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import Pagination from "../Pagination";
+import Portal from "../Portal";
 
 const Gallery = inject("storeFI")(observer((props) => {
     const [items] = useState(props.storeFI.webImages);
@@ -74,34 +75,34 @@ const Gallery = inject("storeFI")(observer((props) => {
 
             {/* Модальное окно для увеличения */}
             {selectedImage && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        zIndex: 2000,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        cursor: 'pointer'
-                    }}
-                    onClick={() => setSelectedImage(null)}
-                >
-                    <img
-                        src={selectedImage}
+                <Portal>
+                    <div
                         style={{
-                            maxWidth: '70vw',
-                            maxHeight: '70vh',
-                            objectFit: 'contain',
-                            borderRadius: '8px',
-                            pointerEvents: 'none' // Запрет кликов на само изображение
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            zIndex: 1000000, // Больше, чем у header (999999)
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
                         }}
-                        alt="Увеличенное изображение"
-                    />
-                </div>
+                        onClick={() => setSelectedImage(null)}
+                    >
+                        <img
+                            src={selectedImage}
+                            style={{
+                                maxWidth: '70vw',
+                                maxHeight: '70vh',
+                                objectFit: 'contain',
+                                borderRadius: '8px',
+                            }}
+                            alt="Увеличенное изображение"
+                        />
+                    </div>
+                </Portal>
             )}
         </div>
     );
