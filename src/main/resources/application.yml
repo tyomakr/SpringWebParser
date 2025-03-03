@@ -2,6 +2,9 @@ server:
   port: 8111
 
 spring:
+  profiles:
+    include: secret
+
   data:
     mongodb:
       uri: <your uri>
@@ -12,15 +15,14 @@ sites:
 
 env:
   parser:
+    user-agents-file: "classpath:user-agents.txt"
+
     download-folder-name: "downloaded"
 
-    params:
-      user-agent: "Mozilla/5.0 (Windows; U; WindowsNT 5.1; ru-RU; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
+    proxy:
+      proxy-url: "83.168.74.163"
+      proxy-port: 8080
 
-vk:
-  app-id:
-  user-id:
-  group-id:
-  access-token:
-  chunk-size: 10
-  time-post-pub-delay: 1500
+  vk-publisher:
+    chunk-size: 10
+    time-post-pub-delay: 1500
