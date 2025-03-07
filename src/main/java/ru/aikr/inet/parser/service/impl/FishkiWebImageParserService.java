@@ -1,6 +1,5 @@
 package ru.aikr.inet.parser.service.impl;
 
-import com.google.gson.*;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Connection;
@@ -12,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ResourceUtils;
 import ru.aikr.inet.parser.domain.WebImage;
 import ru.aikr.inet.parser.service.WebImageParserService;
+import ru.aikr.inet.parser.util.AnsiColors;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -39,17 +39,6 @@ public class FishkiWebImageParserService implements WebImageParserService {
 
     private static final Logger log = Logger.getLogger("FishkiParserService");
 
-    private static final int MAX_RETRIES = 5;
-    private static final int MIN_DELAY_MS = 1500;
-    private static final int MAX_DELAY_MS = 4000;
-
-    private static final Gson gson = new Gson();
-
-    private static final String ANSI_CYAN = "\u001B[36m";
-    private static final String ANSI_RED = "\u001B[31m";
-    private static final String ANSI_YELLOW = "\u001B[33m";
-    private static final String ANSI_RESET = "\u001B[0m";
-
     private static String[] USER_AGENTS = {};
 
     @Value("${sites.fishki-url}")
@@ -70,25 +59,40 @@ public class FishkiWebImageParserService implements WebImageParserService {
     @Value("${env.parser.user-agents-file}")
     private String userAgentsFile;
 
+    @Value("${env.parser.max-retries}")
+    private int maxRetries;
+
+    @Value("${env.parser.min-parse-delay-ms}")
+    private int minDelayMs;
+
+    @Value("${env.parser.max-parse-delay-ms}")
+    private int maxDelayMs;
+
     private final Random random = new Random();
 
 
-    // Инициализация User-Agent при старте
+    // Инициализация
     @PostConstruct
     public void init() {
         loadUserAgents();
+        log.info(AnsiColors.CYAN + "=".repeat(50) + AnsiColors.RESET);
+        log.info(AnsiColors.CYAN + "Fishki Parser initialized" + AnsiColors.RESET);
+        log.info(AnsiColors.CYAN + String.format(
+                "Config: URL=%s | Selector=%s", fishkiUrl, divContainerWithImage
+        ) + AnsiColors.RESET);
+        log.info(AnsiColors.CYAN + "=".repeat(50) + AnsiColors.RESET);
     }
 
-
-    // Загрузка User-Agent из файла
     private void loadUserAgents() {
         try {
             File file = ResourceUtils.getFile(userAgentsFile);
             List<String> agents = Files.readAllLines(file.toPath());
             USER_AGENTS = agents.toArray(new String[0]);
-            log.info(ANSI_CYAN + "Loaded " + USER_AGENTS.length + " User-Agents" + ANSI_RESET);
+            log.info(AnsiColors.CYAN + String.format(
+                    "Loaded %d User-Agents from %s", USER_AGENTS.length, userAgentsFile
+            ) + AnsiColors.RESET);
         } catch (IOException e) {
-            log.severe(ANSI_RED + "Failed to load User-Agents: " + e.getMessage() + ANSI_RESET);
+            log.severe(AnsiColors.RED + "User-Agent load error: " + e.getMessage() + AnsiColors.RESET);
         }
     }
 
@@ -109,7 +113,10 @@ public class FishkiWebImageParserService implements WebImageParserService {
     @Override
     public List<WebImage> getImageLinksFromPages(int pageBegin, int pageEnd) {
         List<WebImage> resultList = new ArrayList<>();
+        log.info(AnsiColors.CYAN + "\n=== PARSING PAGES %d-%d ===".formatted(pageBegin, pageEnd) + AnsiColors.RESET);
+
         for (int i = pageBegin; i <= pageEnd; i++) {
+            log.info(AnsiColors.CYAN + "-".repeat(40) + AnsiColors.RESET);
             parsePage(i, resultList);
             humanDelay();
         }
@@ -121,76 +128,67 @@ public class FishkiWebImageParserService implements WebImageParserService {
         String url = fishkiUrl + pageNumber;
         String ua = getRandomUserAgent();
 
+        log.info(AnsiColors.CYAN + String.format(
+                "Parsing page %d\nURL: %s\nUser-Agent: %s",
+                pageNumber, url, ua.substring(0, Math.min(40, ua.length())) + "..." + AnsiColors.RESET
+        ));
+
         try {
-            // Настройка соединения с явным указанием TLSv1.2
             SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
             sslContext.init(null, getTrustAllCerts(), new SecureRandom());
 
-            Connection connection = Jsoup.connect(url)
+            Connection.Response response = Jsoup.connect(url)
                     .userAgent(ua)
                     .sslSocketFactory(sslContext.getSocketFactory())
                     .headers(getBrowserHeaders())
                     .ignoreContentType(true)
                     .timeout(30000)
                     .followRedirects(true)
-                    .maxBodySize(0) // Отключаем лимит размера ответа
-                    .ignoreHttpErrors(true);
+                    .execute();
 
-            Connection.Response response = connection.execute();
-
-            // Цветное логирование
-            log.info(ANSI_CYAN + String.format(
-                    "[Page %d] URL: %s | UA: %s | Status: %d",
-                    pageNumber,
-                    url,
-                    ua.substring(0, Math.min(ua.length(), 40)) + "...",
-                    response.statusCode()
-            ) + ANSI_RESET);
-
-            // JSON-логирование
-            Map<String, Object> logData = new HashMap<>();
-            logData.put("page", pageNumber);
-            logData.put("url", url);
-            logData.put("status", response.statusCode());
-            log.info(gson.toJson(logData));
+            log.info(AnsiColors.CYAN + String.format(
+                    "Response: %d %s",
+                    response.statusCode(), response.statusMessage()
+            ) + AnsiColors.RESET);
 
             // Обработка редиректов
             if (response.hasHeader("Location")) {
                 String redirectUrl = response.header("Location");
-                int redirectPage = extractPageNumber(redirectUrl);
-                log.warning(ANSI_YELLOW + String.format(
-                        "[Page %d] Redirect to: %s (Page %d)",
-                        pageNumber, redirectUrl, redirectPage
-                ) + ANSI_RESET);
-                parsePage(redirectPage, resultList);
+                log.warning(AnsiColors.YELLOW + String.format(
+                        "Redirect detected → %s", redirectUrl
+                ) + AnsiColors.RESET);
+                parsePage(extractPageNumber(redirectUrl), resultList);
                 return;
             }
 
-            if (response.statusCode() == 200) {
-                Document doc = response.parse();
-                processElements(doc.select(divContainerWithImage), resultList);
+            // Парсинг контента
+            Document doc = response.parse();
+            processElements(doc.select(divContainerWithImage), resultList);
 
-                if (resultList.isEmpty()) {
-                    log.warning(ANSI_YELLOW + String.format(
-                            "[Page %d] No images found. Selector: %s",
-                            pageNumber, divContainerWithImage
-                    ) + ANSI_RESET);
-                }
+            if (resultList.isEmpty()) {
+                log.warning(AnsiColors.YELLOW + String.format(
+                        "No images found! Check selector: %s", divContainerWithImage
+                ) + AnsiColors.RESET);
             } else {
-                log.warning(ANSI_YELLOW + String.format(
-                        "[Page %d] Unexpected status: %d",
-                        pageNumber, response.statusCode()
-                ) + ANSI_RESET);
+                log.info(AnsiColors.GREEN + String.format(
+                        "Found %d images", resultList.size()
+                ) + AnsiColors.RESET);
             }
 
         } catch (IOException | NoSuchAlgorithmException | KeyManagementException e) {
-            log.severe(ANSI_RED + String.format(
-                    "[Page %d] Error: %s | URL: %s",
-                    pageNumber, e.getMessage(), url
-            ) + ANSI_RESET);
+            handlePageError(pageNumber, url, e);
             retryWithProxy(url);
         }
     }
+
+
+    private void handlePageError(int pageNumber, String url, Exception e) {
+        log.severe(AnsiColors.RED + String.format(
+                "Page %d error: %s\nURL: %s",
+                pageNumber, e.getMessage(), url
+        ) + AnsiColors.RESET);
+    }
+
 
 
     // Извлечение номера страницы из URL
@@ -218,13 +216,15 @@ public class FishkiWebImageParserService implements WebImageParserService {
     // Повтор через прокси
     private void retryWithProxy(String url) {
         try {
-            log.info(ANSI_CYAN + "Retrying with proxy..." + ANSI_RESET);
+            log.info(AnsiColors.CYAN + "Retrying with proxy..." + AnsiColors.RESET);
             Connection connection = Jsoup.connect(url)
                     .proxy(proxyUrl, Integer.parseInt(proxyPort))
                     .timeout(30000);
-            Connection.Response response = connection.execute();
+            connection.execute();
         } catch (IOException e) {
-            log.severe(ANSI_RED + "Proxy retry failed: " + e.getMessage() + ANSI_RESET);
+            log.severe(AnsiColors.RED + String.format(
+                    "Proxy retry failed: %s | URL: %s", e.getMessage(), url
+            ) + AnsiColors.RESET);
         }
     }
 
@@ -238,33 +238,45 @@ public class FishkiWebImageParserService implements WebImageParserService {
         }
     }
 
+    // Загрузка изображений с повторами
     @Override
     public List<File> downloadImagesFromWebImageLinks(List<WebImage> webImageList) {
         List<File> files = new ArrayList<>();
+        log.info(AnsiColors.CYAN + "\n=== DOWNLOADING %d IMAGES ===".formatted(webImageList.size()) + AnsiColors.RESET);
+
         try {
             Path dir = Files.createDirectories(Paths.get(downloadFolder));
-            for (WebImage image : webImageList) {
+            for (int i = 0; i < webImageList.size(); i++) {
+                WebImage image = webImageList.get(i);
+                log.info(AnsiColors.CYAN + String.format(
+                        "%d/%d: %s",
+                        i + 1, webImageList.size(), image.getDirectLink()
+                ) + AnsiColors.RESET);
                 processImage(image, dir, files);
             }
         } catch (IOException e) {
-            log.severe("Directory error: " + e.getMessage());
+            log.severe(AnsiColors.RED + "Download error: " + e.getMessage() + AnsiColors.RESET);
         }
         return files;
     }
 
+
+
     private void processImage(WebImage image, Path dir, List<File> files) {
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 URI uri = new URI(image.getDirectLink());
                 Path outputPath = dir.resolve(sanitizeFileName(uri.getPath()));
 
                 if (Files.notExists(outputPath)) {
                     downloadFile(uri, outputPath);
-                    log.info("Downloaded: " + outputPath.getFileName());
+                    log.info(AnsiColors.GREEN + String.format(
+                            "Downloaded: %s (Attempt %d)",
+                            outputPath.getFileName(), attempt
+                    ) + AnsiColors.RESET);
                 }
                 files.add(outputPath.toFile());
                 break;
-
             } catch (URISyntaxException | IOException e) {
                 handleDownloadError(image, attempt, e);
             }
@@ -305,7 +317,7 @@ public class FishkiWebImageParserService implements WebImageParserService {
 
     private void humanDelay() {
         try {
-            Thread.sleep(MIN_DELAY_MS + random.nextInt(MAX_DELAY_MS - MIN_DELAY_MS));
+            Thread.sleep(minDelayMs + random.nextInt(maxDelayMs - minDelayMs));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -320,11 +332,15 @@ public class FishkiWebImageParserService implements WebImageParserService {
     }
 
     private void handleDownloadError(WebImage image, int attempt, Exception e) {
-        if (attempt == MAX_RETRIES) {
-            log.severe("Failed to download: " + image.getDirectLink());
+        String message = String.format(
+                "Attempt %d/%d failed: %s | URL: %s",
+                attempt, maxRetries, e.getMessage(), image.getDirectLink()
+        );
+
+        if (attempt == maxRetries) {
+            log.severe(AnsiColors.RED + message + AnsiColors.RESET);
         } else {
-            log.warning(String.format("Attempt %d/%d failed: %s",
-                    attempt, MAX_RETRIES, e.getMessage()));
+            log.warning(AnsiColors.YELLOW + message + AnsiColors.RESET);
         }
     }
 }

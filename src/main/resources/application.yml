@@ -16,8 +16,10 @@ sites:
 env:
   parser:
     user-agents-file: "classpath:user-agents.txt"
-
     download-folder-name: "downloaded"
+    max-retries: 5
+    min-parse-delay-ms: 1100
+    max-parse-delay-ms: 4000
 
     proxy:
       proxy-url: "83.168.74.163"
@@ -25,4 +27,6 @@ env:
 
   vk-publisher:
     chunk-size: 10
-    time-post-pub-delay: 1500
+    delay-between-retries-ms: 1500 # Базовая задержка
+    max-delay-ms: 60000 # Максимальная задержка при backoff
+    max-retries: 5
