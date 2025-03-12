@@ -152,18 +152,11 @@ public class VKPublishServiceImpl implements VKPublishService {
 
     private String uploadPhotoWithBackoff(UserActor actor, File file)
             throws ApiException, ClientException {
-        log.info(AnsiColors.CYAN + String.format("[%s] Getting upload server...",
-                file.getName()) + AnsiColors.RESET);
         GetWallUploadServerResponse server = vk.photos().getWallUploadServer(actor).execute();
-
-        log.info(AnsiColors.CYAN + String.format("[%s] Uploading to VK...",
-                file.getName()) + AnsiColors.RESET);
         WallUploadResponse upload = vk.upload()
                 .photoWall(server.getUploadUrl().toString(), file)
                 .execute();
 
-        log.info(AnsiColors.CYAN + String.format("[%s] Saving photo...",
-                file.getName()) + AnsiColors.RESET);
         SaveWallPhotoResponse photo = vk.photos()
                 .saveWallPhoto(actor, upload.getPhoto())
                 .server(upload.getServer())
