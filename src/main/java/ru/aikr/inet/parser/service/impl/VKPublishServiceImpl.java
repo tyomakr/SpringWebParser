@@ -13,9 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import ru.aikr.inet.parser.domain.WebImage;
+import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.VKPublishService;
-import ru.aikr.inet.parser.service.WebImageParserService;
+import ru.aikr.inet.parser.service.WebImageService;
 import ru.aikr.inet.parser.util.AnsiColors;
 
 import java.io.File;
@@ -29,7 +29,7 @@ public class VKPublishServiceImpl implements VKPublishService {
     private static final Logger log = Logger.getLogger("VKPublishService");
 
     private final VkApiClient vk = new VkApiClient(HttpTransportClient.getInstance());
-    private final WebImageParserService webImageParserService;
+    private final WebImageService webImageService;
 
     @Value("${vk.user-id}")
     private Long userId;
@@ -66,7 +66,7 @@ public class VKPublishServiceImpl implements VKPublishService {
 
             // Этап 2: Загрузка изображений
             log.info(AnsiColors.CYAN + "Downloading images..." + AnsiColors.RESET);
-            fileList = webImageParserService.downloadImagesFromWebImageLinks(fullImagesList);
+            fileList = webImageService.downloadImagesFromWebImageLinks(fullImagesList);
             log.info(AnsiColors.CYAN + String.format(
                     "Downloaded %d files", fileList.size()
             ) + AnsiColors.RESET);

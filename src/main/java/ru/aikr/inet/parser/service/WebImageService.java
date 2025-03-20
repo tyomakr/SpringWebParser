@@ -1,13 +1,12 @@
 package ru.aikr.inet.parser.service;
 
-import ru.aikr.inet.parser.domain.WebImage;
+import ru.aikr.inet.parser.model.WebImage;
 
 import java.io.File;
 import java.util.List;
 
-public interface WebImageParserService {
+public interface WebImageService {
 
-    List<WebImage> getImageLinksFromPages(int pageBegin, int pageEnd);
-
+    List<WebImage> getImagesFromPages(int startPage, int endPage);
     List<File> downloadImagesFromWebImageLinks(List<WebImage> webImageList);
 }
