@@ -22,10 +22,6 @@
     width: 100%;
     height: auto !important; /* Убираем фиксированную высоту */
 }
-/*.img-gal:hover {*/
-/*  transform: scale(2);*/
-/*  z-index: 99999;*/
-/*}*/
 
 .link-p {
   cursor: pointer;
@@ -62,7 +58,7 @@
 /* Фикс для кнопок в галерее */
 .MuiImageListItemBar-actionIcon {
     display: flex !important;
-    gap: 8px;
+    gap: 20px;
     margin-right: 8px;
 }
 

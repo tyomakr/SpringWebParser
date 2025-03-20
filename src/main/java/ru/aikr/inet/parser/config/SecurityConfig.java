@@ -1,6 +1,6 @@
-package ru.aikr.inet.parser.service.impl;
+package ru.aikr.inet.parser.config;
 
-import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Configuration;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -9,8 +9,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 
-@Service
-public class SecurityConfigService {
+@Configuration
+public class SecurityConfig {
 
     public SSLContext getUnsafeSSLContext() throws NoSuchAlgorithmException, KeyManagementException {
         SSLContext sslContext = SSLContext.getInstance("TLS");

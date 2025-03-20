@@ -4,7 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import ru.aikr.inet.parser.domain.WebImage;
+import ru.aikr.inet.parser.config.SecurityConfig;
+import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.ImageDownloaderService;
 import ru.aikr.inet.parser.service.UserAgentService;
 import ru.aikr.inet.parser.util.AnsiColors;
@@ -28,7 +29,7 @@ public class ImageDownloaderServiceImpl implements ImageDownloaderService {
     private static final Logger log = Logger.getLogger(ImageDownloaderServiceImpl.class.getName());
 
     private final UserAgentService userAgentService;
-    private final SecurityConfigService securityConfig;
+    private final SecurityConfig securityConfig;
 
     @Value("${env.image-downloader.max-retries}")
     private int maxRetries;

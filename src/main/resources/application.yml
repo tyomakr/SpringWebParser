@@ -1,17 +1,15 @@
 server:
   port: 8111
 
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
 spring:
   profiles:
     include: secret
-
-  data:
-    mongodb:
-      uri: <your uri>
-
-sites:
-  fishki-url: "http://fishki.net/mix/"
-  fishki-div-container-with-image: "div.embed-image-single"
 
 env:
   global:
@@ -34,3 +32,25 @@ env:
     delay-between-retries-ms: 1100 # Базовая задержка
     max-delay-ms: 60000 # Максимальная задержка при backoff
     max-retries: 5
+
+
+default:
+  headers:
+    accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    accept-language: "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+    cache-control: "no-cache"
+    connection:
+      timeout: 30000
+
+
+sites:
+  fishki:
+    fishki-url: "http://fishki.net/mix/"
+    fishki-div-container-with-image: "div.embed-image-single"
+
+    headers:
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      accept-language: "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+      cache-control: "no-cache"
+      connection:
+        timeout: 30000
