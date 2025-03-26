@@ -108,4 +108,11 @@ const Gallery = inject("storeFI")(observer((props) => {
     );
 }));
 
-export default Gallery;
+// Добавляем мемоизацию компонента для предотвращения ненужных перерисовок
+const MemoizedGallery = React.memo(Gallery, (prevProps, nextProps) => {
+    // Сравниваем пропсы, чтобы определить, нужно ли перерисовывать компонент
+    return prevProps.storeFI.webImages === nextProps.storeFI.webImages &&
+        prevProps.storeFI.selectedImages === nextProps.storeFI.selectedImages;
+});
+
+export default MemoizedGallery;

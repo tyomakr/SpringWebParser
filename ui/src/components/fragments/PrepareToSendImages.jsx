@@ -80,4 +80,10 @@ const PrepareToSendImages = inject("storeFI")(observer((props) => {
     );
 }));
 
-export default PrepareToSendImages;
+// Добавляем мемоизацию компонента для предотвращения ненужных перерисовок
+const MemoizedPrepareToSendImages = React.memo(PrepareToSendImages, (prevProps, nextProps) => {
+    // Сравниваем пропсы, чтобы определить, нужно ли перерисовывать компонент
+    return prevProps.storeFI.selectedImages === nextProps.storeFI.selectedImages;
+});
+
+export default MemoizedPrepareToSendImages;

@@ -4,7 +4,7 @@ import {Step} from "@mui/material";
 import {StepLabel} from "@mui/material";
 import {Button} from "@mui/material"
 import {Typography} from "@mui/material";
-import FWIRequest from "../components/fragments/FWIRequest"
+import FWIRequest from "./fragments/FWIRequest"
 import {inject, observer} from 'mobx-react';
 import Gallery from "./fragments/Gallery";
 import PrepareToSendImages from "./fragments/PrepareToSendImages";

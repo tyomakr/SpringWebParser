@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 @Repository
 public class FishkiWebImageRepositoryImpl implements WebImageRepository {
 
-    private static final Logger log = Logger.getLogger("Fishki Parser Initialized");
+    private static final Logger log = Logger.getLogger("Fishki Parser");
 
     @Qualifier("fishkiConnectionConfigurator")
     private final ConnectionConfigurator connectionConfigurator;
