@@ -22,4 +22,5 @@ class ThemeStore {
     };
 }
 
-export default new ThemeStore();
+const themeStoreInstance = new ThemeStore();
+export default themeStoreInstance;

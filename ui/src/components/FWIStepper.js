@@ -1,122 +1,132 @@
 import React from 'react';
-import {Box, Stepper} from "@mui/material";
-import {Step} from "@mui/material";
-import {StepLabel} from "@mui/material";
-import {Button} from "@mui/material"
-import {Typography} from "@mui/material";
-import FWIRequest from "../components/fragments/FWIRequest"
-import {inject, observer} from 'mobx-react';
-import Gallery from "./fragments/Gallery";
-import PrepareToSendImages from "./fragments/PrepareToSendImages";
-import {configure} from 'mobx';
+import { inject, observer } from 'mobx-react';
+import {
+    Box,
+    Container,
+    Stepper,
+    Step,
+    StepLabel,
+    Button,
+    Typography,
+    useTheme,
+    useScrollTrigger
+} from '@mui/material';
+import FWIRequest from './fragments/FWIRequest';
+import Gallery from './fragments/Gallery';
+import PrepareToSendImages from './fragments/PrepareToSendImages';
+import '../common/App.css';
 
 function getSteps() {
     return ['Запрос изображений', 'Отбор изображений', 'Отправка изображений'];
 }
-
 function getStepContent(step) {
     switch (step) {
-        case 0:
-            return <FWIRequest/>;
-        case 1:
-            return <Gallery/>;
-        case 2:
-            return <PrepareToSendImages/>;
-        default:
-            return 'Unknown step';
+        case 0: return <FWIRequest />;
+        case 1: return <Gallery />;
+        case 2: return <PrepareToSendImages />;
+        default: return null;
     }
 }
 
+const FWIStepper = inject('storeFI')(observer(({ storeFI }) => {
+    const theme = useTheme();
+    const trigger = useScrollTrigger();               // true, когда AppBar уже спрятался
+    const toolbarHeight = theme.mixins.toolbar.minHeight || 64;
+    const headerHeight  = 56;
 
-const ImageStepper = inject("storeFI")(observer((props) => {
+    // если AppBar уехал — наш header прилипает к верху (top=0),
+    // иначе остаётся под AppBar (top = toolbarHeight)
+    const headerTop = trigger ? 0 : toolbarHeight;
 
     const [activeStep, setActiveStep] = React.useState(0);
     const steps = getSteps();
-
-    const handleNext = () => {
-        setActiveStep((prevActiveStep) => prevActiveStep + 1);
-    };
-
-    const handleBack = () => {
-        setActiveStep((prevActiveStep) => prevActiveStep - 1);
-    };
-
-
-    const handleReset = () => {
-        setActiveStep(0);
-        props.storeFI.clearStore();
-    };
+    const handleNext     = () => setActiveStep(s => Math.min(s + 1, steps.length - 1));
+    const handleBack     = () => setActiveStep(s => Math.max(s - 1, 0));
+    const handleResetAll = () => { storeFI.clearStore(); setActiveStep(0); };
 
     return (
-        <div className="container-fluid bg-transparent">
-            <header className="header-info-selected-images-line">
-                <div className="theme-wrapper"> {/* Добавленный враппер */}
-                <table>
-                    <tbody>
-                        <tr>
-                            <td className="header-info-selected-images-line-td">Выбрано изображений:&nbsp;<b>{props.storeFI.selectedImages !== undefined ? props.storeFI.selectedImages.length : 'нет'}</b></td>
-                            <td className="header-info-selected-images-line-td">
-                                <Button className="btn-stepper-reset-selected-images btn-stepper"
-                                    variant="contained" color="warning" disabled={activeStep === 0} sx={{ mr: 1, ml: 2 }} onClick={handleReset}>Сброс
-                                </Button>
-                            </td>
-                            <td></td>
-                        </tr>
-                    </tbody>
-                </table>
-                </div>
-            </header>
-
-            <Box className="container-fluid stepper-box">
-                <div sx={{width: '100%'}}>
-                    <Stepper nonLinear activeStep={activeStep}>
-                        {steps.map((label, index) => {
-                            const stepProps = {};
-                            const labelProps = {};
-
-                            return (
-                                <Step key={label} {...stepProps}>
-                                    <StepLabel {...labelProps}>{label}</StepLabel>
-                                </Step>
-                            );
-                        })}
-                    </Stepper>
-                    <div>
-                        {activeStep === steps.length ? (
-                            <div>
-                                <Button onClick={handleReset}>Reset</Button>
-                            </div>
-                        ) : (
-                            <div>
-                                <Typography component={"span"} variant={"body2"} sx={{ mt: 2, mb: 1 }}>{getStepContent(activeStep)}</Typography>
-                                <div className="separator-margin-stepper-btn">
-                                    <Button className="btn-stepper" disabled={activeStep === 0} onClick={handleBack} sx={{ mr: 1 }}>
-                                        Назад
-                                    </Button>
-
-                                    <Button
-                                        className="btn-stepper"
-                                        variant="contained"
-                                        color="primary"
-                                        disabled={!props.storeFI.step1 || props.storeFI.selectedImages > 0}
-                                        hidden={activeStep === steps.length - 1}
-                                        onClick={handleNext}
-                                        sx={{ mr: 1 }}>
-                                        {activeStep === steps.length - 2 ? 'Подготовка к отправке' : 'Далее'}
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+        <>
+            {/* 1) Fixed‑header «Выбрано / Сброс» */}
+            <Box
+                sx={{
+                    position: 'fixed',
+                    top: headerTop,
+                    left: 0,
+                    right: 0,
+                    height: headerHeight,
+                    zIndex: theme.zIndex.appBar - 1,
+                    bgcolor: 'background.paper',
+                    borderBottom: 1,
+                    borderColor: 'divider'
+                }}
+            >
+                <Box
+                    className="header-info-selected-images-line"
+                    sx={{ height: '100%' }}
+                >
+                    <Typography component="span">
+                        Выбрано изображений: <b>{storeFI.selectedImages.length}</b>
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        color="warning"
+                        onClick={handleResetAll}
+                        disabled={activeStep === 0}
+                    >
+                        Сброс
+                    </Button>
+                </Box>
             </Box>
-        </div>
+
+            {/* 2) Основной контент, сдвинутый вниз на AppBar+header */}
+            <Container
+                maxWidth={false}
+                disableGutters
+                sx={{
+                    pt: `${toolbarHeight + headerHeight}px`,
+                    px: 2,
+                    py: 4,
+                    overflowX: 'hidden'
+                }}
+            >
+                <Box sx={{ mt: 1 }}>
+                    <Stepper nonLinear activeStep={activeStep} sx={{ mb: 3 }}>
+                        {steps.map(label => (
+                            <Step key={label}>
+                                <StepLabel>{label}</StepLabel>
+                            </Step>
+                        ))}
+                    </Stepper>
+
+                    <Box sx={{ mb: 3 }}>
+                        {getStepContent(activeStep)}
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        {activeStep > 0 && (
+                            <Button variant="outlined" onClick={handleBack}>
+                                Назад
+                            </Button>
+                        )}
+                        {activeStep < steps.length - 1 && (
+                            <Button
+                                variant="contained"
+                                onClick={handleNext}
+                                disabled={
+                                    (activeStep === 0 && !storeFI.step1) ||
+                                    (activeStep === 1 && storeFI.selectedImages.length === 0)
+                                }
+                            >
+                                {activeStep === steps.length - 2
+                                    ? 'Подготовка к отправке'
+                                    : 'Далее'}
+                            </Button>
+                        )}
+                    </Box>
+                </Box>
+            </Container>
+        </>
     );
 }));
 
-
-configure({
-    enforceActions: "never",
-})
-
-export default ImageStepper;
+export default FWIStepper;
