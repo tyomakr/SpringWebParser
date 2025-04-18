@@ -4,6 +4,8 @@ import { inject, observer } from 'mobx-react';
 import storeFI from '../../store/storeFI';
 import { toast } from 'react-toastify';
 import { useForm, Controller } from 'react-hook-form';
+import * as yup from 'yup';
+import { yupResolver } from '@hookform/resolvers/yup';
 import {
     Box,
     TextField,
@@ -12,27 +14,40 @@ import {
     Container
 } from '@mui/material';
 
+// Схема валидации
+const schema = yup.object({
+    num1: yup
+        .number().typeError('Должно быть числом')
+        .integer('Только целые')
+        .positive('> 0')
+        .required('Обязательно'),
+    num2: yup
+        .number().typeError('Должно быть числом')
+        .integer('Только целые')
+        .positive('> 0')
+        .required('Обязательно')
+});
+
 const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
-    const {
-        control,
-        handleSubmit,
-        reset,
-        formState: { errors, isValid, isDirty, isSubmitting }
-    } = useForm({
-        defaultValues: { num1: '1', num2: '20' },
-        mode: 'onChange'
+    const { control, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm({
+        defaultValues: { num1: 1, num2: 20 },
+        resolver: yupResolver(schema)
     });
 
     const onSubmit = async (values) => {
         try {
             await storeFI.getWebImagesFromPages(values.num1, values.num2);
             storeFI.step1 = true;
-            toast.success(`Успешно! Найдено ${storeFI.webImages.length} изображений`, {
-                position: 'bottom-right', autoClose: 5000
+            const count = storeFI.webImages.length;
+            toast.success(`Успешно! Найдено ${count} изображений.`, {
+                position: 'bottom-right',
+                autoClose: 5000,
+                hideProgressBar: true,
             });
         } catch {
-            toast.error('Проблема: сервис недоступен', {
-                position: 'bottom-right', autoClose: 5000
+            toast.error('Проблема при запросе.', {
+                position: 'bottom-right',
+                autoClose: 5000,
             });
         }
     };
@@ -46,26 +61,27 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
             />
 
             <Container maxWidth="sm" sx={{ py: 4 }}>
-                <Typography variant="h4" component="h1" gutterBottom>
+                <Typography
+                    variant="h4"
+                    component="h1"
+                >
                     Запрос изображений для отбора
                 </Typography>
 
-                {/* явно объявляем форму */}
                 <Box
                     component="form"
-                    role="form"
-                    noValidate
-                    autoComplete="off"
                     onSubmit={handleSubmit(onSubmit)}
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                    noValidate
+                    sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                        mt: 2
+                    }}
                 >
                     <Controller
                         name="num1"
                         control={control}
-                        rules={{
-                            required: 'Обязательное поле',
-                            pattern: { value: /^[1-9]\d*$/, message: 'Только натуральные числа' }
-                        }}
                         render={({ field }) => (
                             <TextField
                                 {...field}
@@ -74,7 +90,6 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
                                 fullWidth
                                 error={!!errors.num1}
                                 helperText={errors.num1?.message}
-                                aria-invalid={!!errors.num1}
                             />
                         )}
                     />
@@ -82,10 +97,6 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
                     <Controller
                         name="num2"
                         control={control}
-                        rules={{
-                            required: 'Обязательное поле',
-                            pattern: { value: /^[1-9]\d*$/, message: 'Только натуральные числа' }
-                        }}
                         render={({ field }) => (
                             <TextField
                                 {...field}
@@ -94,7 +105,6 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
                                 fullWidth
                                 error={!!errors.num2}
                                 helperText={errors.num2?.message}
-                                aria-invalid={!!errors.num2}
                             />
                         )}
                     />
@@ -103,17 +113,15 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
                         <Button
                             type="submit"
                             variant="contained"
-                            disabled={!isValid || isSubmitting}
-                            aria-disabled={!isValid || isSubmitting}
+                            disabled={isSubmitting || !isDirty}
                         >
                             Отправить запрос
                         </Button>
                         <Button
                             type="button"
                             variant="outlined"
-                            onClick={() => reset()}
-                            disabled={!isDirty || isSubmitting}
-                            aria-disabled={!isDirty || isSubmitting}
+                            onClick={() => window.location.reload()}
+                            disabled={isSubmitting}
                         >
                             Сбросить
                         </Button>

@@ -6,7 +6,7 @@ import mainStore from "./store/mainStore";
 import storeFI from "./store/storeFI";
 import themeStore from "./store/themeStore";
 import 'react-toastify/dist/ReactToastify.css';
-import './common/index.css';
+
 
 const stores = {mainStore, storeFI, themeStore}
 
