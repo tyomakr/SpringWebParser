@@ -1,46 +1,81 @@
 import React from 'react';
-import {Link, Route, BrowserRouter, Routes} from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { inject, observer } from 'mobx-react';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import {
+    CssBaseline,
+    AppBar,
+    Toolbar,
+    Typography,
+    Button,
+    Slide,
+    useScrollTrigger,
+    Container
+} from '@mui/material';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import themeStore from './store/themeStore';
 import MainPage from './components/pages/MainPage';
-import history from "./components/history";
-import {inject, observer} from "mobx-react";
+import FWIStepper from './components/FWIStepper';
 import './common/App.css';
-import {ToastContainer} from "react-toastify";
-import FWIStepper from "./components/FWIStepper";
-import themeStore from "./store/themeStore";
 
-const App = inject("mainStore", "storeFI", "themeStore")(observer(() => {
+// Хук для скрытия при скролле
+function HideOnScroll({ children }) {
+    const trigger = useScrollTrigger();
     return (
-        <div className={`global-theme-wrapper ${themeStore?.mode}`} style={{ flex: 1 }}>
-            <ToastContainer
-                theme={themeStore.mode === 'dark' ? 'dark' : 'light'}
-                toastClassName={themeStore.mode === 'dark' ? 'dark-toast' : ''}
-            />
-            <BrowserRouter history={history}>
+        <Slide appear={false} direction="down" in={!trigger}>
+            {children}
+        </Slide>
+    );
+}
 
-                <nav className="navbar navbar-expand navbar-dark bg-dark">
-                    <Link to={"/"} className="navbar-brand">Images & Media Parser</Link>
-                    <div className="navbar-nav mr-auto">
+const App = inject('mainStore', 'storeFI', 'themeStore')(observer(() => {
+    const { mode } = themeStore;
+    const theme = React.useMemo(
+        () => createTheme({ palette: { mode } }),
+        [mode]
+    );
 
-                        <li className="nav-item">
-                            <Link to={"/"} className="nav-link">Главная</Link>
-                        </li>
-                        <li className="nav-item">
-                            <Link to={"/fwi-stepper"} className="nav-link">Изображения</Link>
-                        </li>
-                        <li className="nav-item position-absolute end-0 mx-3">
-                            <button className="btn btn-outline-light" type="button"
-                                    onClick={themeStore.toggleMode}>Светлая/Темная тема
-                            </button>
-                        </li>
-                    </div>
-                </nav>
+    return (
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
 
-                <Routes>
-                    <Route exact path="/" element={<MainPage/>}></Route>
-                    <Route exact path="/fwi-stepper" element={<FWIStepper/>}></Route>
-                </Routes>
+            <BrowserRouter>
+
+                {/* AppBar, скрывающийся при скролле */}
+                <HideOnScroll>
+                    <AppBar position="fixed" sx={{ backgroundColor: mode === 'dark' ? '#1a1a1a' : '#333' }}>
+                        <Toolbar>
+                            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                                <Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                    Images & Media Parser
+                                </Link>
+                            </Typography>
+                            <Button color="inherit" component={Link} to="/">Главная</Button>
+                            <Button color="inherit" component={Link} to="/fwi-stepper">Изображения</Button>
+                            <Button color="inherit" onClick={themeStore.toggleMode}>
+                                {mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+                            </Button>
+                        </Toolbar>
+                    </AppBar>
+                </HideOnScroll>
+
+                {/* отступ для контента под AppBar */}
+                <Toolbar />
+
+                <ToastContainer
+                    theme={mode === 'dark' ? 'dark' : 'light'}
+                    toastClassName={mode === 'dark' ? 'dark-toast' : ''}
+                />
+
+                <Container sx={{ py: 4 }}>
+                    <Routes>
+                        <Route path="/" element={<MainPage />} />
+                        <Route path="/fwi-stepper" element={<FWIStepper />} />
+                    </Routes>
+                </Container>
             </BrowserRouter>
-        </div>
+        </ThemeProvider>
     );
 }));
 

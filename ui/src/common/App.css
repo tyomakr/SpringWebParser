@@ -4,17 +4,16 @@
     flex-direction: column;
 }
 
-
 .header-section {
-  margin: 10pt;
+    margin: 10pt;
 }
 
 .navbar-brand {
-  margin-left: 10pt;
+    margin-left: 10pt;
 }
 
 .separator-margin {
-  margin: 30pt;
+    margin: 30pt;
 }
 
 .img-gal {
@@ -24,31 +23,35 @@
 }
 
 .link-p {
-  cursor: pointer;
+    cursor: pointer;
 }
 
 .separator-margin-stepper-btn {
-  margin-top: 40pt;
+    margin-top: 40pt;
 }
 
 .separator-margin-3 {
-  margin-top: 20pt;
-  margin-left: 15pt;
+    margin-top: 20pt;
+    margin-left: 15pt;
 }
 
+
 .header-info-selected-images-line {
-    position: sticky;
-    top: 0;
-    z-index: 999999;
-    background: inherit; /* Фон наследуется от темы */
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
+    padding: 8px 16px;
+    background-color: var(--mui-palette-background-paper, #fff);
+    border-bottom: 1px solid var(--mui-divider, #ccc);
 }
 
 .header-info-selected-images-line-td {
-  width: 190pt;
+    width: 190pt;
 }
 
 .stepper-box {
-  margin-bottom: 20pt;
+    margin-bottom: 20pt;
 }
 
 .theme-wrapper {
@@ -62,22 +65,18 @@
     margin-right: 8px;
 }
 
-
-
 /* Светлая тема */
 .light {
-  background-color: white;
-  color: black;
-  transition: all 0.3s ease-in;
+    background-color: white;
+    color: black;
+    transition: all 0.3s ease-in;
 }
 
-/* строка с данными о кол-ве выделенных изображений */
 .light .header-info-selected-images-line {
     background-color: white;
     transition: all 0.3s ease-in;
 }
 
-/* общий класс для всех кнопок с аттрибутом disabled для темы Light */
 .light .btn-stepper:disabled {
     appearance: none;
     background: white;
@@ -85,39 +84,34 @@
     transition: all 0.3s ease-in;
 }
 
-
-/* Темная тема */
+/* Тёмная тема */
 .dark {
-  background-color: #262525;
-  color: lightgray;
-  transition: all 0.3s ease-in;
+    background-color: #262525;
+    color: lightgray;
+    transition: all 0.3s ease-in;
 }
 
-/* Для всей таблицы */
 .dark table {
     background-color: transparent !important;
     border-collapse: collapse;
 }
 
-/* Для всех ячеек таблицы в темной теме */
 .dark table td {
     background-color: inherit !important;
     border-color: #404040 !important;
 }
 
-/* строка с данными о кол-ве выделенных изображений */
 .dark .header-info-selected-images-line {
-    background-color: #262525 !important; /* Явное указание фона */
+    background-color: #262525 !important;
     transition: all 0.3s ease-in;
 }
 
 .dark .header-info-selected-images-line-td {
-    background-color: #262525 !important; /* Тот же цвет, что и у родителя */
-    color: lightgray !important; /* Цвет текста как в остальной теме */
-    border-color: #404040 !important; /* Цвет границ (если есть) */
+    background-color: #262525 !important;
+    color: lightgray !important;
+    border-color: #404040 !important;
 }
 
-/* общий класс для всех кнопок с аттрибутом disabled для темы Dark */
 .dark .btn-stepper:disabled {
     appearance: none;
     background: #262525;
@@ -125,8 +119,6 @@
     transition: all 0.3s ease-in;
 }
 
-
-/* полоска прогресса степпера */
 .dark .stepper-progress-line {
     color: lightgray;
 }
@@ -135,16 +127,3 @@
     background: #2e2e2e !important;
     color: #e0e0e0 !important;
 }
-
-/* Принудительное переопределение Bootstrap-стилей */
-.dark .navbar-dark.bg-dark {
-    background-color: #1a1a1a !important;
-}
-
-.dark .jumbotron {
-    background-color: #262525 !important;
-    border: 1px solid #404040;
-}
-
-
-

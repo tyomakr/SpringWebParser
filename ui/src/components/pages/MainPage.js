@@ -1,23 +1,32 @@
-import React from "react";
-import {Helmet} from "react-helmet/es/Helmet";
-import {inject, observer} from "mobx-react";
+import React from 'react';
+import { Helmet } from 'react-helmet/es/Helmet';
+import { inject, observer } from 'mobx-react';
+import { Box, Container, Typography } from '@mui/material';
 
-
-const MainPage = inject("mainStore", "storeFI")(observer((props) => {
+const MainPage = inject('mainStore', 'storeFI')(observer(() => {
     return (
-        <div>
+        <>
             <Helmet
-                htmlAttributes={{"lang": "ru", "amp": undefined}}
+                htmlAttributes={{ lang: 'ru' }}
                 title="Главная"
-                titleTemplate="Spring web parser - %s"/>
+                titleTemplate="Spring web parser - %s"
+            />
 
-            <div className="jumbotron m-0"> {/* Убираем внешние отступы */}
-                <h3 className="header-section">Система парсинга данных</h3>
-                <div className="container-fluid p-4"> {/* Добавляем внутренние отступы */}
-                    <span>Тут пока пустая главная страница</span>
-                </div>
-            </div>
-        </div>
+            <Box sx={{ py: 4, bgcolor: 'background.default' }}>
+                <Container maxWidth="sm" sx={{ px: 2 }}>
+                    <Typography
+                        variant="h4"
+                        component="h1"
+                        gutterBottom
+                    >
+                        Система парсинга данных
+                    </Typography>
+                    <Typography>
+                        Тут пока пустая главная страница
+                    </Typography>
+                </Container>
+            </Box>
+        </>
     );
 }));
 
