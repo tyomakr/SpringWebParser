@@ -3,6 +3,7 @@
   "version": "0.1.2",
   "private": true,
   "proxy": "http://localhost:8111",
+  "homepage": "/",
 
   "dependencies": {
     "@emotion/react": "^11.14.0",

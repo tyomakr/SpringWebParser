@@ -54,3 +54,9 @@ sites:
       cache-control: "no-cache"
       connection:
         timeout: 30000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
