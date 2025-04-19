@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link, Route, BrowserRouter, Routes } from 'react-router-dom';
-import MainPage from './components/pages/MainPage';
 import FWIStepper from './components/FWIStepper';
 import { inject, observer } from 'mobx-react';
 import themeStore from './store/themeStore';
@@ -17,7 +16,7 @@ import {
     Container
 } from '@mui/material';
 
-const App = inject('mainStore', 'storeFI', 'themeStore')(observer(() => {
+const App = inject('storeFI', 'themeStore')(observer(() => {
     const { mode } = themeStore;
     const theme = React.useMemo(() => createTheme({ palette: { mode } }), [mode]);
 
@@ -40,7 +39,6 @@ const App = inject('mainStore', 'storeFI', 'themeStore')(observer(() => {
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 2 }}>
                             <Button color="inherit" component={Link} to="/">Главная</Button>
-                            <Button color="inherit" component={Link} to="/fwi-stepper">Изображения</Button>
                             <Button color="inherit" onClick={themeStore.toggleMode}>
                                 {mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
                             </Button>
@@ -55,8 +53,7 @@ const App = inject('mainStore', 'storeFI', 'themeStore')(observer(() => {
                     sx={{ px: 2, py: 4 }}
                 >
                     <Routes>
-                        <Route path="/" element={<MainPage />} />
-                        <Route path="/fwi-stepper" element={<FWIStepper />} />
+                        <Route path="/" element={<FWIStepper />} />
                     </Routes>
                 </Container>
             </BrowserRouter>

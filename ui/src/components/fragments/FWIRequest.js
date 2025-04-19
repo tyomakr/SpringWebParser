@@ -1,7 +1,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
 import { inject, observer } from 'mobx-react';
-import storeFI from '../../store/storeFI';
+import storeFI from '../../store/StoreFI';
 import { toast } from 'react-toastify';
 import { useForm, Controller } from 'react-hook-form';
 import * as yup from 'yup';
@@ -29,7 +29,7 @@ const schema = yup.object({
         .required('Обязательно')
 });
 
-const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
+const FWIRequest = inject('storeFI')(observer(() => {
     const {
         control,
         handleSubmit,
@@ -44,7 +44,6 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
     const onSubmit = async (values) => {
         try {
             await storeFI.getWebImagesFromPages(values.num1, values.num2);
-            storeFI.step1 = true;
             const count = storeFI.webImages.length;
             toast.success(`Успешно! Найдено ${count} изображений.`, {
                 position: 'bottom-right',
