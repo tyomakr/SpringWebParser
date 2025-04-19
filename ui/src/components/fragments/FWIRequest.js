@@ -13,25 +13,32 @@ import {
     Typography,
     Container
 } from '@mui/material';
+import LogConsole from '../LogConsole';
 
 // Схема валидации
 const schema = yup.object({
     num1: yup
         .number().typeError('Должно быть числом')
         .integer('Только целые')
-        .positive('> 0')
+        .positive('> 0')
         .required('Обязательно'),
     num2: yup
         .number().typeError('Должно быть числом')
         .integer('Только целые')
-        .positive('> 0')
+        .positive('> 0')
         .required('Обязательно')
 });
 
 const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
-    const { control, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm({
+    const {
+        control,
+        handleSubmit,
+        formState: { errors, isSubmitting, isValid }
+    } = useForm({
         defaultValues: { num1: 1, num2: 20 },
-        resolver: yupResolver(schema)
+        resolver: yupResolver(schema),
+        mode: 'onChange',
+        reValidateMode: 'onChange'
     });
 
     const onSubmit = async (values) => {
@@ -59,25 +66,15 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
                 title="Запрос изображений"
                 titleTemplate="Spring web parser - %s"
             />
-
             <Container maxWidth="sm" sx={{ py: 4 }}>
-                <Typography
-                    variant="h4"
-                    component="h1"
-                >
+                <Typography variant="h4" component="h1" gutterBottom>
                     Запрос изображений для отбора
                 </Typography>
-
                 <Box
                     component="form"
                     onSubmit={handleSubmit(onSubmit)}
                     noValidate
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 2,
-                        mt: 2
-                    }}
+                    sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}
                 >
                     <Controller
                         name="num1"
@@ -93,7 +90,6 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
                             />
                         )}
                     />
-
                     <Controller
                         name="num2"
                         control={control}
@@ -108,12 +104,11 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
                             />
                         )}
                     />
-
                     <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                         <Button
                             type="submit"
                             variant="contained"
-                            disabled={isSubmitting || !isDirty}
+                            disabled={isSubmitting || !isValid}
                         >
                             Отправить запрос
                         </Button>
@@ -126,6 +121,14 @@ const FWIRequest = inject('mainStore', 'storeFI')(observer(() => {
                             Сбросить
                         </Button>
                     </Box>
+                </Box>
+
+                {/* Логи процесса */}
+                <Box mt={4}>
+                    <Typography variant="h6" gutterBottom>
+                        Логи процесса
+                    </Typography>
+                    <LogConsole />
                 </Box>
             </Container>
         </>

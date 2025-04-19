@@ -1,5 +1,5 @@
 import React from 'react';
-import { Helmet } from 'react-helmet/es/Helmet';
+import { Helmet } from 'react-helmet';
 import { inject, observer } from 'mobx-react';
 import { toast } from 'react-toastify';
 import {
@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import DeleteOutlined from '@mui/icons-material/Delete';
+import LogConsole from '../LogConsole';
 
 const PrepareToSendImages = inject('storeFI')(observer(({ storeFI }) => {
     // Отправка
@@ -53,12 +54,12 @@ const PrepareToSendImages = inject('storeFI')(observer(({ storeFI }) => {
     const isSm   = useMediaQuery(theme.breakpoints.up('sm'));
 
     let cols = 1;
-    if      (is4k)   cols = 10;  // ▶︎ ровно 10 колонок на 4K
-    else if (isFHD)  cols = 6;
-    else if (isXl)   cols = 5;
-    else if (isLg)   cols = 4;
-    else if (isMd)   cols = 3;
-    else if (isSm)   cols = 2;
+    if      (is4k)  cols = 10;  // ровно 10 колонок на 4K
+    else if (isFHD) cols = 6;
+    else if (isXl)  cols = 5;
+    else if (isLg)  cols = 4;
+    else if (isMd)  cols = 3;
+    else if (isSm)  cols = 2;
 
     return (
         <>
@@ -123,11 +124,11 @@ const PrepareToSendImages = inject('storeFI')(observer(({ storeFI }) => {
                         ))}
                     </ImageList>
 
-                    {/* Увеличенный шрифт и gap у пагинации */}
+                    {/* Пагинация */}
                     <Stack alignItems="center" spacing={2} sx={{ my: 2 }}>
                         <Pagination
                             count={pageCount}
-                            page={1}
+                            page={storeFI.page}
                             size="medium"
                             sx={{
                                 '& .MuiPaginationItem-root': {
@@ -140,21 +141,29 @@ const PrepareToSendImages = inject('storeFI')(observer(({ storeFI }) => {
                                     rowGap: '16px'
                                 }
                             }}
+                            onChange={(_, v) => (storeFI.page = v)}
                             aria-label="Навигация по страницам подготовленных изображений"
                         />
                     </Stack>
 
-                    {/* Единственная кнопка Отправить */}
+                    {/* Кнопка «Отправить» */}
                     <Box sx={{ textAlign: 'center' }}>
                         <Button
                             variant="contained"
                             color="success"
                             onClick={handleSend}
                             disabled={storeFI.selectedImages.length === 0}
-                            aria-disabled={storeFI.selectedImages.length === 0}
                         >
                             Отправить
                         </Button>
+                    </Box>
+
+                    {/* Логи процесса */}
+                    <Box mt={4}>
+                        <Typography variant="h6" gutterBottom>
+                            Логи процесса
+                        </Typography>
+                        <LogConsole />
                     </Box>
                 </Container>
             </Box>
