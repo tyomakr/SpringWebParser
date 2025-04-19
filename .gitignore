@@ -1,4 +1,12 @@
-/SpringWebParser.iml
-/.idea/
-.gitignore
-application-secret.yml
+# backend artefacts
+backend/target/
+backend/.idea/
+backend/*.iml
+
+# frontend artefacts
+ui/node_modules/
+ui/build/
+
+# Maven / Gradle wrapper
+!backend/.mvn/**
+!backend/mvnw*

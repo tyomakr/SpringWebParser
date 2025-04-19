@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  backend:
+    build: ./backend
+    image: swp-backend:latest
+    container_name: swp-backend
+    expose: ["8111"]
+    networks: [app-net]
+
+  frontend:
+    build: ./ui                 # <-- контекст = ui/
+    image: swp-frontend:latest
+    container_name: swp-frontend
+    ports:
+      - "3333:80"
+    depends_on: [backend]
+    networks: [app-net]
+
+networks:
+  app-net:
+    driver: bridge

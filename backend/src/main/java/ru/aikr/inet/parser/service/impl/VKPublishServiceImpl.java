@@ -20,6 +20,7 @@ import ru.aikr.inet.parser.util.AnsiColors;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 @Service
@@ -121,7 +122,7 @@ public class VKPublishServiceImpl implements VKPublishService {
                     String attachmentId = uploadPhotoWithBackoff(actor, file);
                     attachmentIds.add(attachmentId);
                     fileSuccess = true;
-                    Thread.sleep(baseDelay);
+                    TimeUnit.MILLISECONDS.sleep(baseDelay);
                 } catch (ApiException e) {
                     handleApiError(chunkNumber, e);
                     waitBeforeRetry(attempt);
@@ -210,7 +211,7 @@ public class VKPublishServiceImpl implements VKPublishService {
             log.info(AnsiColors.CYAN + String.format(
                     "Waiting %d ms before next attempt...", delay
             ) + AnsiColors.RESET);
-            Thread.sleep(delay);
+            TimeUnit.MILLISECONDS.sleep(delay);
         } catch (InterruptedException ignored) {}
     }
 

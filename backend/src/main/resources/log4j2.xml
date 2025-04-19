@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="DEBUG"
-               packages="ru.aikr.inet.parser.logging">
+<Configuration status="WARN">
 
     <Appenders>
         <ReactiveAppender name="REACTIVE"/>
