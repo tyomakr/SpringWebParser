@@ -7,6 +7,7 @@ RUN mvn -B clean package -DskipTests
 # ---------- Stage 2: runtime ----------
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+RUN mkdir -p /app/downloaded
 COPY --from=build /app/target/spring-web-parser-backend.jar app.jar
 EXPOSE 8111
 ENTRYPOINT ["java","-jar","app.jar"]

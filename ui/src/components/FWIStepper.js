@@ -1,4 +1,3 @@
-// src/components/FWIStepper.js
 import React from 'react';
 import { inject, observer } from 'mobx-react';
 import {
@@ -20,37 +19,35 @@ import PrepareToSendImages from './fragments/PrepareToSendImages';
 const STEPS = ['Запрос изображений', 'Отбор изображений', 'Публикация'];
 
 const FWIStepper = inject('storeFI')(observer(({ storeFI }) => {
-    /* ――― фиксированная панель привязывается к AppBar ――― */
-    const theme   = useTheme();
+    const theme = useTheme();
     const trigger = useScrollTrigger({ disableHysteresis: true, threshold: 0 });
     const appBarH = theme.mixins.toolbar.minHeight || 64;
     const headerH = 64;
     const headerTop = trigger ? 0 : appBarH;
 
-    /* ――― локальное состояние шага для UI ――― */
     const [activeStep, setActiveStep] = React.useState(0);
 
-    const next  = () => setActiveStep(s => Math.min(s + 1, STEPS.length - 1));
-    const back  = () => setActiveStep(s => Math.max(s - 1, 0));
+    const next = () => setActiveStep(s => Math.min(s + 1, STEPS.length - 1));
+    const back = () => setActiveStep(s => Math.max(s - 1, 0));
     const reset = () => { storeFI.clearStore(); setActiveStep(0); };
 
     const renderStep = () => {
         switch (activeStep) {
-            case 0:  return <FWIRequest />;
-            case 1:  return <Gallery />;
-            case 2:  return <PrepareToSendImages />;
+            case 0: return <FWIRequest />;
+            case 1: return <Gallery />;
+            case 2: return <PrepareToSendImages />;
             default: return null;
         }
     };
 
-    /* ――― условия «Далее» ――― */
+    /** Условия для кнопки «Далее» */
     const canGoNext =
         (activeStep === 0 && storeFI.currentStep >= 1) ||
         (activeStep === 1 && storeFI.selectedImages.length > 0);
 
     return (
         <>
-            {/* ────────────────────────────────────── фикс‑панель ────────────────────────────────────── */}
+            {/* Фикс‑панель с количеством выбранных изображений и кнопкой «Сброс» */}
             <Box
                 sx={{
                     position: 'fixed',
@@ -69,10 +66,9 @@ const FWIStepper = inject('storeFI')(observer(({ storeFI }) => {
                 }}
             >
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                    <span>Выбрано&nbsp;изображений:</span>
+                    <span>Выбрано изображений:</span>
                     <b>{storeFI.selectedImages.length}</b>
                 </Box>
-
                 <Button
                     variant="outlined"
                     color="warning"
@@ -83,7 +79,7 @@ const FWIStepper = inject('storeFI')(observer(({ storeFI }) => {
                 </Button>
             </Box>
 
-            {/* ────────────────────────────────────── контент ────────────────────────────────────── */}
+            {/* Основной контент */}
             <Container
                 maxWidth={false}
                 disableGutters
@@ -95,37 +91,31 @@ const FWIStepper = inject('storeFI')(observer(({ storeFI }) => {
             >
                 <Stepper nonLinear activeStep={activeStep} sx={{ mb: 3 }}>
                     {STEPS.map(label => (
-                        <Step key={label}><StepLabel>{label}</StepLabel></Step>
+                        <Step key={label}>
+                            <StepLabel>{label}</StepLabel>
+                        </Step>
                     ))}
                 </Stepper>
 
                 {renderStep()}
 
+                {/* Навигационные кнопки */}
                 <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                    {/* Назад — на всех шагах, кроме первого */}
                     {activeStep > 0 && (
                         <Button variant="outlined" onClick={back}>
                             Назад
                         </Button>
                     )}
 
-                    {activeStep < STEPS.length - 1 ? (
+                    {/* Далее — только на шагах 0 и 1 */}
+                    {activeStep < STEPS.length - 1 && (
                         <Button
                             variant="contained"
                             onClick={next}
                             disabled={!canGoNext}
                         >
                             Далее
-                        </Button>
-                    ) : (
-                        <Button
-                            variant="contained"
-                            color="success"
-                            onClick={() =>
-                                storeFI.saveAndPublishSelectedImages(storeFI.selectedImages)
-                            }
-                            disabled={storeFI.selectedImages.length === 0}
-                        >
-                            Отправить
                         </Button>
                     )}
                 </Box>
