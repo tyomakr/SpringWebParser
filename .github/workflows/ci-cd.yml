@@ -1,0 +1,62 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      VK_USER_ID:      ${{ secrets.VK_USER_ID }}
+      VK_GROUP_ID:     ${{ secrets.VK_GROUP_ID }}
+      VK_ACCESS_TOKEN: ${{ secrets.VK_ACCESS_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU (для multi‑arch, опционально)
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ── Сгенерировать application-secret.yml перед сборкой бэкенда ──
+      - name: Generate application-secret.yml
+        run: |
+          mkdir -p backend/src/main/resources
+          cat <<EOF > backend/src/main/resources/application-secret.yml
+          vk:
+            user-id: ${VK_USER_ID}
+            group-id: ${VK_GROUP_ID}
+            access-token: ${VK_ACCESS_TOKEN}
+          EOF
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/spring-web-parser-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/spring-web-parser-backend:${{ github.sha }}
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./ui
+          file: ./ui/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/spring-web-parser-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/spring-web-parser-frontend:${{ github.sha }}
