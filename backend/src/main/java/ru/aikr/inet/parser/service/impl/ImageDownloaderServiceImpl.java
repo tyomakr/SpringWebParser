@@ -1,6 +1,8 @@
 package ru.aikr.inet.parser.service.impl;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -8,119 +10,118 @@ import ru.aikr.inet.parser.config.SecurityConfig;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.ImageDownloaderService;
 import ru.aikr.inet.parser.service.UserAgentService;
-import ru.aikr.inet.parser.util.AnsiColors;
 
-import java.io.IOException;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
+import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ImageDownloaderServiceImpl implements ImageDownloaderService {
 
-    private static final Logger log = Logger.getLogger(ImageDownloaderServiceImpl.class.getName());
-
     private final UserAgentService userAgentService;
     private final SecurityConfig securityConfig;
 
-    @Value("${env.image-downloader.max-retries}")
+    /** Папка по умолчанию из application.yml (env.parser.download-folder-name) */
+    @Value("${env.parser.download-folder-name:downloaded}")
+    private String defaultFolder;
+
+    /** Сколько попыток делать при ошибках */
+    @Value("${env.image-downloader.max-retries:3}")
     private int maxRetries;
+
+    /** Абсолютный путь к папке по умолчанию */
+    private Path defaultDownloadDir;
+
+    @PostConstruct
+    public void init() {
+        defaultDownloadDir = Paths.get(defaultFolder).toAbsolutePath().normalize();
+        try {
+            if (Files.notExists(defaultDownloadDir)) {
+                Files.createDirectories(defaultDownloadDir);
+                log.info("Created default download folder: {}", defaultDownloadDir);
+            }
+        } catch (Exception e) {
+            log.error("Could not create default download folder '{}': {}", defaultDownloadDir, e.getMessage());
+        }
+    }
 
     @Override
     public List<Path> downloadImages(List<WebImage> images, Path outputDir) {
-        return images.stream()
-                .map(image -> processImage(image.getDirectLink(), outputDir))
-                .collect(Collectors.toList());
+        // выбираем целевую директорию
+        Path targetDir = (outputDir != null)
+                ? outputDir.toAbsolutePath().normalize()
+                : defaultDownloadDir;
+
+        // гарантированно создаём
+        try {
+            if (Files.notExists(targetDir)) {
+                Files.createDirectories(targetDir);
+                log.info("Created download directory: {}", targetDir);
+            }
+        } catch (Exception e) {
+            log.error("Cannot create download directory '{}': {}", targetDir, e.getMessage());
+            return List.of();
+        }
+
+        List<Path> results = new ArrayList<>();
+        for (WebImage wi : images) {
+            Path file = downloadWithRetries(wi.getDirectLink(), targetDir);
+            if (file != null && Files.exists(file)) {
+                results.add(file);
+            } else {
+                log.warn("Skipping missing file: {}", file);
+            }
+        }
+        return results;
     }
 
-
-    private Path processImage(String imageUrl, Path outputDir) {
+    private Path downloadWithRetries(String url, Path dir) {
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return downloadSingleImage(imageUrl, outputDir);
+                return downloadSingle(url, dir);
             } catch (Exception e) {
-                handleDownloadError(imageUrl, attempt, e); // Централизованная обработка
+                log.warn("Attempt {}/{} failed for {}: {}", attempt, maxRetries, url, e.getMessage());
                 if (attempt == maxRetries) {
-                    throw new RuntimeException("Failed after " + maxRetries + " attempts: " + imageUrl, e);
+                    log.error("Giving up downloading {} after {} attempts", url, maxRetries);
                 }
             }
         }
-        throw new IllegalStateException("Unexpected error");
+        return null;
     }
 
+    private Path downloadSingle(String imageUrl, Path dir) throws Exception {
+        String ua = userAgentService.getRandomUserAgent();
+        SSLSocketFactory sslFactory = securityConfig.getUnsafeSSLContext().getSocketFactory();
 
-    private Path downloadSingleImage(String url, Path outputDir) throws IOException, URISyntaxException {
-        String userAgent = userAgentService.getRandomUserAgent();
-        String shortenedUA = userAgent.length() > 35
-                ? userAgent.substring(0, 35) + "..."
-                : userAgent;
+        String fileName = deriveFileName(imageUrl);
+        Path out = dir.resolve(fileName);
 
-        Path outputPath = outputDir.resolve(generateFileName(url));
-
-        try (InputStream is = Jsoup.connect(url)
-                .sslSocketFactory(getUnsafeSSLSocketFactory())
-                .userAgent(userAgent)
+        try (InputStream in = Jsoup.connect(imageUrl)
+                .sslSocketFactory(sslFactory)
+                .userAgent(ua)
                 .ignoreContentType(true)
                 .execute()
                 .bodyStream()) {
 
-            Files.copy(is, outputPath);
-            log.info(AnsiColors.GREEN + String.format(
-                    "Downloaded: %-40s | UA: %s",
-                    outputPath.getFileName(),
-                    shortenedUA
-            ) + AnsiColors.RESET);
-
-        } catch (Exception e) {
-            log.severe(AnsiColors.RED + String.format(
-                    "Failed: %-40s | UA: %s | Error: %s",
-                    outputPath.getFileName(),
-                    shortenedUA,
-                    e.getMessage()
-            ) + AnsiColors.RESET);
-            throw e;
+            Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
+            log.info("Downloaded {} → {} (UA: {})", imageUrl, out, shortenUA(ua));
         }
-        return outputPath;
+        return out;
     }
 
-
-    private String generateFileName(String url) throws URISyntaxException {
+    private String deriveFileName(String url) throws Exception {
         URI uri = new URI(url);
-        String path = uri.getPath();
-        String rawName = path.substring(path.lastIndexOf('/') + 1);
-        return sanitizeFileName(rawName.split("[?]")[0]);
+        String raw = uri.getPath().substring(uri.getPath().lastIndexOf('/') + 1);
+        if (raw.contains("?")) raw = raw.substring(0, raw.indexOf('?'));
+        return raw.replaceAll("[^\\w.-]", "_");
     }
 
-    private String sanitizeFileName(String input) {
-        return input.replaceAll("[^a-zA-Z0-9.-]", "_");
-    }
-
-
-    private void handleDownloadError(String url, int attempt, Exception e) {
-        String message = String.format(
-                "Attempt %d/%d failed: %s | URL: %s",
-                attempt, maxRetries, e.getMessage(), url
-        );
-        log.warning(AnsiColors.YELLOW + message + AnsiColors.RESET);
-    }
-
-    /**
-     * Получает SSL-фабрику с обработкой исключений.
-     */
-    private javax.net.ssl.SSLSocketFactory getUnsafeSSLSocketFactory() {
-        try {
-            return securityConfig.getUnsafeSSLContext().getSocketFactory();
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            log.severe(AnsiColors.RED + "SSL Error: " + e.getMessage() + AnsiColors.RESET);
-            throw new RuntimeException("Failed to initialize SSL context", e);
-        }
+    private String shortenUA(String ua) {
+        return ua.length() <= 40 ? ua : ua.substring(0, 37) + "...";
     }
 }
