@@ -56,6 +56,12 @@ class StoreFI {
         this.selectedImages = [];
         this.step1 = false;
     }
+
+    clearWebImages() {
+        this.webImages = [];
+        this.step1 = false;
+    }
 }
 
-export default new StoreFI();
+const StoreFIInstance = new StoreFI();
+export default StoreFIInstance;

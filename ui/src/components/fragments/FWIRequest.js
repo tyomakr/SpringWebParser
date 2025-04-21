@@ -35,6 +35,7 @@ const FWIRequest = inject('storeFI')(
         const {
             control,
             handleSubmit,
+            reset,
             formState: { errors, isSubmitting, isValid },
         } = useForm({
             defaultValues: { num1: 1, num2: 20 },
@@ -57,6 +58,14 @@ const FWIRequest = inject('storeFI')(
                     autoClose: 5000,
                 });
             }
+        };
+
+        // Локальный сброс: только поля формы и webImages/step1
+        const handleReset = () => {
+            // 1) вернуть поля к дефолту
+            reset({ num1: 1, num2: 20 });
+            // 2) очистить результаты предыдущего запроса
+            storeFI.clearWebImages();
         };
 
         return (
@@ -115,7 +124,7 @@ const FWIRequest = inject('storeFI')(
                             <Button
                                 type="button"
                                 variant="outlined"
-                                onClick={() => window.location.reload()}
+                                onClick={handleReset}
                                 disabled={isSubmitting}
                             >
                                 Сбросить
@@ -128,7 +137,7 @@ const FWIRequest = inject('storeFI')(
                         <Typography variant="h6" gutterBottom>
                             Логи процесса
                         </Typography>
-                        <LogConsole />
+                        <LogConsole skipCache />
                     </Box>
                 </Container>
             </>

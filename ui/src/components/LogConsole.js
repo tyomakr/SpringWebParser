@@ -1,71 +1,80 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Box } from '@mui/material';
 import LogLine from './LogLine';
 
-export default function LogConsole() {
-    const theme = useTheme();
-    const [lines, setLines] = useState([]);
-    const scrollRef = useRef();
-    const lastCountRef = useRef(0);
+/**
+ * LogConsole: подписывается на SSE /api/v1/logs/stream?skipCache={skipCache},
+ * отображает только новые события (если skipCache=true),
+ * автопрокручивает и переподключается при обрыве.
+ *
+ * @param {boolean} skipCache — если true (дефолт), не запрашиваем буфер старых логов.
+ */
+export default function LogConsole({ skipCache = true }) {
+    const [logs, setLogs] = useState([]);
+    const evtSourceRef = useRef(null);
+    const containerRef = useRef(null);
 
     useEffect(() => {
-        let mounted = true;
+        const baseUrl =
+            process.env.NODE_ENV === 'development'
+                ? 'http://localhost:8111/api/v1/logs/stream'
+                : '/api/v1/logs/stream';
+        const url = skipCache
+            ? `${baseUrl}?skipCache=true`
+            : baseUrl;
 
-        async function fetchLatest() {
-            const res = await fetch('/api/v1/logs/latest');
-            if (!res.ok) return [];
-            return res.json();
+        function connect() {
+            const source = new EventSource(url);
+            evtSourceRef.current = source;
+
+            // Слушаем только кастомные 'log' события
+            source.addEventListener('log', e => {
+                setLogs(prev => [...prev, e.data]);
+            });
+
+            source.onerror = err => {
+                console.error('SSE connection error:', err);
+                source.close();
+                // переподключаемся через 3 сек
+                setTimeout(connect, 3000);
+            };
         }
 
-        // первый раз — запомним длину
-        fetchLatest().then(arr => {
-            if (mounted) lastCountRef.current = arr.length;
-        });
-
-        // далее каждые 1 с подгружаем только новые строки
-        const id = setInterval(async () => {
-            const arr = await fetchLatest();
-            if (!mounted) return;
-            if (arr.length > lastCountRef.current) {
-                const newSlice = arr.slice(lastCountRef.current);
-                setLines(prev => [...prev, ...newSlice]);
-                lastCountRef.current = arr.length;
-            }
-        }, 1000);
-
+        connect();
         return () => {
-            mounted = false;
-            clearInterval(id);
+            if (evtSourceRef.current) {
+                evtSourceRef.current.close();
+            }
         };
-    }, []);
+    }, [skipCache]);
 
-    // автоскролл вниз при новых строках
+    // автопрокрутка вниз при каждом новом сообщении
     useEffect(() => {
-        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }, [lines]);
+        const el = containerRef.current;
+        if (el) {
+            el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        }
+    }, [logs]);
 
     return (
         <Box
-            ref={scrollRef}
+            component="pre"
+            ref={containerRef}
             sx={{
-                height: 240,
+                maxHeight: 300,
+                height: 300,
                 overflowY: 'auto',
+                backgroundColor: 'background.paper',
+                p: 1,
+                borderRadius: 1,
+                fontFamily: 'monospace',
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
-                backgroundColor: theme.palette.background.paper,
-                p: 1,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
             }}
         >
-            {lines.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                    Ждём новых записей…
-                </Typography>
-            ) : (
-                lines.map((raw, i) => <LogLine key={i} raw={raw} />)
-            )}
+            {logs.map((line, idx) => (
+                <LogLine key={idx} raw={line} />
+            ))}
         </Box>
     );
 }
