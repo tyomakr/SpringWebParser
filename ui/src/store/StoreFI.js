@@ -1,53 +1,61 @@
-import { makeAutoObservable } from "mobx";
-import backendApiService from "../service/backendApiService";
+import { makeAutoObservable } from 'mobx';
+import backendApiService from '../service/backendApiService';
 
 class StoreFI {
     webImages = [];
+    step1 = false;
     selectedImages = [];
-    currentStep = 0;
 
     constructor() {
         makeAutoObservable(this);
     }
 
-    async getWebImagesFromPages(num1, num2) {
+    /**
+     * Шаг 1: запрос картинок.
+     * После каждого нового запроса сбрасываем флаг step1,
+     * а по окончании — устанавливаем его в true.
+     */
+    async getWebImagesFromPages(fromPage, toPage) {
+        this.step1 = false;
+        this.webImages = [];
         try {
-            this.webImages = [];
-            const response = await backendApiService.getWebImagesOnPages(num1, num2);
-            console.log(response.data);
+            const response = await backendApiService.getWebImagesOnPages(fromPage, toPage);
             this.webImages = response.data;
-            this.currentStep = 1;
+            this.step1 = true;
         } catch (e) {
-            console.error("Ошибка при получении изображений: ", e);
+            console.error('Ошибка при запросе изображений:', e);
+            // step1 останется false
         }
     }
 
-    async saveAndPublishSelectedImages(data) {
+    /**
+     * Шаг 3: отправка выбранных изображений.
+     */
+    async saveAndPublishSelectedImages(images) {
         try {
-            const response = await backendApiService.saveAndPublishSelectedImages(data);
-            this.currentStep = 2;
-            return response.data;
+            const result = await backendApiService.saveAndPublishSelectedImages(images);
+            return result;
         } catch (e) {
-            console.error("Ошибка при публикации: ", e);
+            console.error('Ошибка при отправке выбранных изображений:', e);
+            throw e;
         }
     }
 
+    /**
+     * Удаление изображения из выбранных по индексу.
+     */
+    removeSelectedImageByIndex(index) {
+        this.selectedImages.splice(index, 1);
+    }
+
+    /**
+     * Полная очистка стейта (для кнопки «Сброс»).
+     */
     clearStore() {
         this.webImages = [];
         this.selectedImages = [];
-        this.resetSteps();
-    }
-
-    removeSelectedImageByIndex(index) {
-        const reduceArr = [...this.selectedImages];
-        reduceArr.splice(index, 1);
-        this.selectedImages = reduceArr;
-    }
-
-    resetSteps() {
-        this.currentStep = 0;
+        this.step1 = false;
     }
 }
 
-const storeFI = new StoreFI();
-export default storeFI;
+export default new StoreFI();

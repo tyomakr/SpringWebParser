@@ -1,22 +1,12 @@
 import React from 'react';
-import { Link, Route, BrowserRouter, Routes } from 'react-router-dom';
-import FWIStepper from './components/FWIStepper';
+import { Link, BrowserRouter, Routes, Route } from 'react-router-dom';
 import { inject, observer } from 'mobx-react';
-import themeStore from './store/themeStore';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import FWIStepper from './components/FWIStepper';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import {
-    CssBaseline,
-    AppBar,
-    Toolbar,
-    Typography,
-    Button,
-    Box,
-    Container
-} from '@mui/material';
+import { CssBaseline, AppBar, Toolbar, Typography, Button, Box, Container } from '@mui/material';
+import { ToastContainer } from 'react-toastify';
 
-const App = inject('storeFI', 'themeStore')(observer(() => {
+const App = inject('storeFI', 'themeStore')(observer(({ themeStore }) => {
     const { mode } = themeStore;
     const theme = React.useMemo(() => createTheme({ palette: { mode } }), [mode]);
 
@@ -29,7 +19,6 @@ const App = inject('storeFI', 'themeStore')(observer(() => {
             />
 
             <BrowserRouter>
-                {/* Шапка */}
                 <AppBar position="static" sx={{ backgroundColor: mode === 'dark' ? '#1a1a1a' : '#333' }}>
                     <Toolbar>
                         <Typography variant="h6" sx={{ flexGrow: 1 }}>
@@ -46,12 +35,7 @@ const App = inject('storeFI', 'themeStore')(observer(() => {
                     </Toolbar>
                 </AppBar>
 
-                {/* Контент на всю ширину */}
-                <Container
-                    maxWidth={false}
-                    disableGutters
-                    sx={{ px: 2, py: 4 }}
-                >
+                <Container maxWidth={false} disableGutters sx={{ px: 2, py: 4 }}>
                     <Routes>
                         <Route path="/" element={<FWIStepper />} />
                     </Routes>
