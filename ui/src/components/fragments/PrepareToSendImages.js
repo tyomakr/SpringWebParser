@@ -163,7 +163,7 @@ const PrepareToSendImages = inject('storeFI')(observer(({ storeFI }) => {
                         <Typography variant="h6" gutterBottom>
                             Логи процесса
                         </Typography>
-                        <LogConsole />
+                        <LogConsole skipCache />
                     </Box>
                 </Container>
             </Box>

@@ -20,7 +20,4 @@ public class SpringWebParserApplication implements ApplicationContextAware {
         LogEventsPublisher publisher = ctx.getBean(LogEventsPublisher.class);
         Log4j2ReactiveAppender.setPublisher(publisher);
     }
-
-
-
 }

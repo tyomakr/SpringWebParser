@@ -1,20 +1,17 @@
 package ru.aikr.inet.parser.logging;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
-/**
- * SSE‑контроллер на WebFlux.
- * — сначала выдаёт буфер последних 200 строк (publisher.getLatestLogs()),
- * — затем «живые» события из publisher.getFlux().
- */
+import java.time.Duration;
+
+@Slf4j
 @RestController
 @CrossOrigin(origins = "http://localhost:3333")
+@RequestMapping("/api/v1/logs")
 public class LogStreamController {
 
     private final LogEventsPublisher publisher;
@@ -23,33 +20,36 @@ public class LogStreamController {
         this.publisher = publisher;
     }
 
-    /**
-     * @param skipCache если true — выдаём только "живые" события, без буфера.
-     */
-    @GetMapping(path = "/api/v1/logs/stream",
-            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> streamLogs(
             @RequestParam(name = "skipCache", defaultValue = "false") boolean skipCache) {
+        log.info("[SSE] new connection, skipCache={}", skipCache);
 
-        // Flux живых событий
+        // сразу пингуем, чтобы браузер не считал соединение пустым
+        Flux<ServerSentEvent<String>> ping = Flux.just(
+                ServerSentEvent.<String>builder().comment("connected").build()
+        );
+
+        // по необходимости отдаем буфер последних 200
+        Flux<ServerSentEvent<String>> cached = skipCache
+                ? Flux.empty()
+                : Flux.fromIterable(publisher.getLatestLogs())
+                .map(line -> ServerSentEvent.<String>builder().event("log").data(line).build());
+
+        // живые логи от ReactiveAppender
         Flux<ServerSentEvent<String>> live = publisher.getFlux()
-                .map(line -> ServerSentEvent.<String>builder()
-                        .event("log")
-                        .data(line)
-                        .build());
+                .map(line -> ServerSentEvent.<String>builder().event("log").data(line).build());
 
-        if (skipCache) {
-            return live;
-        }
+        // heartbeat, чтобы держать канал открытым
+        Flux<ServerSentEvent<String>> heartbeat = Flux.interval(Duration.ofSeconds(15))
+                .map(i -> ServerSentEvent.<String>builder().comment("heartbeat").build());
 
-        // Flux из буфера + живые события
-        Flux<ServerSentEvent<String>> cached = Flux
-                .fromIterable(publisher.getLatestLogs())
-                .map(line -> ServerSentEvent.<String>builder()
-                        .event("log")
-                        .data(line)
-                        .build());
-
-        return Flux.concat(cached, live);
+        // раньше у тебя было Flux.merge(ping, cached, live, heartbeat) — меняем на:
+        Flux<ServerSentEvent<String>> main = Flux.concat(ping, cached, live);
+        return main
+                .mergeWith(heartbeat)
+                .doOnSubscribe(s -> log.info("[SSE] subscribed"))
+                .doOnCancel(()  -> log.info("[SSE] canceled"));
     }
+
 }

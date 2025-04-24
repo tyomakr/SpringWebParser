@@ -6,17 +6,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import ru.aikr.inet.parser.config.SecurityConfig;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.ImageDownloaderService;
 import ru.aikr.inet.parser.service.UserAgentService;
 
-import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SSLContext;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
+
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Service
@@ -24,9 +25,9 @@ import java.util.List;
 public class ImageDownloaderServiceImpl implements ImageDownloaderService {
 
     private final UserAgentService userAgentService;
-    private final SecurityConfig securityConfig;
+    private final SSLContext       sslContext;
 
-    /** Папка по умолчанию из application.yml (env.parser.download-folder-name) */
+    /** Папка по умолчанию */
     @Value("${env.parser.download-folder-name:downloaded}")
     private String defaultFolder;
 
@@ -34,7 +35,6 @@ public class ImageDownloaderServiceImpl implements ImageDownloaderService {
     @Value("${env.image-downloader.max-retries:3}")
     private int maxRetries;
 
-    /** Абсолютный путь к папке по умолчанию */
     private Path defaultDownloadDir;
 
     @PostConstruct
@@ -50,36 +50,32 @@ public class ImageDownloaderServiceImpl implements ImageDownloaderService {
         }
     }
 
+    /**
+     * Скачиваем список WebImage в папку targetDir (или default).
+     * Оригинальный синхронный метод, обёрнутый в Mono.
+     */
     @Override
-    public List<Path> downloadImages(List<WebImage> images, Path outputDir) {
-        // выбираем целевую директорию
+    public Mono<List<Path>> downloadImages(List<WebImage> images, Path outputDir) {
         Path targetDir = (outputDir != null)
                 ? outputDir.toAbsolutePath().normalize()
                 : defaultDownloadDir;
 
-        // гарантированно создаём
-        try {
-            if (Files.notExists(targetDir)) {
-                Files.createDirectories(targetDir);
-                log.info("Created download directory: {}", targetDir);
+        // Обёртка в Mono, чтобы не блокировать Netty-пулы
+        return Mono.fromCallable(() -> {
+            List<Path> results = new ArrayList<>();
+            for (WebImage wi : images) {
+                Path file = downloadWithRetries(wi.getDirectLink(), targetDir);
+                if (file != null && Files.exists(file)) {
+                    results.add(file);
+                } else {
+                    log.warn("Skipping missing file: {}", file);
+                }
             }
-        } catch (Exception e) {
-            log.error("Cannot create download directory '{}': {}", targetDir, e.getMessage());
-            return List.of();
-        }
-
-        List<Path> results = new ArrayList<>();
-        for (WebImage wi : images) {
-            Path file = downloadWithRetries(wi.getDirectLink(), targetDir);
-            if (file != null && Files.exists(file)) {
-                results.add(file);
-            } else {
-                log.warn("Skipping missing file: {}", file);
-            }
-        }
-        return results;
+            return results;
+        }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
     }
 
+    /** Пытаемся скачать до maxRetries раз */
     private Path downloadWithRetries(String url, Path dir) {
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
@@ -94,34 +90,23 @@ public class ImageDownloaderServiceImpl implements ImageDownloaderService {
         return null;
     }
 
+    /** Одна попытка скачивания через Jsoup + SSL + UA */
     private Path downloadSingle(String imageUrl, Path dir) throws Exception {
         String ua = userAgentService.getRandomUserAgent();
-        SSLSocketFactory sslFactory = securityConfig.getUnsafeSSLContext().getSocketFactory();
-
-        String fileName = deriveFileName(imageUrl);
-        Path out = dir.resolve(fileName);
+        String raw = new URI(imageUrl).getPath();
+        String name = Paths.get(raw).getFileName().toString();
+        Path out = dir.resolve(name);
 
         try (InputStream in = Jsoup.connect(imageUrl)
-                .sslSocketFactory(sslFactory)
+                .sslSocketFactory(sslContext.getSocketFactory())
                 .userAgent(ua)
                 .ignoreContentType(true)
                 .execute()
                 .bodyStream()) {
 
             Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
-            log.info("Downloaded {} → {} (UA: {})", imageUrl, out, shortenUA(ua));
+            log.info("Downloaded {} → {} (UA: {})", imageUrl, out, ua);
         }
         return out;
-    }
-
-    private String deriveFileName(String url) throws Exception {
-        URI uri = new URI(url);
-        String raw = uri.getPath().substring(uri.getPath().lastIndexOf('/') + 1);
-        if (raw.contains("?")) raw = raw.substring(0, raw.indexOf('?'));
-        return raw.replaceAll("[^\\w.-]", "_");
-    }
-
-    private String shortenUA(String ua) {
-        return ua.length() <= 40 ? ua : ua.substring(0, 37) + "...";
     }
 }

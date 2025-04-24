@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN"
+               packages="ru.aikr.inet.parser.logging">
+
+    <Appenders>
+        <!-- наш реактивный аппендер -->
+        <ReactiveAppender name="REACTIVE"/>
+
+        <!-- обычная консоль -->
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <PatternLayout>
+                <Pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}  %-5level %pid --- [%thread] %-36logger : %msg%n</Pattern>
+            </PatternLayout>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="STDOUT"/>
+            <AppenderRef ref="REACTIVE"/>
+        </Root>
+    </Loggers>
+</Configuration>
