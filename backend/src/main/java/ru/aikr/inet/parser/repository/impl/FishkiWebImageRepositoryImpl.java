@@ -2,6 +2,7 @@ package ru.aikr.inet.parser.repository.impl;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Connection;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.network.ConnectionConfigurator;
 import ru.aikr.inet.parser.proxy.ProxyHandler;
 import ru.aikr.inet.parser.repository.WebImageRepository;
+import ru.aikr.inet.parser.service.HtmlParserService;
 import ru.aikr.inet.parser.service.impl.DelayService;
 import ru.aikr.inet.parser.util.AnsiColors;
 
@@ -25,11 +27,11 @@ import java.util.regex.Pattern;
 @Repository
 public class FishkiWebImageRepositoryImpl implements WebImageRepository {
 
-    // Явно указываем, что нужен именно Fishki-конфигуратор
     private final ConnectionConfigurator connectionConfigurator;
     private final ErrorProcessor errorProcessor;
     private final ProxyHandler proxyHandler;
     private final DelayService delayService;
+    private final HtmlParserService htmlParser;        // <<< новинка
 
     @Value("${sites.fishki.fishki-url}")
     private String fishkiUrl;
@@ -39,16 +41,17 @@ public class FishkiWebImageRepositoryImpl implements WebImageRepository {
 
     @Autowired
     public FishkiWebImageRepositoryImpl(
-            @Qualifier("fishkiConnectionConfigurator")
-            ConnectionConfigurator connectionConfigurator,
+            @Qualifier("fishkiConnectionConfigurator") ConnectionConfigurator connectionConfigurator,
             ErrorProcessor errorProcessor,
             ProxyHandler proxyHandler,
-            DelayService delayService
+            DelayService delayService,
+            HtmlParserService htmlParser           // <<< даём в конструктор
     ) {
         this.connectionConfigurator = connectionConfigurator;
         this.errorProcessor = errorProcessor;
         this.proxyHandler = proxyHandler;
         this.delayService = delayService;
+        this.htmlParser = htmlParser;              // <<<
     }
 
     /** Лог при старте парсера */
@@ -58,44 +61,36 @@ public class FishkiWebImageRepositoryImpl implements WebImageRepository {
                 AnsiColors.CYAN, fishkiUrl, divContainerWithImage, AnsiColors.RESET);
     }
 
-    /**
-     * Основной метод: парсим страницы [pageBegin..pageEnd], логируем и делаем паузы.
-     */
+    /** Основной метод: парсим страницы [pageBegin..pageEnd] */
     @Override
     public List<WebImage> findImagesByPageRange(int pageBegin, int pageEnd) {
         List<WebImage> resultList = new ArrayList<>();
-
         log.info("{}PARSING PAGES {}/{}{}", AnsiColors.CYAN, pageBegin, pageEnd, AnsiColors.RESET);
 
         for (int page = pageBegin; page <= pageEnd; page++) {
-            //log.info("{}{}{}", AnsiColors.CYAN, "-".repeat(40), AnsiColors.RESET);
             parsePage(page, resultList);
-            // Пауза между страницами
-            delayService.humanDelay();
+            delayService.humanDelay();      // пауза между страницами
         }
-
         return resultList;
     }
 
-    /**
-     * Парсит одну страницу, вытаскивает <img> из контейнера и логирует.
-     */
+    /** Парсит одну страницу, вытаскивает <img> из контейнера и логирует. */
     private void parsePage(int pageNumber, List<WebImage> resultList) {
         String url = fishkiUrl + pageNumber;
-        try {
-            // Сначала делаем HTTP-запрос через ваш ConnectionConfigurator
-            var response = connectionConfigurator.configureConnection(url);
-            String ua = connectionConfigurator.getLastUserAgent();
 
+        try {
+            Connection.Response response = connectionConfigurator.configureConnection(url);
+            String ua = connectionConfigurator.getLastUserAgent();
             log.info(AnsiColors.CYAN + "Parsing page {} | URL: {} | UA: {}{}",
                     pageNumber, url,
-                    ua == null ? "n/a" : ua.substring(0, Math.min(40, ua.length())) + "...",
-                    AnsiColors.RESET
-            );
+                    ua == null ? "n/a"
+                            : ua.substring(0, Math.min(40, ua.length())) + "...",
+                    AnsiColors.RESET);
+
             log.info(AnsiColors.CYAN + "Response: {} {}" + AnsiColors.RESET,
                     response.statusCode(), response.statusMessage());
 
-            // Обрабатываем редирект
+            // обрабатываем редирект
             if (response.hasHeader("Location")) {
                 String redirectUrl = response.header("Location");
                 log.warn(AnsiColors.YELLOW + "Redirect detected → {}" + AnsiColors.RESET,
@@ -105,48 +100,41 @@ public class FishkiWebImageRepositoryImpl implements WebImageRepository {
                 return;
             }
 
-            // Извлекаем HTML и парсим
-            Document doc = response.parse();
-            Elements containers = doc.select(divContainerWithImage);
+            // *** вот здесь теперь зовём htmlParser ***
+            Document doc = htmlParser.parse(response);
 
+            Elements containers = doc.select(divContainerWithImage);
             if (containers.isEmpty()) {
-                log.warn(AnsiColors.YELLOW +
-                                "No containers found with selector '{}' on page {}" +
-                                AnsiColors.RESET,
-                        divContainerWithImage, pageNumber);
+                log.warn(AnsiColors.YELLOW + "No containers found with selector '{}' on page {}"
+                        + AnsiColors.RESET, divContainerWithImage, pageNumber);
             }
 
             List<WebImage> parsed = new ArrayList<>();
             for (var cont : containers) {
-                cont.select("img").forEach(img -> parsed.add(new WebImage(img.attr("src"))));
+                cont.select("img")
+                        .forEach(img -> parsed.add(new WebImage(img.attr("src"))));
             }
 
             if (parsed.isEmpty()) {
-                log.warn(AnsiColors.YELLOW +
-                                "Found 0 images on page {} — check selector '{}'" +
-                                AnsiColors.RESET,
-                        pageNumber, divContainerWithImage);
+                log.warn(AnsiColors.YELLOW + "Found 0 images on page {} — check selector '{}'"
+                        + AnsiColors.RESET, pageNumber, divContainerWithImage);
             } else {
-                log.info(AnsiColors.GREEN + "Found {} images on page {}" +
-                                AnsiColors.RESET,
+                log.info(AnsiColors.GREEN + "Found {} images on page {}" + AnsiColors.RESET,
                         parsed.size(), pageNumber);
                 resultList.addAll(parsed);
             }
 
         } catch (Exception ex) {
-            log.error(AnsiColors.RED +
-                            "Error parsing page {}: {}" +
-                            AnsiColors.RESET,
+            log.error(AnsiColors.RED + "Error parsing page {}: {}" + AnsiColors.RESET,
                     pageNumber, ex.getMessage());
-            // Обработка ошибок и retry через прокси
+
+            // обработка ошибок и retry через прокси
             errorProcessor.handlePageError(pageNumber, url, ex);
             proxyHandler.retryWithProxy(url);
         }
     }
 
-    /**
-     * Вспомогательный метод для обработки редиректов.
-     */
+    /** Вспомогательный метод для обработки редиректов. */
     private int extractPageNumber(String url) {
         try {
             Matcher m = Pattern.compile("/(\\d+)/?$").matcher(url);

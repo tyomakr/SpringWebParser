@@ -11,10 +11,10 @@ import java.util.List;
 public interface VKPublishService {
 
     /**
-     * Генерирует посты и публикует их во ВКонтакте.
+     * Создаёт посты и публикует их в группе.
      *
-     * @param fullImagesList список изображений для публикации
-     * @return Mono, сигнализирующий об успехе (true) или неуспехе (false) всей операции
+     * @param images список картинок
+     * @return Mono с числом успешно опубликованных изображений
      */
-    Mono<Boolean> generatePostsAndPublishToCommunityWall(List<WebImage> fullImagesList);
+    Mono<Integer> generatePostsAndPublishToCommunityWall(List<WebImage> images);
 }

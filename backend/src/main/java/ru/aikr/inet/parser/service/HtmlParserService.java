@@ -1,14 +1,15 @@
 package ru.aikr.inet.parser.service;
 
+import org.jsoup.Connection;
 import org.jsoup.nodes.Document;
-import reactor.core.publisher.Mono;
+
+import java.io.IOException;
 
 /**
- * Сервис для реактивного парсинга HTML.
+ * Преобразует HTTP-ответ в Jsoup-Document.
+ * Никакого сетевого I/O — только парсинг HTML.
  */
 public interface HtmlParserService {
-    /**
-     * Парсит переданный URL и возвращает Mono<Document>.
-     */
-    Mono<Document> parseUrl(String url);
+
+    Document parse(Connection.Response response) throws IOException;
 }
