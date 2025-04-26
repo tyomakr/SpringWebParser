@@ -38,14 +38,21 @@ public class VKPublishServiceImpl implements VKPublishService {
     private final WebImageService webImageService;
 
     /* ====== настройки из application.yml ====== */
-    @Value("${vk.user-id}")           private Long   userId;
-    @Value("${vk.group-id}")          private Long   groupId;
-    @Value("${vk.access-token}")      private String accessToken;
+    @Value("${vk.user-id}")
+    private Long   userId;
+    @Value("${vk.group-id}")
+    private Long   groupId;
+    @Value("${vk.access-token}")
+    private String accessToken;
 
-    @Value("${env.vk-publisher.chunk-size}")               private Integer chunkSize;
-    @Value("${env.vk-publisher.max-retries}")              private Integer maxRetries;
-    @Value("${env.vk-publisher.delay-between-retries-ms}") private Integer baseDelay;
-    @Value("${env.vk-publisher.max-delay-ms}")             private Integer maxDelay;
+    @Value("${env.vk-publisher.chunk-size}")
+    private Integer chunkSize;
+    @Value("${env.vk-publisher.max-retries}")
+    private Integer maxRetries;
+    @Value("${env.vk-publisher.delay-between-retries-ms}")
+    private Integer baseDelay;
+    @Value("${env.vk-publisher.max-delay-ms}")
+    private Integer maxDelay;
     /* =========================================== */
 
     /**
@@ -82,10 +89,7 @@ public class VKPublishServiceImpl implements VKPublishService {
         for (Path p : chunk) files.add(p.toFile());
 
         // удаляем дубликаты
-        int initialSize = files.size();
         removeDuplicates(files);
-        log.info(AnsiColors.CYAN + "Removed {} duplicates", initialSize - files.size());
-
         if (files.isEmpty()) return 0;
 
         log.info(AnsiColors.CYAN + "Processing chunk of {} images" + AnsiColors.RESET, files.size());
