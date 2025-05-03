@@ -3,170 +3,215 @@ import { Helmet } from 'react-helmet';
 import { inject, observer } from 'mobx-react';
 import { toast } from 'react-toastify';
 import {
-    Box,
-    Container,
     ImageList,
     ImageListItem,
     ImageListItemBar,
     IconButton,
     Pagination,
-    Stack,
-    Typography,
     Button,
+    Box,
     useMediaQuery
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import DeleteOutlined from '@mui/icons-material/Delete';
 import LogConsole from '../LogConsole';
 
+// DnD-kit
+import {
+    DndContext,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    closestCenter
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    useSortable,
+    rectSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+/**
+ * Перетаскиваемый элемент галереи.
+ * Использует поле directLink для загрузки изображения
+ * и оборачивает кнопку удаления в тот же Box+IconButton,
+ * что во втором шаге (Gallery.js).
+ */
+const SortableImage = ({ image, index, onRemove }) => {
+    const id = `${image.directLink}-${index}`;
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition
+    };
+
+    return (
+        <ImageListItem
+            ref={setNodeRef}
+            {...attributes}
+            {...listeners}
+            style={style}
+            key={id}
+        >
+            <img
+                src={image.directLink}
+                alt=""
+                loading="lazy"
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block'
+                }}
+            />
+            <ImageListItemBar
+                position="bottom"
+                actionIcon={
+                    <Box sx={{ display: 'flex' }}>
+                        <IconButton
+                            aria-label={`Удалить изображение ${index}`}
+                            sx={{ color: '#fff' }}
+                            onClick={() => onRemove(index)}
+                        >
+                            <DeleteOutlined />
+                        </IconButton>
+                    </Box>
+                }
+            />
+        </ImageListItem>
+    );
+};
+
+/**
+ * Шаг 3: отображение галереи, drag&drop,
+ * фильтрация дубликатов и кнопка «Отправить».
+ */
 const PrepareToSendImages = inject('storeFI')(observer(({ storeFI }) => {
-    // Отправка
-    const handleSend = () => {
-        if (storeFI.selectedImages.length) {
-            storeFI
-                .saveAndPublishSelectedImages(storeFI.selectedImages)
-                .then(res =>
-                    toast.success(res, {
-                        position: 'bottom-right',
-                        autoClose: 15000,
-                        hideProgressBar: true
-                    })
-                );
-        }
-    };
+    // DnD-датчики
+    const sensors = useSensors(useSensor(PointerSensor));
+    const theme = useTheme();
+    const is4k = useMediaQuery('(min-width:2560px)');
+    const isFHD = useMediaQuery('(min-width:1920px)');
+    const isXl = useMediaQuery(theme.breakpoints.up('xl'));
+    const isLg = useMediaQuery(theme.breakpoints.up('lg'));
+    const isMd = useMediaQuery(theme.breakpoints.up('md'));
+    const isSm = useMediaQuery(theme.breakpoints.up('sm'));
 
-    // Удаление
-    const handleRemove = idx => {
-        storeFI.removeSelectedImageByIndex(idx);
-    };
-
-    // Пагинация
-    const pageSize  = storeFI.pageSize || 40;
-    const pageCount = Math.ceil(storeFI.selectedImages.length / pageSize);
-
-    // Колонки по брейкпоинтам
-    const theme  = useTheme();
-    const is4k   = useMediaQuery('(min-width:2560px)');
-    const isFHD  = useMediaQuery('(min-width:1920px)');
-    const isXl   = useMediaQuery(theme.breakpoints.up('xl'));
-    const isLg   = useMediaQuery(theme.breakpoints.up('lg'));
-    const isMd   = useMediaQuery(theme.breakpoints.up('md'));
-    const isSm   = useMediaQuery(theme.breakpoints.up('sm'));
-
+    // Вычисляем число колонок под любые разрешения
     let cols = 1;
-    if      (is4k)  cols = 10;  // ровно 10 колонок на 4K
+    if (is4k)      cols = 10;
     else if (isFHD) cols = 6;
     else if (isXl)  cols = 5;
     else if (isLg)  cols = 4;
     else if (isMd)  cols = 3;
     else if (isSm)  cols = 2;
 
+    // Перетаскивание
+    const handleDragEnd = event => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            const fromIndex = storeFI.selectedImages.findIndex(
+                (img, idx) => `${img.directLink}-${idx}` === active.id
+            );
+            const toIndex = storeFI.selectedImages.findIndex(
+                (img, idx) => `${img.directLink}-${idx}` === over.id
+            );
+            storeFI.reorderSelectedImages(fromIndex, toIndex);
+        }
+    };
+
+    // Отправка с фильтрацией дубликатов
+    const handleSend = () => {
+        if (!storeFI.selectedImages.length) return;
+        const unique = storeFI.selectedImages.filter(
+            (img, idx, arr) =>
+                arr.findIndex(x => x.directLink === img.directLink) === idx
+        );
+        storeFI
+            .saveAndPublishSelectedImages(unique)
+            .then(res =>
+                toast.success(res, {
+                    position: 'bottom-right',
+                    autoClose: 15000,
+                    hideProgressBar: true
+                })
+            )
+            .catch(err =>
+                toast.error(`Ошибка при отправке: ${err.message}`, {
+                    position: 'bottom-right'
+                })
+            );
+    };
+
+    // Удаление по индексу
+    const handleRemove = idx => {
+        storeFI.removeSelectedImageByIndex(idx);
+    };
+
+    // Пагинация
+    const pageSize = storeFI.pageSize || 40;
+    const pageCount = Math.ceil(storeFI.selectedImages.length / pageSize);
+
     return (
         <>
-            <Helmet
-                htmlAttributes={{ lang: 'ru' }}
-                title="Подготовка к отправке..."
-                titleTemplate="Spring web parser - %s"
-            />
+            <Helmet>
+                <title>Подготовка к отправке</title>
+            </Helmet>
 
-            <Box sx={{ py: 4, bgcolor: 'background.default' }}>
-                <Container maxWidth={false} disableGutters sx={{ px: 2 }}>
-                    <Typography variant="h4" component="h1" gutterBottom>
-                        Подготовка к отправке
-                    </Typography>
-
-                    {/* Сетка квадратных эскизов */}
-                    <ImageList
-                        cols={cols}
-                        rowHeight="auto"
-                        gap={1}
-                        sx={{ width: '100%' }}
-                        aria-label="Список выбранных изображений"
+            <ImageList
+                variant="quilted"
+                cols={cols}
+                gap={4}
+                rowHeight={164}
+            >
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext
+                        items={storeFI.selectedImages.map(
+                            (img, idx) => `${img.directLink}-${idx}`
+                        )}
+                        strategy={rectSortingStrategy}
                     >
                         {storeFI.selectedImages.map((wi, idx) => (
-                            <ImageListItem key={idx}>
-                                <Box
-                                    sx={{
-                                        position: 'relative',
-                                        width: '100%',
-                                        pt: '100%',
-                                        overflow: 'hidden',
-                                        borderRadius: 1
-                                    }}
-                                >
-                                    <Box
-                                        component="img"
-                                        src={wi.directLink}
-                                        alt={`Изображение ${wi.id}`}
-                                        loading="lazy"
-                                        sx={{
-                                            position: 'absolute',
-                                            top: 0, left: 0,
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'cover'
-                                        }}
-                                    />
-                                </Box>
-                                <ImageListItemBar
-                                    position="bottom"
-                                    actionIcon={
-                                        <IconButton
-                                            aria-label={`Удалить изображение ${wi.id}`}
-                                            sx={{ color: '#fff' }}
-                                            onClick={() => handleRemove(idx)}
-                                        >
-                                            <DeleteOutlined />
-                                        </IconButton>
-                                    }
-                                />
-                            </ImageListItem>
+                            <SortableImage
+                                key={`${wi.directLink}-${idx}`}
+                                image={wi}
+                                index={idx}
+                                onRemove={handleRemove}
+                            />
                         ))}
-                    </ImageList>
+                    </SortableContext>
+                </DndContext>
+            </ImageList>
 
-                    {/* Пагинация */}
-                    <Stack alignItems="center" spacing={2} sx={{ my: 2 }}>
-                        <Pagination
-                            count={pageCount}
-                            page={storeFI.page}
-                            size="medium"
-                            sx={{
-                                '& .MuiPaginationItem-root': {
-                                    fontSize: '1.4rem',
-                                    minWidth: '2.5rem',
-                                    height: '2.5rem'
-                                },
-                                '& .MuiPagination-ul': {
-                                    columnGap: '16px',
-                                    rowGap: '16px'
-                                }
-                            }}
-                            onChange={(_, v) => (storeFI.page = v)}
-                            aria-label="Навигация по страницам подготовленных изображений"
-                        />
-                    </Stack>
+            <Pagination
+                count={pageCount}
+                page={storeFI.page}
+                onChange={(_, v) => (storeFI.page = v)}
+                sx={{ mt: 2 }}
+                aria-label="Навигация по страницам подготовленных изображений"
+            />
 
-                    {/* Кнопка «Отправить» */}
-                    <Box sx={{ textAlign: 'center' }}>
-                        <Button
-                            variant="contained"
-                            color="success"
-                            onClick={handleSend}
-                            disabled={storeFI.selectedImages.length === 0}
-                        >
-                            Отправить
-                        </Button>
-                    </Box>
+            <Button
+                variant="contained"
+                onClick={handleSend}
+                disabled={!storeFI.selectedImages.length}
+                sx={{ mt: 2 }}
+            >
+                Отправить
+            </Button>
 
-                    {/* Логи процесса */}
-                    <Box mt={4}>
-                        <Typography variant="h6" gutterBottom>
-                            Логи процесса
-                        </Typography>
-                        <LogConsole skipCache />
-                    </Box>
-                </Container>
-            </Box>
+            <LogConsole />
         </>
     );
 }));
