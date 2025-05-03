@@ -10,34 +10,41 @@ import com.vk.api.sdk.objects.photos.responses.SaveWallPhotoResponse;
 import com.vk.api.sdk.objects.photos.responses.WallUploadResponse;
 import com.vk.api.sdk.objects.wall.responses.PostResponse;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.FileUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageService;
 import ru.aikr.inet.parser.util.AnsiColors;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VKPublishServiceImpl implements VKPublishService {
 
-    private static final Logger log = Logger.getLogger("VKPublishService");
-
+    /** VK SDK client (один на всё приложение). */
     private final VkApiClient vk = new VkApiClient(HttpTransportClient.getInstance());
+
     private final WebImageService webImageService;
 
+    /* ====== настройки из application.yml ====== */
     @Value("${vk.user-id}")
-    private Long userId;
+    private Long   userId;
     @Value("${vk.group-id}")
-    private Long groupId;
+    private Long   groupId;
     @Value("${vk.access-token}")
     private String accessToken;
+
     @Value("${env.vk-publisher.chunk-size}")
     private Integer chunkSize;
     @Value("${env.vk-publisher.max-retries}")
@@ -46,116 +53,115 @@ public class VKPublishServiceImpl implements VKPublishService {
     private Integer baseDelay;
     @Value("${env.vk-publisher.max-delay-ms}")
     private Integer maxDelay;
+    /* =========================================== */
 
-
+    /**
+     * Публикует список изображений во ВКонтакте.
+     *
+     * @param fullImagesList список модели WebImage (с полем directLink и пр.)
+     * @return Mono с числом реально опубликованных изображений
+     */
     @Override
-    public boolean generatePostsAndPublishToCommunityWall(List<WebImage> fullImagesList) {
+    public Mono<Integer> generatePostsAndPublishToCommunityWall(List<WebImage> fullImagesList) {
+        UserActor actor = new UserActor(userId, accessToken);
+        Path downloadDir = Path.of("downloaded");
 
-        log.info(AnsiColors.CYAN + "\n=== VK PUBLISHING STARTED ===" + AnsiColors.RESET);
-        boolean isAllSuccess = true;
-        UserActor userActor = new UserActor(userId, accessToken);
-        List<File> fileList = null;
-
-        try {
-            // Этап 1: Удаление дубликатов
-            log.info(AnsiColors.CYAN + "Checking duplicates..." + AnsiColors.RESET);
-            int initialSize = fullImagesList.size();
-            removeDuplicates(fullImagesList);
-            log.info(AnsiColors.CYAN + String.format(
-                    "Removed %d duplicates", initialSize - fullImagesList.size()
-            ) + AnsiColors.RESET);
-
-            // Этап 2: Загрузка изображений
-            log.info(AnsiColors.CYAN + "Downloading images..." + AnsiColors.RESET);
-            fileList = webImageService.downloadImagesFromWebImageLinks(fullImagesList);
-            log.info(AnsiColors.CYAN + String.format(
-                    "Downloaded %d files", fileList.size()
-            ) + AnsiColors.RESET);
-
-            // Этап 3: Разделение на чанки
-            log.info(AnsiColors.CYAN + "Splitting into chunks..." + AnsiColors.RESET);
-            List<List<File>> chunks = chunkify(fileList, chunkSize);
-            log.info(AnsiColors.CYAN + String.format(
-                    "Created %d chunks (%d files each)", chunks.size(), chunkSize
-            ) + AnsiColors.RESET);
-
-            // Этап 4: Публикация
-            for (int chunkIndex = 0; chunkIndex < chunks.size(); chunkIndex++) {
-                List<File> chunk = chunks.get(chunkIndex);
-                log.info(AnsiColors.CYAN + String.format(
-                        "Processing chunk %d/%d",
-                        chunkIndex + 1, chunks.size()
-                ) + AnsiColors.RESET);
-
-                boolean chunkSuccess = processChunkWithRetry(userActor, chunk, chunkIndex + 1);
-                if (!chunkSuccess) {
-                    isAllSuccess = false;
-                    log.severe(AnsiColors.RED + String.format(
-                            "Chunk %d failed after %d attempts", chunkIndex + 1, maxRetries
-                    ) + AnsiColors.RESET);
-                }
-            }
-
-        } finally {
-            log.info(AnsiColors.CYAN + "Cleaning temporary files..." + AnsiColors.RESET);
-            if (fileList != null) {
-                deleteDownloadedFiles(fileList);
-            }
-            log.info(AnsiColors.CYAN + "=== PUBLISHING FINISHED ===\n" + AnsiColors.RESET);
-        }
-
-        return isAllSuccess;
+        // 1. Скачиваем изображения
+        return webImageService.downloadImagesFromWebImageLinks(fullImagesList, downloadDir)
+                .flatMapMany(paths -> Flux.fromIterable(paths)
+                        // 2. разбиваем на чанки по chunkSize
+                        .buffer(chunkSize)
+                        // 3. для каждого чанка — обработка с ретраями
+                        .concatMap(chunk ->
+                                Mono.fromCallable(() -> processChunkWithRetry(actor, chunk))
+                                        .subscribeOn(Schedulers.boundedElastic())
+                        )
+                )
+                // 4. суммируем общее число опубликованных
+                .reduce(0, Integer::sum)
+                // 5. чистим временную папку
+                .flatMap(total -> cleanUp(downloadDir).thenReturn(total))
+                .doOnTerminate(() ->
+                        log.info(AnsiColors.CYAN + "=== VK PUBLISH COMPLETED ===" + AnsiColors.RESET)
+                );
     }
 
+    /**
+     * Обработка одного чанка файлов: загрузка, удаление дубликатов, отправка поста.
+     *
+     * @param actor VK-актор
+     * @param chunk список путей к файлам
+     * @return число успешно опубликованных изображений в этом чанке
+     */
+    private int processChunkWithRetry(UserActor actor, List<Path> chunk) {
+        List<File> files = new ArrayList<>();
+        for (Path p : chunk) {
+            files.add(p.toFile());
+        }
 
-    private boolean processChunkWithRetry(UserActor actor, List<File> chunk, int chunkNumber) {
+        // **Убираем дубликаты, сохраняя порядок**
+        removeDuplicates(files);
+        if (files.isEmpty()) {
+            return 0;
+        }
+
+        log.info(AnsiColors.CYAN + "Processing chunk of {} images" + AnsiColors.RESET, files.size());
+
         List<String> attachmentIds = new ArrayList<>();
-        boolean hasErrors = false;
+        int successCnt = 0;
 
-        for (File file : chunk) {
+        // Загрузка с retry/backoff
+        for (File file : files) {
             int attempt = 0;
-            boolean fileSuccess = false;
+            boolean ok = false;
 
-            while (attempt < maxRetries && !fileSuccess) {
+            while (attempt < maxRetries && !ok) {
                 attempt++;
                 try {
-                    String attachmentId = uploadPhotoWithBackoff(actor, file);
-                    attachmentIds.add(attachmentId);
-                    fileSuccess = true;
+                    String attach = uploadPhotoWithBackoff(actor, file);
+                    attachmentIds.add(attach);
+                    ok = true;
+                    successCnt++;
                     TimeUnit.MILLISECONDS.sleep(baseDelay);
                 } catch (ApiException e) {
-                    handleApiError(chunkNumber, e);
+                    handleApiError(e);
                     waitBeforeRetry(attempt);
                 } catch (Exception e) {
-                    log.severe(AnsiColors.RED + "Critical error: " + e.getMessage() + AnsiColors.RESET);
+                    log.error(AnsiColors.RED + "Critical error: {}", e.getMessage());
+                    break;
                 }
             }
 
-            if (!fileSuccess) {
-                hasErrors = true;
-                log.severe(AnsiColors.RED + String.format(
-                        "File %s failed after %d attempts", file.getName(), maxRetries
-                ) + AnsiColors.RESET);
+            if (!ok) {
+                log.error(AnsiColors.RED + "File {} failed after {} attempts" + AnsiColors.RESET,
+                        file.getName(), maxRetries
+                );
             }
         }
 
+        // Публикация поста, если хоть одно изображение загрузилось
         if (!attachmentIds.isEmpty()) {
             try {
                 publishPost(actor, attachmentIds);
-                return !hasErrors;
             } catch (Exception e) {
-                log.severe(AnsiColors.RED + "Publish error: " + e.getMessage() + AnsiColors.RESET);
+                log.error(AnsiColors.RED + "Publish error: {}", e.getMessage());
+                successCnt = 0; // отменяем счётчик, если публикация не состоялась
             }
         }
-        return false;
+
+        return successCnt;
     }
 
+    /* ======== VK API Helpers ======== */
 
     private String uploadPhotoWithBackoff(UserActor actor, File file)
             throws ApiException, ClientException {
-        GetWallUploadServerResponse server = vk.photos().getWallUploadServer(actor).execute();
+
+        GetWallUploadServerResponse server =
+                vk.photos().getWallUploadServer(actor).execute();
+
         WallUploadResponse upload = vk.upload()
-                .photoWall(server.getUploadUrl().toString(), file)
+                .photoWall(String.valueOf(server.getUploadUrl()), file)
                 .execute();
 
         SaveWallPhotoResponse photo = vk.photos()
@@ -165,83 +171,77 @@ public class VKPublishServiceImpl implements VKPublishService {
                 .execute()
                 .getFirst();
 
-        log.info(AnsiColors.GREEN + String.format(
-                "[%s] Uploaded successfully! Photo ID: %d_%d",
+        log.info(AnsiColors.GREEN + "Uploaded {} → photo{}_{}" + AnsiColors.RESET,
                 file.getName(), photo.getOwnerId(), photo.getId()
-        ) + AnsiColors.RESET);
+        );
 
         return "photo" + photo.getOwnerId() + "_" + photo.getId();
     }
 
-
     private void publishPost(UserActor actor, List<String> attachmentIds)
             throws ClientException, ApiException {
+
         String attachments = String.join(",", attachmentIds);
-        PostResponse response = vk.wall().post(actor)
+        PostResponse resp = vk.wall().post(actor)
                 .ownerId(groupId)
                 .attachments(attachments)
                 .execute();
-        log.info(AnsiColors.GREEN + String.format(
-                "Published post ID: %d | Images: %d",
-                response.getPostId(), attachmentIds.size()
-        ) + AnsiColors.RESET);
+
+        log.info(AnsiColors.GREEN + "Published post ID {} | Images {}" + AnsiColors.RESET,
+                resp.getPostId(), attachmentIds.size()
+        );
     }
 
+    /* ======== Utility Methods ======== */
 
-    private int calculateBackoffDelay(int attempt) {
-        return Math.min((int) (baseDelay * Math.pow(2, attempt)), maxDelay);
-    }
-
-
-    private void handleApiError(int chunkNumber, ApiException e) {
-        if (e.getCode() == 6) {
-            log.warning(AnsiColors.YELLOW + String.format(
-                    "Chunk %d | VK API Limits: %s",
-                    chunkNumber, e.getMessage()
-            ) + AnsiColors.RESET);
+    private void handleApiError(ApiException e) {
+        if (e.getCode() == 6) { // rate limit
+            log.warn(AnsiColors.YELLOW + "VK rate limit: {}", e.getMessage());
         } else {
-            log.warning(AnsiColors.YELLOW + e.getMessage() + AnsiColors.RESET);
+            log.warn(AnsiColors.YELLOW + "VK error: {}", e.getMessage());
         }
     }
-
 
     private void waitBeforeRetry(int attempt) {
-        int delay = calculateBackoffDelay(attempt);
+        int delay = Math.min(
+                (int) (baseDelay * Math.pow(2, attempt)),
+                maxDelay
+        );
         try {
-            log.info(AnsiColors.CYAN + String.format(
-                    "Waiting %d ms before next attempt...", delay
-            ) + AnsiColors.RESET);
+            log.info(AnsiColors.CYAN + "Waiting {} ms before retry" + AnsiColors.RESET, delay);
             TimeUnit.MILLISECONDS.sleep(delay);
-        } catch (InterruptedException ignored) {}
-    }
-
-
-    // Вспомогательные методы
-    private void removeDuplicates(List<WebImage> images) {
-        Set<WebImage> unique = new LinkedHashSet<>(images);
-        images.clear();
-        images.addAll(unique);
-    }
-
-
-    private void deleteDownloadedFiles(List<File> files) {
-        int deletedCount = 0;
-        for (File file : files) {
-            if (FileUtils.deleteQuietly(file)) {
-                deletedCount++;
-            }
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
-        log.info(AnsiColors.CYAN + String.format(
-                "Deleted %d/%d temporary files", deletedCount, files.size()
-        ) + AnsiColors.RESET);
     }
 
+    /**
+     * Удаляет дубликаты из списка, **сохраняя порядок**,
+     * благодаря LinkedHashSet, который хранит вставку в исходном порядке.
+     *
+     * @param list список любых объектов, для которых equals()/hashCode() корректно определены
+     *             (в нашем случае — File, Path или WebImage)
+     * @param <T>  тип элементов
+     */
+    private static <T> void removeDuplicates(List<T> list) {
+        Set<T> unique = new LinkedHashSet<>(list);
+        list.clear();
+        list.addAll(unique);
+    }
 
-    private static <T> List<List<T>> chunkify(List<T> list, int size) {
-        List<List<T>> chunks = new ArrayList<>();
-        for (int i = 0; i < list.size(); i += size) {
-            chunks.add(new ArrayList<>(list.subList(i, Math.min(i + size, list.size()))));
-        }
-        return chunks;
+    private Mono<Void> cleanUp(Path dir) {
+        return Mono.fromRunnable(() -> {
+                    try (var stream = Files.list(dir)) {
+                        stream.forEach(p -> {
+                            try {
+                                Files.deleteIfExists(p);
+                            } catch (Exception ignored) {
+                            }
+                        });
+                    } catch (Exception ignored) {
+                    }
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .then();
     }
 }

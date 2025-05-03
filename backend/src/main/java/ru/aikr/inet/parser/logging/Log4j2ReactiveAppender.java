@@ -8,54 +8,45 @@ import org.apache.logging.log4j.core.config.plugins.*;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
-/** Appender, пересылающий строки лога в LogEventsPublisher. */
-@Plugin(
-        name      = "ReactiveAppender",
-        category  = Core.CATEGORY_NAME,
-        elementType = Appender.ELEMENT_TYPE,
-        printObject = true
-)
+@Plugin(name="ReactiveAppender", category=Core.CATEGORY_NAME,
+        elementType=Appender.ELEMENT_TYPE, printObject=true)
 public class Log4j2ReactiveAppender extends AbstractAppender {
 
-    /** Инжектируется Spring‑контекстом */
-    @Setter
-    private static volatile LogEventsPublisher publisher;
+    @Setter private static volatile LogEventsPublisher publisher;
 
-    /* ---- новый (не‑deprecated) конструктор ---- */
-    protected Log4j2ReactiveAppender(
-            String name,
-            Filter filter,
-            Layout<? extends Serializable> layout,
-            boolean ignoreExceptions,
-            Property[] properties
-    ) {
-        super(name, filter, layout, ignoreExceptions, properties);
-    }
-
-    /* ---- фабрика для Log4j2 ---- */
-    @SuppressWarnings("unused")  // вызывается Log4j2 через reflection
+    /* ───── фабрика ───── */
     @PluginFactory
-    public static Log4j2ReactiveAppender createAppender(
+    public static Log4j2ReactiveAppender create(
             @PluginAttribute("name") String name,
-            @PluginAttribute(value = "ignoreExceptions", defaultBoolean = true) boolean ignore
-    ) {
+            @PluginAttribute(value="ignoreExceptions", defaultBoolean=true) boolean ignore) {
+
+        // перевод строки оставляем!
+        String pattern = "%d{HH:mm:ss} %-5level %msg%n";
         return new Log4j2ReactiveAppender(
-                name,
-                null,
-                PatternLayout.newBuilder()
-                        .withPattern("%d{HH:mm:ss} [%-15t] %-5level %logger{36} - %msg%n")
-                        .build(),
-                ignore,
-                Property.EMPTY_ARRAY           // 5‑й параметр
-        );
+                name, null,
+                PatternLayout.newBuilder().withPattern(pattern).build(),
+                ignore, Property.EMPTY_ARRAY);
     }
 
+    private Log4j2ReactiveAppender(String n, Filter f,
+                                   Layout<? extends Serializable> l,
+                                   boolean ie, Property[] p) {
+        super(n, f, l, ie, p);
+    }
+
+    /* ───── главное ───── */
     @Override
     public void append(LogEvent event) {
-        if (publisher != null) {
-            String line = new String(getLayout().toByteArray(event));
-            publisher.publish(line);
-        }
+        if (publisher == null) return;
+
+        // строка + \n (CR убираем на Windows)
+        String raw = new String(getLayout().toByteArray(event)).replace("\r", "");
+
+        // делим по любым переводам строки
+        Arrays.stream(raw.split("\\R"))
+                .filter(s -> !s.isBlank())
+                .forEach(publisher::publish);
     }
 }

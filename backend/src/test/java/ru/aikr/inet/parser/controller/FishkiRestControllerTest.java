@@ -1,69 +1,65 @@
 package ru.aikr.inet.parser.controller;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import ru.aikr.inet.parser.logging.LogEventsPublisher;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageService;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@WebFluxTest(FishkiRestController.class)
 class FishkiRestControllerTest {
 
-    @Mock
-    private WebImageService webImageService;
+    @Autowired
+    WebTestClient web;
 
-    @Mock
-    private VKPublishService vkPublishService;
+    @MockitoBean
+    WebImageService webImageService;
 
-    @InjectMocks
-    private FishkiRestController fishkiRestController;
+    @MockitoBean
+    VKPublishService vkPublishService;
 
-    private MockMvc mockMvc;
+    @MockitoBean
+    LogEventsPublisher logEventsPublisher;
 
+    @Test
+    void shouldReturnImagesFromPages() {
+        when(webImageService.getImagesFromPages(1, 5))
+                .thenReturn(Flux.just(new WebImage("test_url")));
 
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(fishkiRestController)
-                .defaultResponseCharacterEncoding(StandardCharsets.UTF_8) // Важно!
-                .build();
+        web.get().uri("/api/v1/sites/fishki/images/1/to/5")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(WebImage.class).hasSize(1)
+                .value(list ->
+                        // проверяем первый элемент
+                        list.getFirst().getDirectLink().equals("test_url")
+                );
     }
 
     @Test
-    void shouldReturnImagesFromPages() throws Exception {
-        List<WebImage> mockImages = Collections.singletonList(new WebImage("test_url"));
-        when(webImageService.getImagesFromPages(1, 5)).thenReturn(mockImages);
+    void shouldPublishImages() {
+        // сервис теперь отдаёт количество успешно опубликованных картинок
+        when(vkPublishService.generatePostsAndPublishToCommunityWall(any()))
+                .thenReturn(Mono.just(1));
 
-        mockMvc.perform(get("/api/v1/sites/fishki/images/1/to/5")
-                        .characterEncoding("UTF-8"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].directLink").value("test_url"));
-    }
-
-    @Test
-    void shouldPublishImages() throws Exception {
-        when(vkPublishService.generatePostsAndPublishToCommunityWall(any())).thenReturn(true);
-
-        mockMvc.perform(post("/api/v1/sites/fishki/images/")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("[{\"directLink\":\"test_url\"}]"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON + ";charset=UTF-8")) // Проверка типа и кодировки
-                .andExpect(content().string("Опубликовано 1 изображений"));
+        web.post().uri("/api/v1/sites/fishki/images/")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(List.of(new WebImage("test_url")))    // JSON сериализуется автоматически
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .isEqualTo("Опубликовано 1 изображений");
     }
 }

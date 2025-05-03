@@ -6,6 +6,8 @@ backend/*.iml
 # frontend artefacts
 ui/node_modules/
 ui/build/
+ui/.idea
+ui/ui.iml
 
 # Maven / Gradle wrapper
 !backend/.mvn/**

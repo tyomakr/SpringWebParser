@@ -3,74 +3,61 @@ import PropTypes from 'prop-types';
 import { Box, Typography, useTheme } from '@mui/material';
 import { stripAnsi } from '../utils/helper';
 
+/**
+ * Отрисовка одной строки лога с цветом по LEVEL.
+ * Поддерживает 2 формата:
+ *   1) HH:mm:ss LEVEL Message
+ *   2) HH:mm:ss LEVEL LoggerName - Message
+ */
 export default function LogLine({ raw }) {
     const theme = useTheme();
+    let line = stripAnsi(raw).replace(/\[[^\]]+]/g, '').trim();
 
-    // 1) убираем ANSI-коды и имена потоков
-    let line = stripAnsi(raw).replace(/\[[^\]]+\]\s*/g, '').trim();
+    // --- новый короткий шаблон
+    let m = line.match(
+        /^(\d{2}:\d{2}:\d{2})\s+(TRACE|DEBUG|INFO|WARN|ERROR)\s+(.*)$/
+    );
 
-    // 2) разбираем сначала время и уровень, а всё остальное — в msg
-    //    время   уровень   любые символы  «-»  сообщение
-    const re = /^(\d{2}:\d{2}:\d{2})\s+(TRACE|DEBUG|INFO|WARN|ERROR)\s+(.+?)\s*-\s*(.*)$/;
-    const m  = line.match(re);
-
+    // --- старый шаблон с LoggerName
+    let logger = '';
     if (!m) {
-        // если всё-таки не подошло, просто выводим целиком чёрным
-        return <Typography variant="body2">{line}</Typography>;
+        const old = line.match(
+            /^(\d{2}:\d{2}:\d{2})\s+(TRACE|DEBUG|INFO|WARN|ERROR)\s+(.+?)\s*-\s*(.*)$/
+        );
+        if (old) {
+            logger = old[3];
+            m = [old[0], old[1], old[2], old[4]];
+        }
     }
 
-    const [, time, level, loggerName, msg] = m;
+    // не подошло — выводим как есть
+    if (!m) return <Typography component="pre">{line}</Typography>;
 
-    // цвета по уровням
-    const colorMap = {
+    const [, time, level, msg] = m;
+    const color = {
         TRACE: theme.palette.text.secondary,
         DEBUG: theme.palette.text.secondary,
-        INFO:  theme.palette.success.main,
-        WARN:  theme.palette.warning.main,
+        INFO : theme.palette.success.main,
+        WARN : theme.palette.warning.main,
         ERROR: theme.palette.error.main,
-    };
+    }[level] || theme.palette.text.primary;
 
     return (
-        <Box display="flex" alignItems="baseline">
-            {/* время */}
-            <Typography
-                variant="body2"
-                sx={{ width: 70, color: theme.palette.text.secondary, flexShrink: 0 }}
-            >
+        <Box sx={{ display: 'flex' }}>
+            <Typography noWrap sx={{ mr: 1, color: theme.palette.text.disabled, flexShrink: 0 }}>
                 {time}
             </Typography>
-
-            {/* уровень */}
-            <Typography
-                variant="body2"
-                sx={{
-                    fontWeight: 'bold',
-                    color: colorMap[level] || theme.palette.text.primary,
-                    width: 50,
-                    flexShrink: 0,
-                    textAlign: 'center',
-                    mr: 1
-                }}
-            >
+            <Typography noWrap sx={{ mr: 1, color, fontWeight: 600, minWidth: 48, flexShrink: 0 }}>
                 {level}
             </Typography>
-
-            {/* логгер (можно убрать, или оставить чуть посветлее) */}
-            <Typography
-                variant="body2"
-                sx={{ color: theme.palette.text.secondary, mr: 1 }}
-            >
-                {loggerName}
-            </Typography>
-
-            {/* сообщение */}
-            <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-                {msg}
-            </Typography>
+            {logger && (
+                <Typography sx={{ mr: 1, color: theme.palette.text.secondary }}>
+                    {logger}
+                </Typography>
+            )}
+            <Typography>{msg}</Typography>
         </Box>
     );
 }
 
-LogLine.propTypes = {
-    raw: PropTypes.string.isRequired,
-};
+LogLine.propTypes = { raw: PropTypes.string.isRequired };

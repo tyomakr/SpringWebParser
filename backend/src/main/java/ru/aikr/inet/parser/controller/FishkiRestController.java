@@ -1,45 +1,41 @@
 package ru.aikr.inet.parser.controller;
 
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/sites/fishki")
+@CrossOrigin(origins = "http://localhost:3333")
 public class FishkiRestController {
 
     private final WebImageService webImageService;
     private final VKPublishService vkPublishService;
 
-    public FishkiRestController(WebImageService webImageService, VKPublishService vkPublishService) {
+    public FishkiRestController(WebImageService webImageService,
+                                VKPublishService vkPublishService) {
         this.webImageService = webImageService;
         this.vkPublishService = vkPublishService;
     }
 
-    //получение картинок от сайта из определенного диапазона страниц и замещение новым запросом старой коллекции в базе
+    /** Возвращает Flux картинок с fishki.net вместо List */
     @GetMapping("/images/{num1}/to/{num2}")
-    public ResponseEntity<List<WebImage>> getImagesFromPages(@PathVariable("num1") int startPage,
-                                                             @PathVariable("num2") int endPage) {
-
-        List<WebImage> images = webImageService.getImagesFromPages(startPage, endPage);
-        return ResponseEntity.ok(images);
+    public Flux<WebImage> getImagesFromPages(@PathVariable int num1,
+                                             @PathVariable int num2) {
+        return webImageService.getImagesFromPages(num1, num2);
     }
 
-    //получение списка выбранных картинок из фронтэнда и отправка на публикацию
-    @PostMapping(value = "/images/", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> saveAndPublishSelectedImages(@RequestBody List<WebImage> webImageList) {
-        boolean result = vkPublishService.generatePostsAndPublishToCommunityWall(webImageList);
-        if (result) {
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8"))
-                    .body("Опубликовано " + webImageList.size() + " изображений");
-        }
-        return ResponseEntity.badRequest()
-                .body("Failed to publish images");
+    /** Сохраняет и публикует выбранные на ВКонтакте реактивно */
+    @PostMapping(path = {"/images", "/images/"})
+    public Mono<ResponseEntity<String>> saveAndPublish(@RequestBody List<WebImage> images) {
+        return vkPublishService.generatePostsAndPublishToCommunityWall(images)
+                .map(count -> ResponseEntity.ok("Опубликовано " + count + " изображений"))
+                .defaultIfEmpty(ResponseEntity.status(500).body("Ошибка публикации"));
     }
 }

@@ -1,17 +1,20 @@
 package ru.aikr.inet.parser.network.impl;
 
 import lombok.Getter;
-import org.jsoup.Connection.Response;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.jsoup.Connection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import ru.aikr.inet.parser.config.SecurityConfig;
 import ru.aikr.inet.parser.service.UserAgentService;
 
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.util.Map;
 
-@Component
+/**
+ * Специализация BaseConnectionConfigurator для fishki.net:
+ * подставляет свои заголовки и таймаут.
+ */
+@Component("fishkiConnectionConfigurator")
 public class FishkiConnectionConfigurator extends BaseConnectionConfigurator {
 
     @Value("${sites.fishki.headers.accept}")
@@ -27,20 +30,14 @@ public class FishkiConnectionConfigurator extends BaseConnectionConfigurator {
     @Value("${sites.fishki.headers.connection.timeout}")
     private int fishkiTimeout;
 
-    @Autowired
-    public FishkiConnectionConfigurator(SecurityConfig securityConfig, UserAgentService userAgentService) {
-        super(securityConfig, userAgentService);
+    public FishkiConnectionConfigurator(SSLContext sslContext,
+                                        UserAgentService userAgentService) {
+        super(sslContext, userAgentService);
     }
 
-
     @Override
-    public Response configureConnection(String url) throws IOException {
+    public Connection.Response configureConnection(String url) throws IOException {
         return super.configureConnection(url);
-    }
-
-    @Override
-    public String getLastUserAgent() {
-        return super.getLastUserAgent();
     }
 
     @Override
