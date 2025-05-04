@@ -1,102 +1,126 @@
-import { makeAutoObservable } from 'mobx';
-import backendApiService from '../service/backendApiService';
 
-class StoreFI {
-    // Список всех полученных изображений (Шаг 1)
+import { makeAutoObservable, runInAction } from 'mobx';
+import backendApiService from '../service/backendApiService';
+import { toast } from 'react-toastify';
+
+/**
+ * Store для шагов Stepper
+ */
+export class StoreFI {
+    /** Список загруженных с веба изображений (шаг 1) */
     webImages = [];
-    // Флаг окончания шага 1
+    /** Флаг успешного завершения первого шага */
     step1 = false;
-    // Пользовательский выбор для отправки (Шаг 2 и 3)
+
+    /** Список выбранных на шаге 2 изображений */
     selectedImages = [];
-    // Текущая страница в галерее отправки
+    /** Текущая страница (шаг 3) */
     page = 1;
-    // Количество элементов на странице
+    /** Размер страницы (шаг 3) */
     pageSize = 40;
 
     constructor() {
+        // Автоматически сделаем все поля и методы наблюдаемыми / action
         makeAutoObservable(this);
     }
 
     /**
-     * Шаг 1: запрос картинок.
-     * После каждого нового запроса сбрасываем флаг step1,
-     * а по окончании — устанавливаем его в true.
+     * Шаг 1: загрузка картинок по диапазону страниц.
+     * В случае ошибки показываем toast.error и оставляем step1=false.
      *
      * @param {number} fromPage — первая страница
-     * @param {number} toPage — последняя страница
+     * @param {number} toPage   — последняя страница
      */
     async getWebImagesFromPages(fromPage, toPage) {
+        // сброс состояния
         this.step1 = false;
         this.webImages = [];
+
         try {
+            // HTTP-запрос
             const response = await backendApiService.getWebImagesOnPages(fromPage, toPage);
-            this.webImages = response.data;
-            this.step1 = true;
+
+            // обновляем состояние в действии
+            runInAction(() => {
+                this.webImages = response.data;
+                this.step1 = true;
+            });
         } catch (e) {
+            // логируем в консоль
             console.error('Ошибка при запросе изображений:', e);
-            // step1 останется false
+            // уведомляем пользователя
+            toast.error(`Не удалось загрузить изображения: ${e.message}`, {
+                position: 'bottom-right'
+            });
+            // step1 остаётся false
         }
     }
 
     /**
-     * Шаг 3: отправка выбранных изображений.
+     * Шаг 2: выбор / снятие выбора изображения.
+     * Если изображения нет в списке, добавляем, иначе удаляем.
      *
-     * @param {Array<{url: string}>} images — массив объектов с URL
-     * @returns {Promise<string>} — результат отправки
+     * @param {object} image — объект WebImage (с directLink и пр.)
      */
-    async saveAndPublishSelectedImages(images) {
-        try {
-            const result = await backendApiService.saveAndPublishSelectedImages(images);
-            return result;
-        } catch (e) {
-            console.error('Ошибка при отправке выбранных изображений:', e);
-            throw e;
+    toggleSelectImage(image) {
+        const idx = this.selectedImages.findIndex(x => x.directLink === image.directLink);
+        if (idx === -1) {
+            this.selectedImages.push(image);
+        } else {
+            this.selectedImages.splice(idx, 1);
         }
     }
 
     /**
-     * Удаление изображения из выбранных по индексу.
+     * Шаг 2: удаление по индексу (для кнопки «корзина» на шаге 3).
      *
-     * @param {number} index — индекс в массиве selectedImages
+     * @param {number} index — индекс изображения в selectedImages
      */
     removeSelectedImageByIndex(index) {
-        this.selectedImages.splice(index, 1);
+        if (index >= 0 && index < this.selectedImages.length) {
+            this.selectedImages.splice(index, 1);
+        }
     }
 
     /**
-     * Позволяет переставить изображения местами,
-     * сохраняя порядок, который задал пользователь в UI.
+     * Шаг 3: переставить два элемента местами.
      *
-     * @param {number} fromIndex — исходная позиция
-     * @param {number} toIndex — целевая позиция
+     * @param {number} fromIndex — исходный индекс
+     * @param {number} toIndex   — новый индекс
      */
     reorderSelectedImages(fromIndex, toIndex) {
-        const items = Array.from(this.selectedImages);
-        const [moved] = items.splice(fromIndex, 1);
-        items.splice(toIndex, 0, moved);
-        this.selectedImages = items;
+        const arr = this.selectedImages;
+        const [moved] = arr.splice(fromIndex, 1);
+        arr.splice(toIndex, 0, moved);
     }
 
     /**
-     * Полная очистка стейта (для кнопки «Сброс»).
+     * Шаг 3: отправка на сервер, с удалением дубликатов по directLink.
+     *
+     * @param {Array} images — массив объектов с полем directLink
+     * @returns {Promise<string>} — ответ от API
+     */
+    async saveAndPublishSelectedImages(images) {
+        // убираем дубли по directLink
+        const unique = images.filter(
+            (img, idx, arr) =>
+                arr.findIndex(x => x.directLink === img.directLink) === idx
+        );
+        return backendApiService.saveAndPublishSelectedImages(unique);
+    }
+
+    /**
+     * Полностью сбросить стор (для кнопки «Сбросить»).
      */
     clearStore() {
         this.webImages = [];
+        this.step1 = false;
         this.selectedImages = [];
-        this.step1 = false;
-    }
-
-    /**
-     * Очистка только webImages и сброс флага step1.
-     */
-    clearWebImages() {
-        this.webImages = [];
-        this.step1 = false;
+        this.page = 1;
     }
 }
 
-// Экземпляр по умолчанию для приложения
-const StoreFIInstance = new StoreFI();
-export default StoreFIInstance;
-// Именованный экспорт класса для unit-тестов
-export { StoreFI };
+// присваиваем экземпляр переменной, чтобы не было eslint-варнинга про анонимный default export
+const storeFI = new StoreFI();
+
+export default storeFI;

@@ -30,7 +30,7 @@ const schema = yup.object({
         .required('Обязательно'),
 });
 
-const FWIRequest = inject('storeFI')(
+const Step1GetImages = inject('storeFI')(
     observer(({ storeFI }) => {
         const {
             control,
@@ -145,4 +145,4 @@ const FWIRequest = inject('storeFI')(
     })
 );
 
-export default FWIRequest;
+export default Step1GetImages;

@@ -35,7 +35,7 @@ import { CSS } from '@dnd-kit/utilities';
  * Перетаскиваемый элемент галереи.
  * Использует поле directLink для загрузки изображения
  * и оборачивает кнопку удаления в тот же Box+IconButton,
- * что во втором шаге (Gallery.js).
+ * что во втором шаге (Step2Gallery.js).
  */
 const SortableImage = ({ image, index, onRemove }) => {
     const id = `${image.directLink}-${index}`;
@@ -93,7 +93,7 @@ const SortableImage = ({ image, index, onRemove }) => {
  * Шаг 3: отображение галереи, drag&drop,
  * фильтрация дубликатов и кнопка «Отправить».
  */
-const PrepareToSendImages = inject('storeFI')(observer(({ storeFI }) => {
+const Step3PrepareSend = inject('storeFI')(observer(({ storeFI }) => {
     // DnD-датчики
     const sensors = useSensors(useSensor(PointerSensor));
     const theme = useTheme();
@@ -211,9 +211,9 @@ const PrepareToSendImages = inject('storeFI')(observer(({ storeFI }) => {
                 Отправить
             </Button>
 
-            <LogConsole />
+            <LogConsole skipCache />
         </>
     );
 }));
 
-export default PrepareToSendImages;
+export default Step3PrepareSend;
