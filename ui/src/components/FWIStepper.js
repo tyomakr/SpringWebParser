@@ -12,9 +12,9 @@ import {
     useScrollTrigger,
 } from "@mui/material";
 
-import FWIRequest from "./fragments/FWIRequest";
-import Gallery from "./fragments/Gallery";
-import PrepareToSendImages from "./fragments/PrepareToSendImages";
+import Step1GetImages from "./fragments/Step1GetImages";
+import Step2Gallery from "./fragments/Step2Gallery";
+import Step3PrepareSend from "./fragments/Step3PrepareSend";
 
 /** Заголовки шагов */
 const STEPS = ["Запрос изображений", "Отбор изображений", "Публикация"];
@@ -48,11 +48,11 @@ const FWIStepper = inject("storeFI")(
         const renderStepContent = () => {
             switch (activeStep) {
                 case 0:
-                    return <FWIRequest />;
+                    return <Step1GetImages />;
                 case 1:
-                    return <Gallery />;
+                    return <Step2Gallery />;
                 case 2:
-                    return <PrepareToSendImages />;
+                    return <Step3PrepareSend />;
                 default:
                     return null;
             }

@@ -19,7 +19,7 @@ import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import AddIcon from '@mui/icons-material/Add';
 import Portal from '../Portal';
 
-const Gallery = inject('storeFI')(observer(({ storeFI }) => {
+const Step2Gallery = inject('storeFI')(observer(({ storeFI }) => {
     const [page, setPage] = useState(1);
     const [items, setItems] = useState([]);
     const [pageItems, setPageItems] = useState([]);
@@ -230,4 +230,4 @@ const Gallery = inject('storeFI')(observer(({ storeFI }) => {
     );
 }));
 
-export default Gallery;
+export default Step2Gallery;
