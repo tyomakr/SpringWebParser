@@ -37,11 +37,11 @@ public class VKPublishServiceImpl implements VKPublishService {
 
     private final WebImageService webImageService;
 
-    /* ====== настройки из application.yml ====== */
+    /* ========== VK auth & config ========== */
     @Value("${vk.user-id}")
-    private Long   userId;
+    private Long userId;
     @Value("${vk.group-id}")
-    private Long   groupId;
+    private Long groupId;
     @Value("${vk.access-token}")
     private String accessToken;
 
@@ -53,12 +53,12 @@ public class VKPublishServiceImpl implements VKPublishService {
     private Integer baseDelay;
     @Value("${env.vk-publisher.max-delay-ms}")
     private Integer maxDelay;
-    /* =========================================== */
+    /* ====================================== */
 
     /**
      * Публикует список изображений во ВКонтакте.
      *
-     * @param fullImagesList список модели WebImage (с полем directLink и пр.)
+     * @param fullImagesList список модели WebImage (с прямыми ссылками и т.д.)
      * @return Mono с числом реально опубликованных изображений
      */
     @Override
@@ -99,7 +99,7 @@ public class VKPublishServiceImpl implements VKPublishService {
             files.add(p.toFile());
         }
 
-        // **Убираем дубликаты, сохраняя порядок**
+        // Убираем дубликаты, сохраняя порядок
         removeDuplicates(files);
         if (files.isEmpty()) {
             return 0;
@@ -122,13 +122,16 @@ public class VKPublishServiceImpl implements VKPublishService {
                     attachmentIds.add(attach);
                     ok = true;
                     successCnt++;
+
+                    // Пауза baseDelay после каждого успешного аплоада
                     TimeUnit.MILLISECONDS.sleep(baseDelay);
                 } catch (ApiException e) {
                     handleApiError(e);
                     waitBeforeRetry(attempt);
                 } catch (Exception e) {
-                    log.error(AnsiColors.RED + "Critical error: {}", e.getMessage());
-                    break;
+                    log.error(AnsiColors.RED + "Critical error [{}]: {}" + AnsiColors.RESET,
+                            e.getClass().getSimpleName(), e.getMessage());
+                    waitBeforeRetry(attempt);
                 }
             }
 
@@ -202,6 +205,10 @@ public class VKPublishServiceImpl implements VKPublishService {
         }
     }
 
+    /**
+     * Экспоненциальная задержка перед повтором ―
+     * основана на baseDelay, но не превышает maxDelay.
+     */
     private void waitBeforeRetry(int attempt) {
         int delay = Math.min(
                 (int) (baseDelay * Math.pow(2, attempt)),
@@ -216,12 +223,7 @@ public class VKPublishServiceImpl implements VKPublishService {
     }
 
     /**
-     * Удаляет дубликаты из списка, **сохраняя порядок**,
-     * благодаря LinkedHashSet, который хранит вставку в исходном порядке.
-     *
-     * @param list список любых объектов, для которых equals()/hashCode() корректно определены
-     *             (в нашем случае — File, Path или WebImage)
-     * @param <T>  тип элементов
+     * Удаляет дубликаты из списка, сохраняя порядок
      */
     private static <T> void removeDuplicates(List<T> list) {
         Set<T> unique = new LinkedHashSet<>(list);

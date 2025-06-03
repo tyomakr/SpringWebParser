@@ -33,9 +33,8 @@ import { CSS } from '@dnd-kit/utilities';
 
 /**
  * Перетаскиваемый элемент галереи.
- * Использует поле directLink для загрузки изображения
- * и оборачивает кнопку удаления в тот же Box+IconButton,
- * что во втором шаге (Step2Gallery.js).
+ * Drag-события навешиваются только на <img>,
+ * чтобы кнопка удаления могла срабатывать.
  */
 const SortableImage = ({ image, index, onRemove }) => {
     const id = `${image.directLink}-${index}`;
@@ -56,7 +55,6 @@ const SortableImage = ({ image, index, onRemove }) => {
         <ImageListItem
             ref={setNodeRef}
             {...attributes}
-            {...listeners}
             style={style}
             key={id}
         >
@@ -68,8 +66,10 @@ const SortableImage = ({ image, index, onRemove }) => {
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
-                    display: 'block'
+                    display: 'block',
+                    cursor: 'grab'
                 }}
+                {...listeners}
             />
             <ImageListItemBar
                 position="bottom"
@@ -78,7 +78,10 @@ const SortableImage = ({ image, index, onRemove }) => {
                         <IconButton
                             aria-label={`Удалить изображение ${index}`}
                             sx={{ color: '#fff' }}
-                            onClick={() => onRemove(index)}
+                            onClick={() => {
+                                console.log('[UI] Клик по кнопке удаления', index);
+                                onRemove(index);
+                            }}
                         >
                             <DeleteOutlined />
                         </IconButton>
@@ -94,7 +97,6 @@ const SortableImage = ({ image, index, onRemove }) => {
  * фильтрация дубликатов и кнопка «Отправить».
  */
 const Step3PrepareSend = inject('storeFI')(observer(({ storeFI }) => {
-    // DnD-датчики
     const sensors = useSensors(useSensor(PointerSensor));
     const theme = useTheme();
     const is4k = useMediaQuery('(min-width:2560px)');
@@ -104,16 +106,14 @@ const Step3PrepareSend = inject('storeFI')(observer(({ storeFI }) => {
     const isMd = useMediaQuery(theme.breakpoints.up('md'));
     const isSm = useMediaQuery(theme.breakpoints.up('sm'));
 
-    // Вычисляем число колонок под любые разрешения
     let cols = 1;
-    if (is4k)      cols = 10;
+    if (is4k) cols = 10;
     else if (isFHD) cols = 6;
-    else if (isXl)  cols = 5;
-    else if (isLg)  cols = 4;
-    else if (isMd)  cols = 3;
-    else if (isSm)  cols = 2;
+    else if (isXl) cols = 5;
+    else if (isLg) cols = 4;
+    else if (isMd) cols = 3;
+    else if (isSm) cols = 2;
 
-    // Перетаскивание
     const handleDragEnd = event => {
         const { active, over } = event;
         if (over && active.id !== over.id) {
@@ -127,7 +127,6 @@ const Step3PrepareSend = inject('storeFI')(observer(({ storeFI }) => {
         }
     };
 
-    // Отправка с фильтрацией дубликатов
     const handleSend = () => {
         if (!storeFI.selectedImages.length) return;
         const unique = storeFI.selectedImages.filter(
@@ -150,14 +149,15 @@ const Step3PrepareSend = inject('storeFI')(observer(({ storeFI }) => {
             );
     };
 
-    // Удаление по индексу
-    const handleRemove = idx => {
-        storeFI.removeSelectedImageByIndex(idx);
+    const handleRemove = (index) => {
+        storeFI.removeSelectedImageByIndex(index);
     };
 
-    // Пагинация
     const pageSize = storeFI.pageSize || 40;
     const pageCount = Math.ceil(storeFI.selectedImages.length / pageSize);
+    const startIdx = (storeFI.page - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const pagedImages = storeFI.selectedImages.slice(startIdx, endIdx);
 
     return (
         <>
@@ -177,16 +177,14 @@ const Step3PrepareSend = inject('storeFI')(observer(({ storeFI }) => {
                     onDragEnd={handleDragEnd}
                 >
                     <SortableContext
-                        items={storeFI.selectedImages.map(
-                            (img, idx) => `${img.directLink}-${idx}`
-                        )}
+                        items={pagedImages.map((img, idx) => `${img.directLink}-${startIdx + idx}`)}
                         strategy={rectSortingStrategy}
                     >
-                        {storeFI.selectedImages.map((wi, idx) => (
+                        {pagedImages.map((wi, idx) => (
                             <SortableImage
-                                key={`${wi.directLink}-${idx}`}
+                                key={`${wi.directLink}-${startIdx + idx}`}
                                 image={wi}
-                                index={idx}
+                                index={startIdx + idx}
                                 onRemove={handleRemove}
                             />
                         ))}
