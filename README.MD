@@ -10,13 +10,13 @@
 
    vk:
 
-      app-id: 
+   &emsp; app-id: 
 
-      user-id: 
+   &emsp; user-id: 
 
-      group-id: 
+   &emsp; group-id: 
 
-      access-token: 
+   &emsp; access-token: 
 
 
 
