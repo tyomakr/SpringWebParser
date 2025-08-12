@@ -7,11 +7,17 @@
 Для взаимодействия с VK API необходимо:
 
 0) В resources создать файл application-secret.yml такого типа:
+
    vk:
+
     app-id: 
+
     user-id: 
+
     group-id: 
+
     access-token: 
+
 
 
 1) Создать standalone app в VK apps и получить его ID. Его нужно будет прописать в application-secret.yml в vk.app-id
