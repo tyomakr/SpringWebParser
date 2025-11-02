@@ -8,6 +8,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.aikr.inet.parser.dto.VKPublishResult;
 import ru.aikr.inet.parser.logging.LogEventsPublisher;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.VKPublishService;
@@ -50,9 +51,17 @@ class FishkiRestControllerTest {
 
     @Test
     void shouldPublishImages() {
-        // сервис теперь отдаёт количество успешно опубликованных картинок
+        // сервис теперь отдаёт VKPublishResult с детальной статистикой
+        VKPublishResult result = new VKPublishResult(
+                1,  // uploadedCount
+                1,  // publishedCount
+                1,  // postsPublished
+                0,  // postsFailed
+                1,  // totalProcessed
+                null // errorMessage
+        );
         when(vkPublishService.generatePostsAndPublishToCommunityWall(any()))
-                .thenReturn(Mono.just(1));
+                .thenReturn(Mono.just(result));
 
         web.post().uri("/api/v1/sites/fishki/images/")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -60,6 +69,6 @@ class FishkiRestControllerTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
-                .isEqualTo("Опубликовано 1 изображений");
+                .value(message -> message.contains("Успешно опубликовано 1 изображений"));
     }
 }

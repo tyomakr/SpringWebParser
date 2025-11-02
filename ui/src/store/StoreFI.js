@@ -97,13 +97,22 @@ export class StoreFI {
                 arr.findIndex(x => x.directLink === img.directLink) === idx
         );
         try {
+            console.log('[StoreFI] Sending', unique.length, 'images to backend');
             const response = await backendApiService.saveAndPublishSelectedImages(unique);
+            console.log('[StoreFI] Response received:', response.status, response.data);
             // Возвращаем данные из ответа axios (response.data содержит строку от сервера)
             return response.data;
         } catch (error) {
-            // Если axios выбросил ошибку, но есть ответ от сервера, используем его
+            console.error('[StoreFI] Error in saveAndPublishSelectedImages:', error);
+            // Если axios выбросил ошибку, но есть ответ от сервера (даже с кодом ошибки), используем его
             if (error.response?.data) {
-                // Пробрасываем ошибку с сообщением от сервера
+                console.log('[StoreFI] Server returned error response:', error.response.status, error.response.data);
+                // Если статус 202 (ACCEPTED) или другой успешный, но axios считает это ошибкой
+                if (error.response.status >= 200 && error.response.status < 300) {
+                    // Возвращаем данные, так как это успешный ответ
+                    return error.response.data;
+                }
+                // Для реальных ошибок пробрасываем
                 const serverError = new Error(error.response.data);
                 serverError.response = error.response;
                 throw serverError;
