@@ -11,6 +11,13 @@ spring:
   profiles:
     include: secret
 
+app:
+  cors:
+    allowed-origins: "*"
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    allowed-headers: "*"
+    allow-credentials: true
+
 env:
   global:
     user-agents-file: "classpath:user-agents.txt"
@@ -26,6 +33,7 @@ env:
 
   image-downloader:
     max-retries: 5
+    max-concurrency: 10  # Максимальное количество параллельных загрузок изображений
 
   vk-publisher:
     chunk-size: 10

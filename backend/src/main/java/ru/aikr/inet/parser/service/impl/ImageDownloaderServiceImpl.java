@@ -14,10 +14,12 @@ import javax.net.ssl.SSLContext;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.*;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Slf4j
 @Service
@@ -35,6 +37,10 @@ public class ImageDownloaderServiceImpl implements ImageDownloaderService {
     @Value("${env.image-downloader.max-retries:3}")
     private int maxRetries;
 
+    /** Максимальное количество параллельных загрузок */
+    @Value("${env.image-downloader.max-concurrency:10}")
+    private int maxConcurrency;
+
     private Path defaultDownloadDir;
 
     @PostConstruct
@@ -51,39 +57,75 @@ public class ImageDownloaderServiceImpl implements ImageDownloaderService {
     }
 
     /**
-     * Скачиваем список WebImage в папку targetDir (или default).
-     * Оригинальный синхронный метод, обёрнутый в Mono.
+     * Скачиваем список WebImage в папку targetDir (или default) параллельно.
+     * Использует Flux для параллельной обработки с ограничением конкурентности.
      */
     @Override
     public Mono<List<Path>> downloadImages(List<WebImage> images, Path outputDir) {
+        if (images == null || images.isEmpty()) {
+            log.warn("Empty image list provided for download");
+            return Mono.just(List.of());
+        }
+
         Path targetDir = (outputDir != null)
                 ? outputDir.toAbsolutePath().normalize()
                 : defaultDownloadDir;
 
-        // Обёртка в Mono, чтобы не блокировать Netty-пулы
-        return Mono.fromCallable(() -> {
-            List<Path> results = new ArrayList<>();
-            for (WebImage wi : images) {
-                Path file = downloadWithRetries(wi.getDirectLink(), targetDir);
-                if (file != null && Files.exists(file)) {
-                    results.add(file);
-                } else {
-                    log.warn("Skipping missing file: {}", file);
-                }
-            }
-            return results;
-        }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic());
+        log.info("Starting parallel download of {} images (max concurrency: {})", 
+                images.size(), maxConcurrency);
+
+        // Создаем Flux из списка изображений и обрабатываем параллельно
+        return Flux.fromIterable(images)
+                .flatMap(wi -> 
+                    Mono.fromCallable(() -> {
+                        try {
+                            return downloadWithRetries(wi.getDirectLink(), targetDir);
+                        } catch (Exception e) {
+                            log.error("Unexpected error downloading {}: {}", 
+                                    wi.getDirectLink(), e.getMessage());
+                            return null;
+                        }
+                    })
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .doOnSuccess(path -> {
+                        if (path != null && Files.exists(path)) {
+                            log.debug("Successfully downloaded: {}", path);
+                        } else {
+                            log.warn("Failed to download: {}", wi.getDirectLink());
+                        }
+                    })
+                    .onErrorResume(e -> {
+                        log.error("Error downloading {}: {}", wi.getDirectLink(), e.getMessage());
+                        return Mono.just((Path) null);
+                    }),
+                    maxConcurrency  // ограничиваем количество параллельных загрузок
+                )
+                .filter(Objects::nonNull)
+                .filter(Files::exists)
+                .collectList()
+                .doOnSuccess(results -> 
+                    log.info("Download completed: {}/{} images successfully downloaded", 
+                            results.size(), images.size())
+                )
+                .doOnError(error -> 
+                    log.error("Fatal error during parallel download: {}", error.getMessage())
+                );
     }
 
     /** Пытаемся скачать до maxRetries раз */
     private Path downloadWithRetries(String url, Path dir) {
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return downloadSingle(url, dir);
+                Path result = downloadSingle(url, dir);
+                if (attempt > 1) {
+                    log.info("Successfully downloaded {} on attempt {}/{}", url, attempt, maxRetries);
+                }
+                return result;
             } catch (Exception e) {
-                log.warn("Attempt {}/{} failed for {}: {}", attempt, maxRetries, url, e.getMessage());
-                if (attempt == maxRetries) {
-                    log.error("Giving up downloading {} after {} attempts", url, maxRetries);
+                if (attempt < maxRetries) {
+                    log.warn("Attempt {}/{} failed for {}: {}", attempt, maxRetries, url, e.getMessage());
+                } else {
+                    log.error("Giving up downloading {} after {} attempts: {}", url, maxRetries, e.getMessage());
                 }
             }
         }

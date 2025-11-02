@@ -133,20 +133,27 @@ const Step3PrepareSend = inject('storeFI')(observer(({ storeFI }) => {
             (img, idx, arr) =>
                 arr.findIndex(x => x.directLink === img.directLink) === idx
         );
+        console.log('[Step3] Starting publish for', unique.length, 'images');
         storeFI
             .saveAndPublishSelectedImages(unique)
-            .then(res =>
-                toast.success(res, {
+            .then(res => {
+                console.log('[Step3] Publish success, response:', res);
+                // res теперь строка с сообщением от сервера
+                toast.success(res || 'Публикация выполнена успешно', {
                     position: 'bottom-right',
                     autoClose: 15000,
                     hideProgressBar: true
-                })
-            )
-            .catch(err =>
-                toast.error(`Ошибка при отправке: ${err.message}`, {
-                    position: 'bottom-right'
-                })
-            );
+                });
+            })
+            .catch(err => {
+                console.error('[Step3] Publish error:', err);
+                // Обработка ошибок: если есть ответ от сервера, используем его сообщение
+                const errorMessage = err.response?.data || err.message || 'Неизвестная ошибка';
+                toast.error(`Ошибка при отправке: ${errorMessage}`, {
+                    position: 'bottom-right',
+                    autoClose: 10000
+                });
+            });
     };
 
     const handleRemove = (index) => {

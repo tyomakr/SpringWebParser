@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import ru.aikr.inet.parser.dto.VKPublishResult;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageService;
@@ -59,31 +60,92 @@ public class VKPublishServiceImpl implements VKPublishService {
      * Публикует список изображений во ВКонтакте.
      *
      * @param fullImagesList список модели WebImage (с прямыми ссылками и т.д.)
-     * @return Mono с числом реально опубликованных изображений
+     * @return Mono с детальным результатом публикации
      */
     @Override
-    public Mono<Integer> generatePostsAndPublishToCommunityWall(List<WebImage> fullImagesList) {
+    public Mono<VKPublishResult> generatePostsAndPublishToCommunityWall(List<WebImage> fullImagesList) {
         UserActor actor = new UserActor(userId, accessToken);
         Path downloadDir = Path.of("downloaded");
 
+        log.info(AnsiColors.CYAN + "=== Starting VK publish for {} images ===" + AnsiColors.RESET, 
+                fullImagesList.size());
+
         // 1. Скачиваем изображения
         return webImageService.downloadImagesFromWebImageLinks(fullImagesList, downloadDir)
-                .flatMapMany(paths -> Flux.fromIterable(paths)
-                        // 2. разбиваем на чанки по chunkSize
-                        .buffer(chunkSize)
-                        // 3. для каждого чанка — обработка с ретраями
-                        .concatMap(chunk ->
-                                Mono.fromCallable(() -> processChunkWithRetry(actor, chunk))
-                                        .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(paths -> {
+                    if (paths.isEmpty()) {
+                        log.warn(AnsiColors.YELLOW + "No images were downloaded" + AnsiColors.RESET);
+                        return Flux.just(new ChunkResult(0, 0, 0, 0, "No images downloaded"));
+                    }
+                    
+                    log.info(AnsiColors.CYAN + "Downloaded {} images, processing in chunks of {}" 
+                            + AnsiColors.RESET, paths.size(), chunkSize);
+                    
+                    return Flux.fromIterable(paths)
+                            // 2. разбиваем на чанки по chunkSize
+                            .buffer(chunkSize)
+                            // 3. для каждого чанка — обработка с ретраями
+                            .concatMap(chunk ->
+                                    Mono.fromCallable(() -> processChunkWithRetry(actor, chunk))
+                                            .subscribeOn(Schedulers.boundedElastic())
+                            );
+                })
+                // 4. собираем статистику
+                .reduce(new ChunkResult(0, 0, 0, 0, null), 
+                        (acc, result) -> new ChunkResult(
+                                acc.uploaded + result.uploaded,
+                                acc.published + result.published,
+                                acc.postsPublished + result.postsPublished,
+                                acc.postsFailed + result.postsFailed,
+                                combineErrors(acc.error, result.error)
+                        ))
+                // 5. чистим временную папку и формируем итоговый результат
+                .flatMap(result -> cleanUp(downloadDir).thenReturn(
+                        new VKPublishResult(
+                                result.uploaded,
+                                result.published,
+                                result.postsPublished,
+                                result.postsFailed,
+                                fullImagesList.size(),
+                                result.error
                         )
-                )
-                // 4. суммируем общее число опубликованных
-                .reduce(0, Integer::sum)
-                // 5. чистим временную папку
-                .flatMap(total -> cleanUp(downloadDir).thenReturn(total))
-                .doOnTerminate(() ->
-                        log.info(AnsiColors.CYAN + "=== VK PUBLISH COMPLETED ===" + AnsiColors.RESET)
+                ))
+                .doOnSuccess(result -> {
+                    log.info(AnsiColors.CYAN + "=== VK PUBLISH COMPLETED: {} ===" + AnsiColors.RESET, result);
+                    if (result.isPartialSuccess()) {
+                        log.warn(AnsiColors.YELLOW + "Partial success: {} uploaded, {} published" 
+                                + AnsiColors.RESET, result.getUploadedCount(), result.getPublishedCount());
+                    }
+                })
+                .doOnError(error -> 
+                        log.error(AnsiColors.RED + "=== VK PUBLISH FAILED: {} ===" + AnsiColors.RESET, 
+                                error.getMessage())
                 );
+    }
+    
+    /**
+     * Вспомогательный класс для агрегации результатов обработки чанков
+     */
+    private static class ChunkResult {
+        final int uploaded;
+        final int published;
+        final int postsPublished;
+        final int postsFailed;
+        final String error;
+        
+        ChunkResult(int uploaded, int published, int postsPublished, int postsFailed, String error) {
+            this.uploaded = uploaded;
+            this.published = published;
+            this.postsPublished = postsPublished;
+            this.postsFailed = postsFailed;
+            this.error = error;
+        }
+    }
+    
+    private String combineErrors(String error1, String error2) {
+        if (error1 == null) return error2;
+        if (error2 == null) return error1;
+        return error1 + "; " + error2;
     }
 
     /**
@@ -91,9 +153,9 @@ public class VKPublishServiceImpl implements VKPublishService {
      *
      * @param actor VK-актор
      * @param chunk список путей к файлам
-     * @return число успешно опубликованных изображений в этом чанке
+     * @return результат обработки чанка с детальной статистикой
      */
-    private int processChunkWithRetry(UserActor actor, List<Path> chunk) {
+    private ChunkResult processChunkWithRetry(UserActor actor, List<Path> chunk) {
         List<File> files = new ArrayList<>();
         for (Path p : chunk) {
             files.add(p.toFile());
@@ -102,57 +164,84 @@ public class VKPublishServiceImpl implements VKPublishService {
         // Убираем дубликаты, сохраняя порядок
         removeDuplicates(files);
         if (files.isEmpty()) {
-            return 0;
+            return new ChunkResult(0, 0, 0, 0, "Empty chunk after deduplication");
         }
 
         log.info(AnsiColors.CYAN + "Processing chunk of {} images" + AnsiColors.RESET, files.size());
 
         List<String> attachmentIds = new ArrayList<>();
-        int successCnt = 0;
+        int uploadedCount = 0;
+        String chunkError = null;
 
         // Загрузка с retry/backoff
         for (File file : files) {
             int attempt = 0;
-            boolean ok = false;
+            boolean uploaded = false;
 
-            while (attempt < maxRetries && !ok) {
+            while (attempt < maxRetries && !uploaded) {
                 attempt++;
                 try {
                     String attach = uploadPhotoWithBackoff(actor, file);
                     attachmentIds.add(attach);
-                    ok = true;
-                    successCnt++;
+                    uploaded = true;
+                    uploadedCount++;
 
                     // Пауза baseDelay после каждого успешного аплоада
                     TimeUnit.MILLISECONDS.sleep(baseDelay);
                 } catch (ApiException e) {
-                    handleApiError(e);
-                    waitBeforeRetry(attempt);
+                    handleApiError(e, file.getName(), attempt);
+                    if (attempt < maxRetries) {
+                        waitBeforeRetry(attempt);
+                    } else {
+                        String errorMsg = String.format("Failed to upload %s after %d attempts: %s", 
+                                file.getName(), maxRetries, getErrorMessage(e));
+                        log.error(AnsiColors.RED + errorMsg + AnsiColors.RESET);
+                        chunkError = combineErrors(chunkError, errorMsg);
+                    }
                 } catch (Exception e) {
-                    log.error(AnsiColors.RED + "Critical error [{}]: {}" + AnsiColors.RESET,
-                            e.getClass().getSimpleName(), e.getMessage());
-                    waitBeforeRetry(attempt);
+                    log.error(AnsiColors.RED + "Critical error uploading {} [{}]: {}" + AnsiColors.RESET,
+                            file.getName(), e.getClass().getSimpleName(), e.getMessage());
+                    if (attempt < maxRetries) {
+                        waitBeforeRetry(attempt);
+                    } else {
+                        String errorMsg = String.format("Critical error uploading %s: %s", 
+                                file.getName(), e.getMessage());
+                        chunkError = combineErrors(chunkError, errorMsg);
+                    }
                 }
-            }
-
-            if (!ok) {
-                log.error(AnsiColors.RED + "File {} failed after {} attempts" + AnsiColors.RESET,
-                        file.getName(), maxRetries
-                );
             }
         }
 
         // Публикация поста, если хоть одно изображение загрузилось
+        int publishedCount = 0;
+        int postsPublished = 0;
+        int postsFailed = 0;
+        
         if (!attachmentIds.isEmpty()) {
             try {
                 publishPost(actor, attachmentIds);
+                publishedCount = attachmentIds.size();
+                postsPublished = 1;
+                log.info(AnsiColors.GREEN + "Successfully published chunk with {} images" 
+                        + AnsiColors.RESET, attachmentIds.size());
+            } catch (ApiException e) {
+                handleApiError(e, "chunk post", 1);
+                String errorMsg = String.format("Failed to publish post with %d images: %s", 
+                        attachmentIds.size(), getErrorMessage(e));
+                log.error(AnsiColors.RED + errorMsg + AnsiColors.RESET);
+                chunkError = combineErrors(chunkError, errorMsg);
+                postsFailed = 1;
+                // НЕ обнуляем uploadedCount - изображения загружены, просто пост не опубликован
             } catch (Exception e) {
-                log.error(AnsiColors.RED + "Publish error: {}", e.getMessage());
-                successCnt = 0; // отменяем счётчик, если публикация не состоялась
+                String errorMsg = String.format("Critical error publishing post: %s", e.getMessage());
+                log.error(AnsiColors.RED + errorMsg + AnsiColors.RESET);
+                chunkError = combineErrors(chunkError, errorMsg);
+                postsFailed = 1;
+                // НЕ обнуляем uploadedCount
             }
         }
 
-        return successCnt;
+        return new ChunkResult(uploadedCount, publishedCount, postsPublished, postsFailed, chunkError);
     }
 
     /* ======== VK API Helpers ======== */
@@ -197,12 +286,43 @@ public class VKPublishServiceImpl implements VKPublishService {
 
     /* ======== Utility Methods ======== */
 
-    private void handleApiError(ApiException e) {
-        if (e.getCode() == 6) { // rate limit
-            log.warn(AnsiColors.YELLOW + "VK rate limit: {}", e.getMessage());
-        } else {
-            log.warn(AnsiColors.YELLOW + "VK error: {}", e.getMessage());
-        }
+    /**
+     * Обрабатывает ошибки VK API с детализацией по типам
+     */
+    private void handleApiError(ApiException e, String context, int attempt) {
+        String codeDescription = getVKErrorDescription(e.getCode());
+        log.warn(AnsiColors.YELLOW + "VK API error [code={}] {}: {} (attempt {})" + AnsiColors.RESET,
+                e.getCode(), codeDescription, e.getMessage(), attempt);
+    }
+    
+    /**
+     * Получает описание кода ошибки VK API
+     */
+    private String getVKErrorDescription(int code) {
+        return switch (code) {
+            case 1 -> "Unknown error";
+            case 6 -> "Too many requests per second (rate limit)";
+            case 9 -> "Flood control";
+            case 10 -> "Internal server error";
+            case 14 -> "Captcha needed";
+            case 15 -> "Access denied";
+            case 18 -> "User was deleted or banned";
+            case 100 -> "One of the parameters is missing or invalid";
+            case 113 -> "Invalid user id";
+            case 121 -> "Invalid album id";
+            case 122 -> "Invalid server";
+            case 125 -> "Invalid photos list";
+            case 126 -> "Invalid hash";
+            case 200 -> "Access denied to perform this action";
+            default -> "Error code " + code;
+        };
+    }
+    
+    /**
+     * Формирует понятное сообщение об ошибке
+     */
+    private String getErrorMessage(ApiException e) {
+        return String.format("[%s] %s", getVKErrorDescription(e.getCode()), e.getMessage());
     }
 
     /**

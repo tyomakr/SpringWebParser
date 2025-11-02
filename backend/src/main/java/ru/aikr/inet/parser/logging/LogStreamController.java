@@ -10,7 +10,6 @@ import java.time.Duration;
 
 @Slf4j
 @RestController
-@CrossOrigin(origins = "http://localhost:3333")
 @RequestMapping("/api/v1/logs")
 public class LogStreamController {
 

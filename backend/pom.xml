@@ -90,6 +90,12 @@
             </exclusions>
         </dependency>
 
+        <!-- Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!-- Lombok – нужен только на этапе компиляции -->
         <dependency>
             <groupId>org.projectlombok</groupId>

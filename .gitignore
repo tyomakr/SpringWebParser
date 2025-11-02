@@ -12,3 +12,10 @@ ui/ui.iml
 # Maven / Gradle wrapper
 !backend/.mvn/**
 !backend/mvnw*
+
+# Secret configuration files
+**/application-secret.yml
+**/application-secret*.yml
+
+.vscode
+.idea
