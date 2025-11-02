@@ -135,18 +135,22 @@ const Step3PrepareSend = inject('storeFI')(observer(({ storeFI }) => {
         );
         storeFI
             .saveAndPublishSelectedImages(unique)
-            .then(res =>
+            .then(res => {
+                // res теперь строка с сообщением от сервера
                 toast.success(res, {
                     position: 'bottom-right',
                     autoClose: 15000,
                     hideProgressBar: true
-                })
-            )
-            .catch(err =>
-                toast.error(`Ошибка при отправке: ${err.message}`, {
-                    position: 'bottom-right'
-                })
-            );
+                });
+            })
+            .catch(err => {
+                // Обработка ошибок: если есть ответ от сервера, используем его сообщение
+                const errorMessage = err.response?.data || err.message || 'Неизвестная ошибка';
+                toast.error(`Ошибка при отправке: ${errorMessage}`, {
+                    position: 'bottom-right',
+                    autoClose: 10000
+                });
+            });
     };
 
     const handleRemove = (index) => {

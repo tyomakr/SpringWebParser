@@ -96,7 +96,20 @@ export class StoreFI {
             (img, idx, arr) =>
                 arr.findIndex(x => x.directLink === img.directLink) === idx
         );
-        return backendApiService.saveAndPublishSelectedImages(unique);
+        try {
+            const response = await backendApiService.saveAndPublishSelectedImages(unique);
+            // Возвращаем данные из ответа axios (response.data содержит строку от сервера)
+            return response.data;
+        } catch (error) {
+            // Если axios выбросил ошибку, но есть ответ от сервера, используем его
+            if (error.response?.data) {
+                // Пробрасываем ошибку с сообщением от сервера
+                const serverError = new Error(error.response.data);
+                serverError.response = error.response;
+                throw serverError;
+            }
+            throw error;
+        }
     }
 
     /**
