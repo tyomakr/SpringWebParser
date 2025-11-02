@@ -1,5 +1,7 @@
 package ru.aikr.inet.parser.model;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,6 +15,9 @@ import java.util.Objects;
 @AllArgsConstructor
 public class WebImage {
     private String id;
+    
+    @NotBlank(message = "Прямая ссылка на изображение обязательна")
+    @Pattern(regexp = "^(http|https)://.+", message = "Ссылка должна начинаться с http:// или https://")
     private String directLink;
 
     public WebImage(String directLink) {

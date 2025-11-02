@@ -1,6 +1,7 @@
 package ru.aikr.inet.parser.service;
 
 import reactor.core.publisher.Mono;
+import ru.aikr.inet.parser.dto.VKPublishResult;
 import ru.aikr.inet.parser.model.WebImage;
 
 import java.util.List;
@@ -14,7 +15,7 @@ public interface VKPublishService {
      * Создаёт посты и публикует их в группе.
      *
      * @param images список картинок
-     * @return Mono с числом успешно опубликованных изображений
+     * @return Mono с детальным результатом публикации
      */
-    Mono<Integer> generatePostsAndPublishToCommunityWall(List<WebImage> images);
+    Mono<VKPublishResult> generatePostsAndPublishToCommunityWall(List<WebImage> images);
 }
