@@ -65,7 +65,7 @@ class FishkiRestControllerTest {
 
         web.post().uri("/api/v1/sites/fishki/images/")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(List.of(new WebImage("test_url")))    // JSON сериализуется автоматически
+                .bodyValue(List.of(new WebImage("https://example.com/test.jpg")))   // JSON сериализуется автоматически
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class)
