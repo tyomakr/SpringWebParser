@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.config.CorsRegistry;
 import org.springframework.web.reactive.config.WebFluxConfigurer;
+import org.springframework.lang.NonNull;
 
 @Configuration
 public class WebConfig implements WebFluxConfigurer {
@@ -22,7 +23,7 @@ public class WebConfig implements WebFluxConfigurer {
     private boolean allowCredentials;
     
     @Override
-    public void addCorsMappings(CorsRegistry registry) {
+    public void addCorsMappings(@NonNull CorsRegistry registry) {
         var corsRegistry = registry.addMapping("/api/**");
         
         // Настройка origins

@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Slf4j
 public class HttpMlRecommendationClient implements MlRecommendationClient {
@@ -37,11 +38,15 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
         );
 
         Duration timeout = Duration.ofSeconds(properties.getTimeoutSeconds());
+        String path = Objects.requireNonNull(
+        properties.getRecommendationPath(),
+        "ml.publish.recommendation-path must not be null"
+        );
 
-        return webClient.post()
-                .uri(properties.getRecommendationPath())
-                .bodyValue(request)
-                .retrieve()
+    return webClient.post()
+        .uri(path)
+        .bodyValue(request)
+        .retrieve()
                 .onStatus(HttpStatusCode::isError, response ->
                         response.bodyToMono(String.class)
                                 .defaultIfEmpty("empty")

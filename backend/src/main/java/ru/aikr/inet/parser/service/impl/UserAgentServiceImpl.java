@@ -4,7 +4,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import ru.aikr.inet.parser.service.UserAgentService;
 
@@ -13,6 +12,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -23,7 +23,6 @@ import java.util.Random;
 @RequiredArgsConstructor
 public class UserAgentServiceImpl implements UserAgentService {
 
-    private final ResourceLoader resourceLoader;
     private final Random random = new Random();
 
     /** Путь берётся из application.yml (env.global.user-agents-file). */
@@ -37,7 +36,12 @@ public class UserAgentServiceImpl implements UserAgentService {
     void init() {
         try (BufferedReader br = new BufferedReader(
                 new InputStreamReader(
-                        resourceLoader.getResource(userAgentsPath).getInputStream(),
+                        Objects.requireNonNull(
+                                getClass().getClassLoader().getResourceAsStream(
+                                        Objects.requireNonNull(
+                                                userAgentsPath,
+                                                "env.global.user-agents-file must not be null")),
+                                "User-Agents resource not found: " + userAgentsPath),
                         StandardCharsets.UTF_8))) {
 
             br.lines()
@@ -45,9 +49,9 @@ public class UserAgentServiceImpl implements UserAgentService {
                     .filter(s -> !s.isEmpty())
                     .forEach(userAgents::add);
 
-            log.info("Loaded {} User‑Agents from {}", userAgents.size(), userAgentsPath);
+            log.info("Loaded {} User-Agents from {}", userAgents.size(), userAgentsPath);
         } catch (Exception e) {
-            log.error("User‑Agent load error: {}", e.getMessage());
+            log.error("User-Agent load error: {}", e.getMessage());
         }
     }
 
