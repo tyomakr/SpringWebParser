@@ -10,6 +10,14 @@ server:
 spring:
   profiles:
     include: secret
+  datasource:
+    url: jdbc:h2:mem:spring_web_parser;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
 
 app:
   cors:
@@ -71,3 +79,5 @@ management:
 
 logging:
   config: classpath:log4j2-spring.xml
+# recommendation:
+#   base-url: "http://127.0.0.1:8000"

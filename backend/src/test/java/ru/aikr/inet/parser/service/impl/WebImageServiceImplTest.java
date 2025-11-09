@@ -10,7 +10,7 @@ import ru.aikr.inet.parser.service.ImageDownloaderService;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class WebImageServiceImplTest {
