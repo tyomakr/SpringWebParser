@@ -2,26 +2,26 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Копируем файлы зависимостей для кеширования слоёв
+# 🧠 Устанавливаем только то, что нужно для установки зависимостей
 COPY package.json yarn.lock* ./
 RUN yarn install --frozen-lockfile --network-timeout 100000
 
-# Копируем исходники и собираем
+# Собираем проект
 COPY . .
-ARG REACT_APP_API_URL=/
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ARG REACT_APP_BACKEND_URL=http://swp-backend:8111
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 ENV PUBLIC_URL=/
 RUN yarn build && \
     rm -rf node_modules
 
-# ---------- Stage 2: Nginx (оптимизированный) ----------
+# ---------- Stage 2: Nginx (подача статических файлов) ----------
 FROM nginx:1.25-alpine
 
-# Удаляем ненужные файлы из базового образа
+# Чистим дефолтный сайт
 RUN rm -rf /usr/share/nginx/html/* && \
     rm -f /etc/nginx/conf.d/default.conf
 
-# Копируем собранное приложение
+# Копируем сборку и конфиг nginx
 COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

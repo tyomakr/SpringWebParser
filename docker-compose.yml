@@ -3,7 +3,8 @@ services:
     build: ./backend
     image: swp-backend:latest
     container_name: swp-backend
-    expose: ["8111"]
+    ports:
+      - "8112:8111"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8111/actuator/health"]
       interval: 30s
@@ -18,14 +19,22 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    depends_on:
+      - ml-service
+    environment:
+      ML_PUBLISH_API_KEY: example-token
+      SPRING_APPLICATION_JSON: '{"ml":{"publish":{"base-url":"http://ml-service:8000","recommendation-path":"/recommend","timeout-seconds":6}}}'
     networks: [app-net]
 
   frontend:
-    build: ./ui                 # <-- контекст = ui/
+    build:
+      context: ./ui
+      args:
+        REACT_APP_BACKEND_URL: http://swp-backend:8111
     image: swp-frontend:latest
     container_name: swp-frontend
     ports:
-      - "3333:80"
+      - "3334:80"
     depends_on:
       - backend
     deploy:
@@ -36,6 +45,16 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+    networks: [app-net]
+
+  ml-service:
+    build: ./ml-service
+    image: swp-ml-service:latest
+    container_name: swp-ml-service
+    ports:
+      - "38000:8000"
+    environment:
+      - ML_PUBLISH_API_KEY=example-token
     networks: [app-net]
 
 networks:
