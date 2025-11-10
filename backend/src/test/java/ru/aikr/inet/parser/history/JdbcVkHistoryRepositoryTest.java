@@ -8,8 +8,10 @@ import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
+import java.util.Map;
 
 import ru.aikr.inet.parser.logging.LogEventsPublisher;
 
@@ -22,6 +24,9 @@ class JdbcVkHistoryRepositoryTest {
 
     @Autowired
     private VkHistoryRepository repository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void saveIncrementsCountAndUpdatesTimestamp() {
@@ -46,6 +51,29 @@ class JdbcVkHistoryRepositoryTest {
 
         assertThat(repository.save(duplicate)).isTrue();
         assertThat(repository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void savePersistsMlMetadata() {
+        VkImageHistoryRecord record = new VkImageHistoryRecord(
+                125L,
+                "https://example.com/ml.jpg",
+                "hash-ml",
+                Instant.now()
+        );
+        record.setMlDecision("SKIP");
+        record.setMlScore(0.55);
+        record.setMlReason("not suitable");
+
+        repository.save(record);
+
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT ml_decision, ml_score, ml_reason FROM vk_image_history WHERE hash = ?",
+                "hash-ml"
+        );
+        assertThat(row.get("ML_DECISION")).isEqualTo("SKIP");
+        assertThat(((Number) row.get("ML_SCORE")).doubleValue()).isEqualTo(0.55);
+        assertThat(row.get("ML_REASON")).isEqualTo("not suitable");
     }
 
     @TestConfiguration

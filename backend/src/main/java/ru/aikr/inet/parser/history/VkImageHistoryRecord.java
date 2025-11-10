@@ -10,6 +10,9 @@ public class VkImageHistoryRecord {
     private String hash;
     private Instant createdAt;
     private Instant syncedAt;
+    private String mlDecision;
+    private Double mlScore;
+    private String mlReason;
 
     public VkImageHistoryRecord() {
     }
@@ -67,5 +70,29 @@ public class VkImageHistoryRecord {
 
     public void setSyncedAt(Instant syncedAt) {
         this.syncedAt = syncedAt;
+    }
+
+    public String getMlDecision() {
+        return mlDecision;
+    }
+
+    public void setMlDecision(String mlDecision) {
+        this.mlDecision = mlDecision;
+    }
+
+    public Double getMlScore() {
+        return mlScore;
+    }
+
+    public void setMlScore(Double mlScore) {
+        this.mlScore = mlScore;
+    }
+
+    public String getMlReason() {
+        return mlReason;
+    }
+
+    public void setMlReason(String mlReason) {
+        this.mlReason = mlReason;
     }
 }

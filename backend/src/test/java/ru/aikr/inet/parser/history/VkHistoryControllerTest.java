@@ -10,9 +10,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.time.Instant;
+import java.util.List;
 
 import ru.aikr.inet.parser.logging.LogEventsPublisher;
-
 import static org.mockito.Mockito.when;
 
 @WebFluxTest(controllers = VkHistoryController.class)
@@ -50,6 +50,30 @@ class VkHistoryControllerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.totalCount").isEqualTo(10);
+    }
+
+    @Test
+    void entriesIncludeMlContext() {
+        VkImageHistoryRecord record = new VkImageHistoryRecord(
+                1L,
+                "https://example.com/a.jpg",
+                "hash-a",
+                Instant.now()
+        );
+        record.setMlDecision("PUBLISH");
+        record.setMlScore(0.85);
+        record.setMlReason("best");
+
+        when(historyService.getHistoryEntries()).thenReturn(List.of(record));
+
+        webTestClient.get()
+                .uri("/api/vk-history/entries")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$[0].mlDecision").isEqualTo("PUBLISH")
+                .jsonPath("$[0].mlScore").isEqualTo(0.85)
+                .jsonPath("$[0].mlReason").isEqualTo("best");
     }
 
     @TestConfiguration

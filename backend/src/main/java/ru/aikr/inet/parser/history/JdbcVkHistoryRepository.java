@@ -3,8 +3,11 @@ package ru.aikr.inet.parser.history;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 
 @Repository
 public class JdbcVkHistoryRepository implements VkHistoryRepository {
@@ -22,12 +25,15 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
                 : null;
 
         int updated = jdbcTemplate.update(
-                "MERGE INTO vk_image_history (hash, post_id, url, created_at, synced_at) " +
-                        "KEY (hash) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                "MERGE INTO vk_image_history (hash, post_id, url, created_at, synced_at, ml_decision, ml_score, ml_reason) " +
+                        "KEY (hash) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)",
                 record.getHash(),
                 record.getPostId(),
                 record.getUrl(),
-                createdAt
+                createdAt,
+                record.getMlDecision(),
+                record.getMlScore(),
+                record.getMlReason()
         );
 
         return updated > 0;
@@ -49,5 +55,30 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
                 Timestamp.class
         );
         return timestamp != null ? timestamp.toInstant() : null;
+    }
+
+    @Override
+    public List<VkImageHistoryRecord> findAll() {
+        return jdbcTemplate.query("SELECT * FROM vk_image_history ORDER BY created_at DESC",
+                this::mapRow);
+    }
+
+    private VkImageHistoryRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
+        VkImageHistoryRecord record = new VkImageHistoryRecord();
+        record.setId(rs.getLong("id"));
+        record.setPostId(rs.getLong("post_id"));
+        record.setUrl(rs.getString("url"));
+        record.setHash(rs.getString("hash"));
+        Timestamp created = rs.getTimestamp("created_at");
+        record.setCreatedAt(created != null ? created.toInstant() : null);
+        Timestamp synced = rs.getTimestamp("synced_at");
+        record.setSyncedAt(synced != null ? synced.toInstant() : null);
+        record.setMlDecision(rs.getString("ml_decision"));
+        double score = rs.getDouble("ml_score");
+        if (!rs.wasNull()) {
+            record.setMlScore(score);
+        }
+        record.setMlReason(rs.getString("ml_reason"));
+        return record;
     }
 }

@@ -4,5 +4,8 @@ CREATE TABLE IF NOT EXISTS vk_image_history (
   url VARCHAR(1024) NOT NULL,
   hash VARCHAR(64) NOT NULL UNIQUE,
   created_at TIMESTAMP,
-  synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  ml_decision VARCHAR(32),
+  ml_score DOUBLE,
+  ml_reason VARCHAR(1024)
 );

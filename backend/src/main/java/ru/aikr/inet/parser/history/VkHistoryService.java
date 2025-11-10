@@ -35,8 +35,15 @@ public class VkHistoryService {
     }
 
     // 🔹 Новый метод — именно его не хватает
-    public void recordPublication(VkImageHistoryRecord record) {
+    public void recordPublication(VkImageHistoryRecord record, String mlDecision, Double mlScore, String mlReason) {
+        record.setMlDecision(mlDecision);
+        record.setMlScore(mlScore);
+        record.setMlReason(mlReason);
         repository.save(record);
+    }
+
+    public List<VkImageHistoryRecord> getHistoryEntries() {
+        return repository.findAll();
     }
 
     protected List<VkImageHistoryRecord> fetchFromVk() {

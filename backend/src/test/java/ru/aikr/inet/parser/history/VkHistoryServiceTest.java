@@ -3,6 +3,7 @@ package ru.aikr.inet.parser.history;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -10,6 +11,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,6 +48,25 @@ class VkHistoryServiceTest {
         assertThat(stats.getTotalCount()).isEqualTo(2);
         assertThat(stats.getUpdatedCount()).isEqualTo(2);
         assertThat(stats.getLastSynced()).isNotNull();
+    }
+
+    @Test
+    void recordPublicationAddsMlContextAndSaves() {
+        VkImageHistoryRecord record = new VkImageHistoryRecord(
+                1L,
+                "https://example.com/ml.jpg",
+                "hash-ml",
+                Instant.now()
+        );
+
+        service.recordPublication(record, "PUBLISH", 0.9, "reason");
+
+        ArgumentCaptor<VkImageHistoryRecord> captor = ArgumentCaptor.forClass(VkImageHistoryRecord.class);
+        verify(repository).save(captor.capture());
+        VkImageHistoryRecord saved = captor.getValue();
+        assertThat(saved.getMlDecision()).isEqualTo("PUBLISH");
+        assertThat(saved.getMlScore()).isEqualTo(0.9);
+        assertThat(saved.getMlReason()).isEqualTo("reason");
     }
 
     private static class TestableVkHistoryService extends VkHistoryService {

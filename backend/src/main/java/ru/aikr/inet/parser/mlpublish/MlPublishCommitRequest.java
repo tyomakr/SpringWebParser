@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import ru.aikr.inet.parser.recommendation.RecommendationDecision;
 
 import java.util.List;
 
@@ -26,4 +27,7 @@ class MlPublishCommitItem {
     private String id;
     private String url;
     private boolean publish;
+    private RecommendationDecision decision;
+    private Double score;
+    private String reason;
 }
