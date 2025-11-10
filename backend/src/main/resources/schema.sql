@@ -7,5 +7,6 @@ CREATE TABLE IF NOT EXISTS vk_image_history (
   synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   ml_decision VARCHAR(32),
   ml_score DOUBLE,
-  ml_reason VARCHAR(1024)
+  ml_reason VARCHAR(1024),
+  use_for_training BOOLEAN DEFAULT TRUE
 );

@@ -8,8 +8,6 @@ RUN yarn install --frozen-lockfile --network-timeout 100000
 
 # Собираем проект
 COPY . .
-ARG REACT_APP_BACKEND_URL=http://swp-backend:8111
-ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 ENV PUBLIC_URL=/
 RUN yarn build && \
     rm -rf node_modules

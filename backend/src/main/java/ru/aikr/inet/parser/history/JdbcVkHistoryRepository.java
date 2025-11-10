@@ -20,22 +20,28 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
 
     @Override
     public boolean save(VkImageHistoryRecord record) {
-        Timestamp createdAt = record.getCreatedAt() != null
-                ? Timestamp.from(record.getCreatedAt())
-                : null;
+        Instant createdAtInstant = record.getCreatedAt();
+        Timestamp createdAt = createdAtInstant != null ? Timestamp.from(createdAtInstant) : null;
+
+        // по умолчанию считаем, что запись участвует в обучении
+        Boolean useForTraining = record.getUseForTraining();
+        if (useForTraining == null) {
+            useForTraining = Boolean.TRUE;
+        }
 
         int updated = jdbcTemplate.update(
-                "MERGE INTO vk_image_history (hash, post_id, url, created_at, synced_at, ml_decision, ml_score, ml_reason) " +
-                        "KEY (hash) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)",
+                "MERGE INTO vk_image_history (" +
+                        "hash, post_id, url, created_at, synced_at, ml_decision, ml_score, ml_reason, use_for_training"
+                        +
+                        ") KEY (hash) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)",
                 record.getHash(),
                 record.getPostId(),
                 record.getUrl(),
                 createdAt,
                 record.getMlDecision(),
                 record.getMlScore(),
-                record.getMlReason()
-        );
-
+                record.getMlReason(),
+                useForTraining);
         return updated > 0;
     }
 
@@ -43,8 +49,7 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
     public long count() {
         Long value = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM vk_image_history",
-                Long.class
-        );
+                Long.class);
         return value != null ? value : 0L;
     }
 
@@ -52,8 +57,7 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
     public Instant lastSynced() {
         Timestamp timestamp = jdbcTemplate.queryForObject(
                 "SELECT MAX(synced_at) FROM vk_image_history",
-                Timestamp.class
-        );
+                Timestamp.class);
         return timestamp != null ? timestamp.toInstant() : null;
     }
 
@@ -79,6 +83,16 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
             record.setMlScore(score);
         }
         record.setMlReason(rs.getString("ml_reason"));
+        record.setUseForTraining(rs.getBoolean("use_for_training"));
         return record;
+    }
+
+    @Override
+    public boolean updateUseForTraining(long id, boolean useForTraining) {
+        int updated = jdbcTemplate.update(
+                "UPDATE vk_image_history SET use_for_training = ? WHERE id = ?",
+                useForTraining,
+                id);
+        return updated > 0;
     }
 }

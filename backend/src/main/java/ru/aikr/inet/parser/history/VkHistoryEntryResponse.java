@@ -18,6 +18,7 @@ public class VkHistoryEntryResponse {
     private final String mlDecision;
     private final Double mlScore;
     private final String mlReason;
+    private final Boolean useForTraining;
 
     public static VkHistoryEntryResponse fromRecord(VkImageHistoryRecord record) {
         return VkHistoryEntryResponse.builder()
@@ -30,6 +31,7 @@ public class VkHistoryEntryResponse {
                 .mlDecision(record.getMlDecision())
                 .mlScore(record.getMlScore())
                 .mlReason(record.getMlReason())
+                .useForTraining(record.getUseForTraining())
                 .build();
     }
 }

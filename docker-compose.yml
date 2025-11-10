@@ -4,7 +4,7 @@ services:
     image: swp-backend:latest
     container_name: swp-backend
     ports:
-      - "8112:8111"
+      - "8111:8111"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8111/actuator/health"]
       interval: 30s
@@ -27,14 +27,11 @@ services:
     networks: [app-net]
 
   frontend:
-    build:
-      context: ./ui
-      args:
-        REACT_APP_BACKEND_URL: http://swp-backend:8111
+    build: ./ui
     image: swp-frontend:latest
     container_name: swp-frontend
     ports:
-      - "3334:80"
+      - "3333:80"
     depends_on:
       - backend
     deploy:

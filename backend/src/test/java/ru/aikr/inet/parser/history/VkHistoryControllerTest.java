@@ -63,6 +63,7 @@ class VkHistoryControllerTest {
         record.setMlDecision("PUBLISH");
         record.setMlScore(0.85);
         record.setMlReason("best");
+        record.setUseForTraining(true);
 
         when(historyService.getHistoryEntries()).thenReturn(List.of(record));
 
@@ -74,6 +75,47 @@ class VkHistoryControllerTest {
                 .jsonPath("$[0].mlDecision").isEqualTo("PUBLISH")
                 .jsonPath("$[0].mlScore").isEqualTo(0.85)
                 .jsonPath("$[0].mlReason").isEqualTo("best");
+    }
+
+    @Test
+    void trainingReturnsOnlyActiveEntries() {
+        VkImageHistoryRecord allowed = new VkImageHistoryRecord(
+                1L,
+                "https://example.com/a.jpg",
+                "hash-a",
+                Instant.now()
+        );
+        allowed.setUseForTraining(true);
+        VkImageHistoryRecord denied = new VkImageHistoryRecord(
+                2L,
+                "https://example.com/b.jpg",
+                "hash-b",
+                Instant.now()
+        );
+        denied.setUseForTraining(false);
+
+        when(historyService.getTrainingEntries()).thenReturn(List.of(allowed));
+
+        webTestClient.get()
+                .uri("/api/vk-history/training")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$[0].useForTraining").isEqualTo(true)
+                .jsonPath("$.length()").isEqualTo(1);
+    }
+
+    @Test
+    void updateTrainingFlagDelegatesToService() {
+        webTestClient.patch()
+                .uri("/api/vk-history/entries/5/training")
+                .bodyValue(new VkHistoryTrainingToggleRequest() {{
+                    setUseForTraining(false);
+                }})
+                .exchange()
+                .expectStatus().isOk();
+
+        Mockito.verify(historyService).updateUseForTraining(5L, false);
     }
 
     @TestConfiguration

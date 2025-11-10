@@ -13,6 +13,7 @@ public class VkImageHistoryRecord {
     private String mlDecision;
     private Double mlScore;
     private String mlReason;
+    private Boolean useForTraining;
 
     public VkImageHistoryRecord() {
     }
@@ -94,5 +95,13 @@ public class VkImageHistoryRecord {
 
     public void setMlReason(String mlReason) {
         this.mlReason = mlReason;
+    }
+
+    public Boolean getUseForTraining() {
+        return useForTraining;
+    }
+
+    public void setUseForTraining(Boolean useForTraining) {
+        this.useForTraining = useForTraining;
     }
 }

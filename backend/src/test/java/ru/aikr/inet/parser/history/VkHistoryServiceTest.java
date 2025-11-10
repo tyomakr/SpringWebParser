@@ -86,4 +86,24 @@ class VkHistoryServiceTest {
             return fetched;
         }
     }
+
+    @Test
+    void getTrainingEntriesFiltersByFlag() {
+        VkImageHistoryRecord allowed = new VkImageHistoryRecord(1L, "url", "hash1", Instant.now());
+        allowed.setUseForTraining(true);
+        VkImageHistoryRecord denied = new VkImageHistoryRecord(2L, "url", "hash2", Instant.now());
+        denied.setUseForTraining(false);
+        when(repository.findAll()).thenReturn(List.of(allowed, denied));
+
+        List<VkImageHistoryRecord> training = service.getTrainingEntries();
+
+        assertThat(training).containsExactly(allowed);
+    }
+
+    @Test
+    void updateUseForTrainingDelegatesToRepository() {
+        service.updateUseForTraining(5L, true);
+
+        verify(repository).updateUseForTraining(5L, true);
+    }
 }

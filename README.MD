@@ -29,10 +29,23 @@ https://oauth.vk.com/authorize?client_id=<сюда app_id>&display=page&redirect
 https://oauth.vk.com/blank.html#access_token=<отсюда копируем access_token>&expires_in=0&user_id=<тут user_id>&email=<почта пользователя>
 
 
-старт через docker compose up -d
-Дополнительно о ML-предпросмотре см. ackend/docs/ml-preview.md.
-\n## ML dev stack\n\nВ этом репозитории есть готовый ML-стек, который стартует на других портах, чтобы не мешать прежнему окружению.\n\n1. Собрать образы и поднять стек:\n   `ash\n   docker compose build\n   docker compose up\n   `\n2. Компоненты:\n   * frontend: http://localhost:3334\n   * backend (соответствует ml.publish.base-url): http://localhost:8112 (говорит с ml-service по http://ml-service:8000)\n   * ml-service: http://localhost:38000 (FastAPI-стаб по контракту из ackend/docs/ml-preview.md)\n3. Включён ml.publish.api-key через переменную ML_PUBLISH_API_KEY в compose, поэтому backend может ходить к ML по HTTPS-заголовку.\n\nПосле тестов: cd backend && ./mvnw clean test, cd ml-service && python -m pytest.
-### Настройка frontend
+## ML dev stack
 
-При локальной разработке (без Docker) укажите `REACT_APP_BACKEND_URL=http://localhost:8112` в `ui/.env` или в других `.env.*`-файлах.
-В Docker Compose фронт собирается с `REACT_APP_BACKEND_URL=http://swp-backend:8111`, так что внутри сети он обращается к контейнеру `backend`, а адреса хоста влияют только на внешние порты.
+В репозитории есть минимальный ML-stub сервис (`ml-service/`), который реализует контракт из
+`backend/docs/ml-preview.md` и используется бэкендом для ML-превью.
+
+### Порты dev-стека
+
+В dev-docker-стеке используются отдельные порты, чтобы не конфликтовать со старыми сервисами:
+
+- backend: `8112` на хосте (внутри контейнера слушает `8111`)
+- frontend: `3334`
+- ml-service (FastAPI): `38000` на хосте (внутри контейнера `8000`)
+
+### Запуск через Docker
+
+Из корня проекта:
+
+```bash
+docker compose build
+docker compose up -d

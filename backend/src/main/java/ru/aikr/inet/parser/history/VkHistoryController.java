@@ -31,4 +31,21 @@ public class VkHistoryController {
                         .toList()
         );
     }
+
+    @GetMapping("/training")
+    public Mono<List<VkHistoryEntryResponse>> training() {
+        return Mono.fromCallable(() ->
+                historyService.getTrainingEntries().stream()
+                        .map(VkHistoryEntryResponse::fromRecord)
+                        .toList()
+        );
+    }
+
+    @PatchMapping("/entries/{id}/training")
+    public Mono<Void> updateTrainingFlag(@PathVariable long id,
+                                         @RequestBody VkHistoryTrainingToggleRequest request) {
+        return Mono.fromRunnable(() ->
+                historyService.updateUseForTraining(id, Boolean.TRUE.equals(request.getUseForTraining()))
+        );
+    }
 }

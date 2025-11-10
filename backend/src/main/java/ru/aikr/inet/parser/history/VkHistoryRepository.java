@@ -8,6 +8,8 @@ public interface VkHistoryRepository {
 
     java.util.List<VkImageHistoryRecord> findAll();
 
+    boolean updateUseForTraining(long id, boolean useForTraining);
+
     long count();
 
     Instant lastSynced();

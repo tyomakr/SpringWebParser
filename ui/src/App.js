@@ -1,48 +1,79 @@
-import React from 'react';
-import { Link, BrowserRouter, Routes, Route } from 'react-router-dom';
-import { inject, observer } from 'mobx-react';
-import FWIStepper from './components/FWIStepper';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, AppBar, Toolbar, Typography, Button, Box, Container } from '@mui/material';
-import { ToastContainer } from 'react-toastify';
+import React from "react";
+import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
+import { inject, observer } from "mobx-react";
 
-const App = inject('storeFI', 'themeStore')(observer(({ themeStore }) => {
-    const { mode } = themeStore;
+import FWIStepper from "./components/FWIStepper";
+import MlPublishPage from "./components/MlPublishPage";
+import VkHistoryTrainingPage from "./pages/VkHistoryTrainingPage";
+
+import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { CssBaseline, AppBar, Toolbar, Typography, Button, Box, Container } from "@mui/material";
+import { ToastContainer } from "react-toastify";
+
+const AppShell = observer(({ themeStore }) => {
+    const { mode, toggleMode } = themeStore;
     const theme = React.useMemo(() => createTheme({ palette: { mode } }), [mode]);
+    const location = useLocation();
 
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <ToastContainer
-                theme={mode === 'dark' ? 'dark' : 'light'}
-                toastClassName={mode === 'dark' ? 'dark-toast' : ''}
-            />
+            <ToastContainer position="bottom-right" />
 
-            <BrowserRouter>
-                <AppBar position="static" sx={{ backgroundColor: mode === 'dark' ? '#1a1a1a' : '#333' }}>
-                    <Toolbar>
-                        <Typography variant="h6" sx={{ flexGrow: 1 }}>
-                            <Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>
-                                Images & Media Parser
-                            </Link>
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Button color="inherit" component={Link} to="/">Главная</Button>
-                            <Button color="inherit" onClick={themeStore.toggleMode}>
-                                {mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-                            </Button>
-                        </Box>
-                    </Toolbar>
-                </AppBar>
+            <AppBar position="static">
+                <Toolbar>
+                    <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                        Spring Web Parser
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 1, mr: 2 }}>
+                        <Button
+                            color="inherit"
+                            component={Link}
+                            to="/"
+                            variant={location.pathname === "/" ? "outlined" : "text"}
+                        >
+                            Руководство
+                        </Button>
+                        <Button
+                            color="inherit"
+                            component={Link}
+                            to="/ml-publish"
+                            variant={location.pathname === "/ml-publish" ? "outlined" : "text"}
+                        >
+                            ML-публикация
+                        </Button>
+                        <Button
+                            color="inherit"
+                            component={Link}
+                            to="/vk-history"
+                            variant={location.pathname === "/vk-history" ? "outlined" : "text"}
+                        >
+                            VK история/обучение
+                        </Button>
+                    </Box>
+                    <Button color="inherit" onClick={toggleMode}>
+                        {mode === "dark" ? "Светлая тема" : "Темная тема"}
+                    </Button>
+                </Toolbar>
+            </AppBar>
 
-                <Container maxWidth={false} disableGutters sx={{ px: 2, py: 4 }}>
-                    <Routes>
-                        <Route path="/" element={<FWIStepper />} />
-                    </Routes>
-                </Container>
-            </BrowserRouter>
+            <Container maxWidth={false} disableGutters sx={{ px: 2, py: 4 }}>
+                <Routes>
+                    <Route path="/" element={<FWIStepper />} />
+                    <Route path="/ml-publish" element={<MlPublishPage />} />
+                    <Route path="/vk-history" element={<VkHistoryTrainingPage />} />
+                </Routes>
+            </Container>
         </ThemeProvider>
     );
-}));
+});
+
+const App = inject("storeFI", "themeStore")(
+    observer(({ themeStore }) => (
+        <BrowserRouter>
+            <AppShell themeStore={themeStore} />
+        </BrowserRouter>
+    ))
+);
 
 export default App;

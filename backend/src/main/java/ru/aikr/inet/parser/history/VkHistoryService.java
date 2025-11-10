@@ -46,6 +46,16 @@ public class VkHistoryService {
         return repository.findAll();
     }
 
+    public List<VkImageHistoryRecord> getTrainingEntries() {
+        return repository.findAll().stream()
+                .filter(record -> Boolean.TRUE.equals(record.getUseForTraining()))
+                .toList();
+    }
+
+    public void updateUseForTraining(long id, boolean useForTraining) {
+        repository.updateUseForTraining(id, useForTraining);
+    }
+
     protected List<VkImageHistoryRecord> fetchFromVk() {
         log.info("Fetching VK history for groupId={} (stub)", vkProperties.getGroupId());
         return Collections.emptyList();
