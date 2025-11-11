@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.controller;
+package ru.aikr.inet.parser.fishki.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,8 +11,8 @@ import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.dto.VKPublishResult;
 import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 import ru.aikr.inet.parser.model.WebImage;
-import ru.aikr.inet.parser.service.VKPublishService;
-import ru.aikr.inet.parser.service.WebImageService;
+import ru.aikr.inet.parser.vk.service.VKPublishService;
+import ru.aikr.inet.parser.fishki.service.WebImageService;
 
 import java.util.List;
 

@@ -14,8 +14,8 @@ import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.network.ConnectionConfigurator;
 import ru.aikr.inet.parser.proxy.ProxyHandler;
 import ru.aikr.inet.parser.repository.WebImageRepository;
-import ru.aikr.inet.parser.service.HtmlParserService;
-import ru.aikr.inet.parser.service.impl.DelayService;
+import ru.aikr.inet.parser.fishki.service.HtmlParserService;
+import ru.aikr.inet.parser.fishki.service.impl.DelayService;
 import ru.aikr.inet.parser.util.AnsiColors;
 
 import java.util.ArrayList;

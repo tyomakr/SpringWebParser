@@ -13,7 +13,7 @@ import ru.aikr.inet.parser.history.model.VkHistoryStats;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingToggleRequest;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
-import ru.aikr.inet.parser.logging.LogEventsPublisher;
+import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 
 import java.time.Instant;
 import java.util.List;

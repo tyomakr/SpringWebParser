@@ -13,7 +13,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import ru.aikr.inet.parser.history.controller.VkHistoryController;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingExportResponse;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
-import ru.aikr.inet.parser.logging.LogEventsPublisher;
+import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 
 import java.time.Instant;
 import java.util.List;

@@ -10,20 +10,17 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.dto.VKPublishResult;
 import ru.aikr.inet.parser.mlpublish.client.MlRecommendationClient;
-import ru.aikr.inet.parser.mlpublish.controller.MlPublishController;
 import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationException;
 import ru.aikr.inet.parser.mlpublish.model.MlPublishCandidate;
 import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitItem;
 import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitRequest;
-import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitResponse;
 import ru.aikr.inet.parser.mlpublish.model.MlPublishPreviewRequest;
-import ru.aikr.inet.parser.mlpublish.model.MlPublishPreviewResponse;
 import ru.aikr.inet.parser.mlpublish.model.MlRecommendation;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
-import ru.aikr.inet.parser.logging.LogEventsPublisher;
+import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
-import ru.aikr.inet.parser.service.VKPublishService;
+import ru.aikr.inet.parser.vk.service.VKPublishService;
 
 import java.util.List;
 

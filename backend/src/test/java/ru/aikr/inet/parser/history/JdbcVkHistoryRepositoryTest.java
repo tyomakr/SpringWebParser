@@ -11,7 +11,7 @@ import org.springframework.test.context.TestPropertySource;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.repository.JdbcVkHistoryRepository;
 import ru.aikr.inet.parser.history.repository.VkHistoryRepository;
-import ru.aikr.inet.parser.logging.LogEventsPublisher;
+import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 
 import java.sql.Timestamp;
 import java.time.Instant;

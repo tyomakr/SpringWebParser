@@ -6,8 +6,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.lang.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
-import ru.aikr.inet.parser.logging.Log4j2ReactiveAppender;
-import ru.aikr.inet.parser.logging.LogEventsPublisher;
+import ru.aikr.inet.parser.logging.appender.Log4j2ReactiveAppender;
+import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 
 @SpringBootApplication
 public class SpringWebParserApplication implements ApplicationContextAware {

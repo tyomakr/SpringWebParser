@@ -6,7 +6,7 @@ import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import ru.aikr.inet.parser.network.ConnectionConfigurator;
-import ru.aikr.inet.parser.service.UserAgentService;
+import ru.aikr.inet.parser.fishki.service.UserAgentService;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;

@@ -12,9 +12,7 @@ import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
 import ru.aikr.inet.parser.mlpublish.config.MlRecommendationProperties;
 import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationException;
-import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationUnauthorizedException;
 import ru.aikr.inet.parser.mlpublish.model.MlRecommendation;
-import ru.aikr.inet.parser.mlpublish.model.MlRecommendationRequest;
 import ru.aikr.inet.parser.mlpublish.model.MlRecommendationResponse;
 
 import java.util.Collections;
