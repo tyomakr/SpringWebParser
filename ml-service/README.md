@@ -50,6 +50,10 @@ curl -X POST http://localhost:8000/recommend \
 
 ```bash
 cd ml-service
+python -m venv .venv
+.\.venv\Scripts\activate   # on Linux/macOS use: source .venv/bin/activate
+pip install -r requirements.txt
+set TRAINING_EXPORT_URL=http://dummy
 pytest
 ```
 
@@ -68,4 +72,3 @@ To include Tesseract OCR binaries in the image:
 ```bash
 docker build --build-arg OCR_ENABLED=true -t ml-service-ocr .
 ```
-

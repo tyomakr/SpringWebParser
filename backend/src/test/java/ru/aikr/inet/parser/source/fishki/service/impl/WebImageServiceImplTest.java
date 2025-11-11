@@ -6,7 +6,6 @@ import reactor.test.StepVerifier;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.source.repository.WebImageRepository;
 import ru.aikr.inet.parser.source.service.ImageDownloaderService;
-import ru.aikr.inet.parser.source.fishki.service.impl.WebImageServiceImpl;
 
 import java.nio.file.Path;
 import java.util.List;
