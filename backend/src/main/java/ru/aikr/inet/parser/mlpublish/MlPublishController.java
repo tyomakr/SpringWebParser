@@ -8,7 +8,7 @@ import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
 import ru.aikr.inet.parser.logging.LogEventsPublisher;
 import ru.aikr.inet.parser.model.WebImage;
-import ru.aikr.inet.parser.recommendation.RecommendationDecision;
+import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
 import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.util.HashUtils;
 

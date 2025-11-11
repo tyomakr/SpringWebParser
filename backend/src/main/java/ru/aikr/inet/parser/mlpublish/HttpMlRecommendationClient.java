@@ -7,7 +7,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
-import ru.aikr.inet.parser.recommendation.RecommendationDecision;
+import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
 
 import java.time.Duration;
 import java.util.Collections;

@@ -9,7 +9,7 @@ import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
-import ru.aikr.inet.parser.recommendation.RecommendationDecision;
+import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
 
 import java.util.Collections;
 import java.util.List;

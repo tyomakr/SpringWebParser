@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
-import ru.aikr.inet.parser.recommendation.RecommendationClient;
-import ru.aikr.inet.parser.recommendation.RecommendationDecision;
-import ru.aikr.inet.parser.recommendation.RecommendationException;
-import ru.aikr.inet.parser.recommendation.RecommendationResult;
+import ru.aikr.inet.parser.recommendation.client.RecommendationClient;
+import ru.aikr.inet.parser.recommendation.exception.RecommendationException;
+import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
+import ru.aikr.inet.parser.recommendation.model.RecommendationResult;
 import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.service.WebImageService;
 

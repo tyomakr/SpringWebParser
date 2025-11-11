@@ -1,6 +1,6 @@
 package ru.aikr.inet.parser.mlpublish;
 
-import ru.aikr.inet.parser.recommendation.RecommendationDecision;
+import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
 
 /**
  * Domain model for a single recommendation coming from the ML publishing service.
