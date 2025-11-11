@@ -9,7 +9,7 @@ from app.storage import Storage
 
 @pytest.mark.asyncio
 async def test_recommend_text_only(tmp_path):
-    settings = Settings(training_export_url="http://backend/api", db_path=str(tmp_path / "db.sqlite"),
+    settings = Settings(TRAINING_EXPORT_URL="http://backend/api", db_path=str(tmp_path / "db.sqlite"),
                         ocr_enabled=True)
     storage = Storage(settings.db_path)
     storage.init()

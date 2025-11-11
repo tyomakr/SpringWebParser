@@ -11,7 +11,7 @@ from app.syncer import TrainingSyncer
 @pytest.mark.asyncio
 async def test_syncer_fetches_and_persists(tmp_path):
     settings = Settings(
-        training_export_url="http://backend/api",
+        TRAINING_EXPORT_URL="http://backend/api",
         db_path=str(tmp_path / "db.sqlite"),
         sync_page_limit=1,
         sync_startup=False,
