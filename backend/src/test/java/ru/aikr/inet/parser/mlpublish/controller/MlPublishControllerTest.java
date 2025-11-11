@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.controller;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -9,6 +9,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.dto.VKPublishResult;
+import ru.aikr.inet.parser.mlpublish.client.MlRecommendationClient;
+import ru.aikr.inet.parser.mlpublish.controller.MlPublishController;
+import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationException;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishCandidate;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitItem;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitRequest;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitResponse;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishPreviewRequest;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishPreviewResponse;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendation;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.logging.LogEventsPublisher;

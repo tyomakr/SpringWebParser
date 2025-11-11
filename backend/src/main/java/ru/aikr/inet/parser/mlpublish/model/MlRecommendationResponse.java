@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.model;
 
 import java.util.List;
 

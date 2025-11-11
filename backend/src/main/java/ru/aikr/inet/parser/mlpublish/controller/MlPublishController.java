@@ -1,8 +1,11 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
@@ -11,6 +14,16 @@ import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
 import ru.aikr.inet.parser.service.VKPublishService;
 import ru.aikr.inet.parser.util.HashUtils;
+import ru.aikr.inet.parser.mlpublish.client.MlRecommendationClient;
+import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationException;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishCandidate;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitItem;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitRequest;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishCommitResponse;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishPreviewItem;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishPreviewRequest;
+import ru.aikr.inet.parser.mlpublish.model.MlPublishPreviewResponse;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendation;
 
 import java.time.Instant;
 import java.util.Collections;

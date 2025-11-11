@@ -1,7 +1,8 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.client;
 
-import ru.aikr.inet.parser.model.WebImage;
 import reactor.core.publisher.Mono;
+import ru.aikr.inet.parser.model.WebImage;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendation;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.client;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -10,6 +10,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
+import ru.aikr.inet.parser.mlpublish.config.MlRecommendationProperties;
+import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationException;
+import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationUnauthorizedException;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendation;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendationRequest;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendationResponse;
 
 import java.util.Collections;
 import java.util.List;

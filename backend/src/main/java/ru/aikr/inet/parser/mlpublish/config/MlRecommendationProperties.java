@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

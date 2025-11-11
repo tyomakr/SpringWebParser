@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import ru.aikr.inet.parser.mlpublish.client.HttpMlRecommendationClient;
+import ru.aikr.inet.parser.mlpublish.client.MlRecommendationClient;
 
 import java.util.Collections;
 import java.util.Objects;

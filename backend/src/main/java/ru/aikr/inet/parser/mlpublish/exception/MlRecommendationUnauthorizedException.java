@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.exception;
 
 /**
  * Marker exception used to identify unauthorized responses from the ML recommendation service.

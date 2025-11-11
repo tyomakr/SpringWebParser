@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.client;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -8,6 +8,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
+import ru.aikr.inet.parser.mlpublish.config.MlRecommendationProperties;
+import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationException;
+import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationUnauthorizedException;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendation;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendationRequest;
+import ru.aikr.inet.parser.mlpublish.model.MlRecommendationResponse;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -38,7 +44,6 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
             return Mono.just(Collections.emptyList());
         }
 
-        // Явно фиксируем non-null для анализа nullability
         final String apiKey = Objects.requireNonNull(
                 properties.getApiKey(),
                 "ml.publish.api-key must not be null"
@@ -123,7 +128,7 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
         try {
             return RecommendationDecision.valueOf(token.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            log.warn("Unknown ML recommendation '{}', defaulting to SKIP", token);
+            log.warn("Unknown ML recommendation '{}' , defaulting to SKIP", token);
             return RecommendationDecision.SKIP;
         }
     }

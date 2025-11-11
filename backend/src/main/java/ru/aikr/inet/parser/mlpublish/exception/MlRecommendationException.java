@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.mlpublish;
+package ru.aikr.inet.parser.mlpublish.exception;
 
 /**
  * Exception propagated when ML recommendation call fails.
