@@ -1,11 +1,23 @@
-package ru.aikr.inet.parser.history;
+package ru.aikr.inet.parser.history.controller;
 
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
+import ru.aikr.inet.parser.history.model.VkHistoryEntryResponse;
+import ru.aikr.inet.parser.history.model.VkHistoryStats;
+import ru.aikr.inet.parser.history.model.VkHistoryTrainingExportResponse;
+import ru.aikr.inet.parser.history.model.VkHistoryTrainingToggleRequest;
+import ru.aikr.inet.parser.history.service.VkHistoryService;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -21,11 +33,6 @@ public class VkHistoryController {
     public VkHistoryController(VkHistoryService historyService, Environment environment) {
         this.historyService = historyService;
         this.environment = environment;
-    }
-
-    @PostMapping("/refresh")
-    public Mono<VkHistoryStats> refresh() {
-        return Mono.fromCallable(historyService::refreshFromVk);
     }
 
     @GetMapping("/stats")

@@ -1,7 +1,8 @@
-package ru.aikr.inet.parser.history;
+package ru.aikr.inet.parser.history.repository;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -23,7 +24,6 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
         Instant createdAtInstant = record.getCreatedAt();
         Timestamp createdAt = createdAtInstant != null ? Timestamp.from(createdAtInstant) : null;
 
-        // по умолчанию считаем, что запись участвует в обучении
         Boolean useForTraining = record.getUseForTraining();
         if (useForTraining == null) {
             useForTraining = Boolean.TRUE;
@@ -31,8 +31,7 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
 
         int updated = jdbcTemplate.update(
                 "MERGE INTO vk_image_history (" +
-                        "hash, post_id, url, created_at, synced_at, ml_decision, ml_score, ml_reason, use_for_training"
-                        +
+                        "hash, post_id, url, created_at, synced_at, ml_decision, ml_score, ml_reason, use_for_training" +
                         ") KEY (hash) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)",
                 record.getHash(),
                 record.getPostId(),

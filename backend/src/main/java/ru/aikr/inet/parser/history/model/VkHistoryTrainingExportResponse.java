@@ -1,4 +1,4 @@
-package ru.aikr.inet.parser.history;
+package ru.aikr.inet.parser.history.model;
 
 import java.time.Instant;
 
