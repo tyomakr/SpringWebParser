@@ -16,10 +16,10 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-import ru.aikr.inet.parser.dto.VKPublishResult;
+import ru.aikr.inet.parser.vk.dto.VKPublishResult;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.vk.service.VKPublishService;
-import ru.aikr.inet.parser.fishki.service.WebImageService;
+import ru.aikr.inet.parser.source.service.WebImageService;
 import ru.aikr.inet.parser.util.AnsiColors;
 
 import java.io.File;

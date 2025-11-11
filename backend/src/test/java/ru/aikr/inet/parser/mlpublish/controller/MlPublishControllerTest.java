@@ -8,7 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
-import ru.aikr.inet.parser.dto.VKPublishResult;
+import ru.aikr.inet.parser.vk.dto.VKPublishResult;
 import ru.aikr.inet.parser.mlpublish.client.MlRecommendationClient;
 import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationException;
 import ru.aikr.inet.parser.mlpublish.model.MlPublishCandidate;

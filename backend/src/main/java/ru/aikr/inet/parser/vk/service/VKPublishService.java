@@ -1,7 +1,7 @@
 package ru.aikr.inet.parser.vk.service;
 
 import reactor.core.publisher.Mono;
-import ru.aikr.inet.parser.dto.VKPublishResult;
+import ru.aikr.inet.parser.vk.dto.VKPublishResult;
 import ru.aikr.inet.parser.model.WebImage;
 
 import java.util.List;
