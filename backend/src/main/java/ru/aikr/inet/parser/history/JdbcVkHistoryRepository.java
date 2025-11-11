@@ -67,6 +67,30 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
                 this::mapRow);
     }
 
+    @Override
+    public List<VkImageHistoryRecord> findTrainingBatch(int limit, int offset, Instant since) {
+        String baseSelect = "SELECT id, post_id, url, hash, created_at, synced_at, " +
+                "ml_decision, ml_score, ml_reason, use_for_training FROM vk_image_history " +
+                "WHERE use_for_training = TRUE";
+
+        if (since != null) {
+            return jdbcTemplate.query(
+                    baseSelect + " AND created_at >= ? ORDER BY created_at, id LIMIT ? OFFSET ?",
+                    this::mapRow,
+                    Timestamp.from(since),
+                    limit,
+                    offset
+            );
+        }
+
+        return jdbcTemplate.query(
+                baseSelect + " ORDER BY created_at, id LIMIT ? OFFSET ?",
+                this::mapRow,
+                limit,
+                offset
+        );
+    }
+
     private VkImageHistoryRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
         VkImageHistoryRecord record = new VkImageHistoryRecord();
         record.setId(rs.getLong("id"));

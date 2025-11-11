@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.lang.NonNull;
+import org.springframework.beans.factory.ObjectProvider;
 import ru.aikr.inet.parser.logging.Log4j2ReactiveAppender;
 import ru.aikr.inet.parser.logging.LogEventsPublisher;
-
-import org.springframework.lang.NonNull;
 
 @SpringBootApplication
 public class SpringWebParserApplication implements ApplicationContextAware {
@@ -18,8 +18,10 @@ public class SpringWebParserApplication implements ApplicationContextAware {
 
     @Override
     public void setApplicationContext(@NonNull ApplicationContext ctx) {
-        // как только контекст поднят – даём аппендеру ссылку на наш паблишер
-        LogEventsPublisher publisher = ctx.getBean(LogEventsPublisher.class);
-        Log4j2ReactiveAppender.setPublisher(publisher);
+        ObjectProvider<LogEventsPublisher> provider = ctx.getBeanProvider(LogEventsPublisher.class);
+        LogEventsPublisher publisher = provider.getIfAvailable();
+        if (publisher != null) {
+            Log4j2ReactiveAppender.setPublisher(publisher);
+        }
     }
 }

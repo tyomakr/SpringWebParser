@@ -56,6 +56,14 @@ public class VkHistoryService {
         repository.updateUseForTraining(id, useForTraining);
     }
 
+    public List<VkHistoryTrainingExportResponse> exportTraining(int limit, int offset, Instant since) {
+        int safeLimit = Math.max(limit, 1);
+        int safeOffset = Math.max(offset, 0);
+        return repository.findTrainingBatch(safeLimit, safeOffset, since).stream()
+                .map(VkHistoryTrainingExportResponse::fromRecord)
+                .toList();
+    }
+
     protected List<VkImageHistoryRecord> fetchFromVk() {
         log.info("Fetching VK history for groupId={} (stub)", vkProperties.getGroupId());
         return Collections.emptyList();

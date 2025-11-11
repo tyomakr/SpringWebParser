@@ -81,3 +81,6 @@ logging:
   config: classpath:log4j2-spring.xml
 # recommendation:
 #   base-url: "http://127.0.0.1:8000"
+ml:
+  publish:
+    api-key: ${ML_PUBLISH_API_KEY:}

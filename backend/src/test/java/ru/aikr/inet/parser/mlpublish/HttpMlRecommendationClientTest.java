@@ -2,6 +2,7 @@ package ru.aikr.inet.parser.mlpublish;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
@@ -142,6 +143,45 @@ class HttpMlRecommendationClientTest {
         MlRecommendationProperties properties = new MlRecommendationProperties();
         properties.setRecommendationPath("/recommend");
         properties.setTimeoutSeconds(1);
+        properties.setApiKey("dummy");
         return properties;
+    }
+
+    @Test
+    void shouldFallbackOnUnauthorized() {
+        ExchangeFunction exchangeFunction = request -> {
+            assertEquals("Bearer dummy", request.headers().getFirst(HttpHeaders.AUTHORIZATION));
+            return Mono.just(
+                    ClientResponse
+                        .create(HttpStatus.UNAUTHORIZED)
+                        .body("nope")
+                        .build());
+        };
+
+        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+
+        MlRecommendationProperties properties = withDefaults();
+        HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
+
+        List<MlRecommendation> actual = client.recommend(sampleImages()).block();
+
+        assertNotNull(actual);
+        assertTrue(actual.isEmpty());
+    }
+
+    @Test
+    void shouldFallbackOnTimeout() {
+        ExchangeFunction exchangeFunction = request -> Mono.<ClientResponse>never();
+
+        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+
+        MlRecommendationProperties properties = withDefaults();
+        properties.setTimeoutSeconds(0);
+        HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
+
+        List<MlRecommendation> actual = client.recommend(sampleImages()).block();
+
+        assertNotNull(actual);
+        assertTrue(actual.isEmpty());
     }
 }
