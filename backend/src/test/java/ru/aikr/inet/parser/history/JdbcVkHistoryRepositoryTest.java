@@ -8,6 +8,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
+import ru.aikr.inet.parser.history.repository.JdbcVkHistoryRepository;
+import ru.aikr.inet.parser.history.repository.VkHistoryRepository;
 import ru.aikr.inet.parser.logging.LogEventsPublisher;
 
 import java.sql.Timestamp;

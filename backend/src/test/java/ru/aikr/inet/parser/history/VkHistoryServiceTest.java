@@ -6,6 +6,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.aikr.inet.parser.history.model.VkHistoryStats;
+import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
+import ru.aikr.inet.parser.history.model.VkProperties;
+import ru.aikr.inet.parser.history.repository.VkHistoryRepository;
+import ru.aikr.inet.parser.history.service.VkHistoryService;
 
 import java.time.Instant;
 import java.util.List;
@@ -45,9 +50,9 @@ class VkHistoryServiceTest {
 
         VkHistoryStats stats = service.refreshFromVk();
 
-        assertThat(stats.getTotalCount()).isEqualTo(2);
-        assertThat(stats.getUpdatedCount()).isEqualTo(2);
-        assertThat(stats.getLastSynced()).isNotNull();
+        assertThat(stats.totalCount()).isEqualTo(2);
+        assertThat(stats.updatedCount()).isEqualTo(2);
+        assertThat(stats.lastSynced()).isNotNull();
     }
 
     @Test

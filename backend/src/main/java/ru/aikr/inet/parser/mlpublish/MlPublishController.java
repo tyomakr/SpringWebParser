@@ -4,8 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-import ru.aikr.inet.parser.history.service.VkHistoryService;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
+import ru.aikr.inet.parser.history.service.VkHistoryService;
 import ru.aikr.inet.parser.logging.LogEventsPublisher;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.RecommendationDecision;
@@ -118,4 +118,24 @@ public class MlPublishController {
     }
 
     private void recordHistory(List<MlPublishCommitItem> commitItems, List<WebImage> published) {
-*** End Patch
+        for (int i = 0; i < commitItems.size() && i < published.size(); i++) {
+            MlPublishCommitItem item = commitItems.get(i);
+            WebImage image = published.get(i);
+            String url = image.getDirectLink();
+            String hash = HashUtils.md5(url);
+
+            VkImageHistoryRecord record = new VkImageHistoryRecord(
+                    null,
+                    url,
+                    hash,
+                    Instant.now()
+            );
+            historyService.recordPublication(
+                    record,
+                    item.getDecision() != null ? item.getDecision().name() : null,
+                    item.getScore(),
+                    item.getReason()
+            );
+        }
+    }
+}

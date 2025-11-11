@@ -8,11 +8,16 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import ru.aikr.inet.parser.history.controller.VkHistoryController;
+import ru.aikr.inet.parser.history.model.VkHistoryStats;
+import ru.aikr.inet.parser.history.model.VkHistoryTrainingToggleRequest;
+import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
+import ru.aikr.inet.parser.history.service.VkHistoryService;
+import ru.aikr.inet.parser.logging.LogEventsPublisher;
 
 import java.time.Instant;
 import java.util.List;
 
-import ru.aikr.inet.parser.logging.LogEventsPublisher;
 import static org.mockito.Mockito.when;
 
 @WebFluxTest(controllers = VkHistoryController.class)
@@ -60,6 +65,7 @@ class VkHistoryControllerTest {
                 "hash-a",
                 Instant.now()
         );
+        record.setId(1L);
         record.setMlDecision("PUBLISH");
         record.setMlScore(0.85);
         record.setMlReason("best");
@@ -85,6 +91,7 @@ class VkHistoryControllerTest {
                 "hash-a",
                 Instant.now()
         );
+        allowed.setId(1L);
         allowed.setUseForTraining(true);
         VkImageHistoryRecord denied = new VkImageHistoryRecord(
                 2L,
@@ -92,6 +99,7 @@ class VkHistoryControllerTest {
                 "hash-b",
                 Instant.now()
         );
+        denied.setId(2L);
         denied.setUseForTraining(false);
 
         when(historyService.getTrainingEntries()).thenReturn(List.of(allowed));
