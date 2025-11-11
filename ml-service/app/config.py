@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from pydantic import AnyHttpUrl, BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, Field, ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(env_file=".env", case_sensitive=False, populate_by_name=True)
+
     training_export_url: AnyHttpUrl = Field(..., alias="TRAINING_EXPORT_URL")
     training_export_api_key: str | None = Field(default=None, alias="TRAINING_EXPORT_API_KEY")
     sync_startup: bool = Field(default=True, alias="SYNC_STARTUP")
@@ -17,10 +19,6 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, alias="PORT")
     db_path: str = Field(default="ml.db", alias="DB_PATH")
     request_timeout: float = Field(default=5.0, alias="REQUEST_TIMEOUT")
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
 
 class TrainingExportRecord(BaseModel):
