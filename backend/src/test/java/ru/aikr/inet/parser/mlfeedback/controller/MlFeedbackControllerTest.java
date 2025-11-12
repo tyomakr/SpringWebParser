@@ -17,6 +17,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("null")
 @WebFluxTest(controllers = MlFeedbackController.class)
 @Import(MlFeedbackControllerTest.TestConfig.class)
 class MlFeedbackControllerTest {
@@ -33,10 +34,11 @@ class MlFeedbackControllerTest {
 
         MlFeedbackRequestItem item = new MlFeedbackRequestItem(1L, "https://example.com", "hash",
                 "PUBLISH", 0.5, "reason", "hit");
+        List<MlFeedbackRequestItem> payload = List.of(item);
 
         webTestClient.post()
                 .uri("/api/ml/feedback")
-                .bodyValue(List.of(item))
+                .bodyValue(payload)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
@@ -47,10 +49,11 @@ class MlFeedbackControllerTest {
     void postFeedbackRejectsInvalidDecision() {
         MlFeedbackRequestItem item = new MlFeedbackRequestItem(1L, "https://example.com", "hash",
                 "WRONG", null, null, null);
+        List<MlFeedbackRequestItem> payload = List.of(item);
 
         webTestClient.post()
                 .uri("/api/ml/feedback")
-                .bodyValue(List.of(item))
+                .bodyValue(payload)
                 .exchange()
                 .expectStatus().isBadRequest();
     }

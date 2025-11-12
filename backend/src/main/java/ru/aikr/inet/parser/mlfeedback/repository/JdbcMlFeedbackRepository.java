@@ -9,8 +9,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 @Repository
 public class JdbcMlFeedbackRepository implements MlFeedbackRepository {
@@ -26,26 +26,22 @@ public class JdbcMlFeedbackRepository implements MlFeedbackRepository {
         if (records.isEmpty()) {
             return 0;
         }
-        int[] updates = jdbcTemplate.batchUpdate(
-                "INSERT INTO ml_feedback (candidate_id, url, hash, decision, score, reason, zone) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                records,
-                records.size(),
-                (ps, record) -> {
-                    ps.setObject(1, record.getCandidateId());
-                    ps.setString(2, record.getUrl());
-                    ps.setString(3, record.getHash());
-                    ps.setString(4, record.getDecision());
-                    if (record.getScore() != null) {
-                        ps.setDouble(5, record.getScore());
-                    } else {
-                        ps.setNull(5, java.sql.Types.DOUBLE);
-                    }
-                    ps.setString(6, record.getReason());
-                    ps.setString(7, record.getZone());
-                }
-        );
-        return Arrays.stream(updates).sum();
+        int total = 0;
+        for (MlFeedbackRecord record : records) {
+            int updated = jdbcTemplate.update(
+                    "INSERT INTO ml_feedback (candidate_id, url, hash, decision, score, reason, zone) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    record.getCandidateId(),
+                    record.getUrl(),
+                    record.getHash(),
+                    record.getDecision(),
+                    record.getScore(),
+                    record.getReason(),
+                    record.getZone()
+            );
+            total += updated;
+        }
+        return total;
     }
 
     @Override
@@ -73,7 +69,7 @@ public class JdbcMlFeedbackRepository implements MlFeedbackRepository {
         }
         record.setUrl(rs.getString("url"));
         record.setHash(rs.getString("hash"));
-        record.setDecision(rs.getString("decision"));
+        record.setDecision(Objects.requireNonNull(rs.getString("decision")));
         double score = rs.getDouble("score");
         if (!rs.wasNull()) {
             record.setScore(score);
