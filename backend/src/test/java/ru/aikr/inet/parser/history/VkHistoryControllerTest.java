@@ -13,6 +13,7 @@ import ru.aikr.inet.parser.history.model.VkHistoryStats;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingToggleRequest;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
+import ru.aikr.inet.parser.history.service.VkWallSyncService;
 import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 
 import java.time.Instant;
@@ -132,6 +133,11 @@ class VkHistoryControllerTest {
         @Bean
         VkHistoryService historyService() {
             return Mockito.mock(VkHistoryService.class);
+        }
+
+        @Bean
+        VkWallSyncService wallSyncService() {
+            return Mockito.mock(VkWallSyncService.class);
         }
 
         @Bean

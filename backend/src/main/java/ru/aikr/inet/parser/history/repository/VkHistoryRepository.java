@@ -9,6 +9,10 @@ public interface VkHistoryRepository {
 
     boolean save(VkImageHistoryRecord record);
 
+    boolean saveIfAbsent(VkImageHistoryRecord record);
+
+    boolean existsByHash(String hash);
+
     List<VkImageHistoryRecord> findAll();
 
     boolean updateUseForTraining(long id, boolean useForTraining);

@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 @Repository
 public class JdbcVkHistoryRepository implements VkHistoryRepository {
@@ -22,7 +23,7 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
     @Override
     public boolean save(VkImageHistoryRecord record) {
         Instant createdAtInstant = record.getCreatedAt();
-        Timestamp createdAt = createdAtInstant != null ? Timestamp.from(createdAtInstant) : null;
+        Timestamp createdAt = toTimestamp(createdAtInstant);
 
         Boolean useForTraining = record.getUseForTraining();
         if (useForTraining == null) {
@@ -42,6 +43,25 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
                 record.getMlReason(),
                 useForTraining);
         return updated > 0;
+    }
+
+    @Override
+    public boolean saveIfAbsent(VkImageHistoryRecord record) {
+        Objects.requireNonNull(record.getHash(), "hash must be provided");
+        if (existsByHash(record.getHash())) {
+            return false;
+        }
+        int inserted = insertRecord(record);
+        return inserted > 0;
+    }
+
+    @Override
+    public boolean existsByHash(String hash) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM vk_image_history WHERE hash = ?",
+                Integer.class,
+                hash);
+        return count != null && count > 0;
     }
 
     @Override
@@ -117,5 +137,30 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
                 useForTraining,
                 id);
         return updated > 0;
+    }
+
+    private int insertRecord(VkImageHistoryRecord record) {
+        Instant createdAtInstant = record.getCreatedAt();
+        Timestamp createdAt = toTimestamp(createdAtInstant);
+        Boolean useForTraining = record.getUseForTraining();
+        if (useForTraining == null) {
+            useForTraining = Boolean.TRUE;
+        }
+        return jdbcTemplate.update(
+                "INSERT INTO vk_image_history (" +
+                        "hash, post_id, url, created_at, ml_decision, ml_score, ml_reason, use_for_training" +
+                        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                record.getHash(),
+                record.getPostId(),
+                record.getUrl(),
+                createdAt,
+                record.getMlDecision(),
+                record.getMlScore(),
+                record.getMlReason(),
+                useForTraining);
+    }
+
+    private Timestamp toTimestamp(Instant instant) {
+        return instant != null ? Timestamp.from(instant) : null;
     }
 }

@@ -14,11 +14,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import ru.aikr.inet.parser.history.model.VkHistoryEntryResponse;
 import ru.aikr.inet.parser.history.model.VkHistoryStats;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingExportResponse;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingToggleRequest;
+import ru.aikr.inet.parser.history.model.VkWallSyncReport;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
+import ru.aikr.inet.parser.history.service.VkWallSyncService;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -29,10 +32,14 @@ import java.util.List;
 public class VkHistoryController {
 
     private final VkHistoryService historyService;
+    private final VkWallSyncService wallSyncService;
     private final Environment environment;
 
-    public VkHistoryController(VkHistoryService historyService, Environment environment) {
+    public VkHistoryController(VkHistoryService historyService,
+                               VkWallSyncService wallSyncService,
+                               Environment environment) {
         this.historyService = historyService;
+        this.wallSyncService = wallSyncService;
         this.environment = environment;
     }
 
@@ -70,6 +77,15 @@ public class VkHistoryController {
         return Mono.fromRunnable(() ->
                 historyService.updateUseForTraining(id, Boolean.TRUE.equals(request.getUseForTraining()))
         );
+    }
+
+    @PostMapping("/sync-wall")
+    public Mono<VkWallSyncReport> syncWall(@RequestParam(required = false) String since,
+                                           @RequestParam(defaultValue = "3") int pages) {
+        Instant sinceInstant = parseSince(since);
+        int safePages = Math.max(pages, 1);
+        return Mono.fromCallable(() -> wallSyncService.syncWall(sinceInstant, safePages))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     @GetMapping("/training/export")
