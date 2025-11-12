@@ -37,11 +37,12 @@ async def test_recommend_publish_with_index(tmp_path):
             "hash": "hash-1",
             "created_at": "2024-01-01T00:00:00Z",
         })
-        decision, score, reason = await analyzer.analyze_candidate("123", "https://candidate/1.jpg")
+        decision, score, reason, zone = await analyzer.analyze_candidate("123", "https://candidate/1.jpg")
 
         assert decision == "PUBLISH"
         assert pytest.approx(score, rel=1e-3) == 1.0
         assert "dist=0" in reason
+        assert zone == "hit"
         snapshot = metrics.snapshot()
         assert snapshot["recommend"]["hits"] == 1
 
@@ -62,7 +63,8 @@ async def test_recommend_skips_when_index_empty(tmp_path):
             return image
 
         analyzer.fetch_image = fake_fetch  # type: ignore[assignment]
-        decision, _, reason = await analyzer.analyze_candidate("123", "https://candidate/1.jpg")
+        decision, _, reason, zone = await analyzer.analyze_candidate("123", "https://candidate/1.jpg")
 
         assert decision == "SKIP"
         assert reason == "index-empty"
+        assert zone is None

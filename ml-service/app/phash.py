@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from dataclasses import dataclass
 from io import BytesIO
+from time import perf_counter
 
 import httpx
 import imagehash
@@ -48,11 +50,17 @@ class ImageAnalyzer:
         hash_value = imagehash.phash(image, hash_size=8)
         return hash_value.__str__()
 
+    @staticmethod
+    def compute_hash(url: str) -> str:
+        digest = hashlib.md5(url.encode("utf-8")).hexdigest()
+        return digest
+
     def load_positives(self) -> list[PositiveRecord]:
         rows = self.storage.list_active_positives()
         return [PositiveRecord(id=row["id"], url=row["url"], hash=row["hash"], phash=row["phash"]) for row in rows]
 
-    async def analyze_candidate(self, candidate_id: str, url: str) -> tuple[str, float, str]:
+    async def analyze_candidate(self, candidate_id: str, url: str) -> tuple[str, float, str, str | None]:
+        start = perf_counter()
         async with self._semaphore:
             try:
                 image = await self.fetch_image(url)
@@ -61,40 +69,42 @@ class ImageAnalyzer:
                 return self._finalize(start, "SKIP", 0.0, "fetch-failed", None)
 
             if self.text_detector.is_text_dominant(image):
-                return self._finalize("SKIP", 0.0, "text-only", None)
+                return self._finalize(start, "SKIP", 0.0, "text-only", None)
 
             try:
                 phash_value = self.compute_phash(image)
             except Exception as exc:  # pylint: disable=broad-except
                 logger.warning("Failed to compute pHash for %s: %s", candidate_id, exc)
-                return self._finalize("SKIP", 0.0, "phash-error", None)
+                return self._finalize(start, "SKIP", 0.0, "phash-error", None)
 
             try:
                 phash_int = int(phash_value, 16)
             except ValueError:
                 logger.warning("Invalid pHash from image %s", candidate_id)
-                return self._finalize("SKIP", 0.0, "phash-error", None)
+                return self._finalize(start, "SKIP", 0.0, "phash-error", None)
 
             if self.index_service.size() == 0:
-                return self._finalize("SKIP", 0.0, "index-empty", "miss")
+                return self._finalize(start, "SKIP", 0.0, "index-empty", None)
 
-            search_limit = self.settings.phash_max_dist + 4
+            search_limit = self.settings.phash_max_dist + self.settings.gray_band
             nearest = self.index_service.nearest(phash_int, search_limit)
             if nearest is None:
-                return self._finalize("SKIP", 0.0, "no-match", "miss")
+                return self._finalize(start, "SKIP", 0.0, "no-match", "miss")
 
             dist, meta = nearest
             score = max(0.0, 1 - dist / 64)
-            label = meta.get("id") or meta.get("hash")
+            label = meta.get("id") or meta.get("hash") or meta.get("url") or "unknown"
             reason = f"sim={score:.2f};dist={dist};nearest={label}"
             if dist <= self.settings.phash_max_dist:
-                return self._finalize("PUBLISH", score, reason, "hit")
-            if dist <= self.settings.phash_max_dist + 4:
-                return self._finalize("SKIP", score, reason, "gray")
-            return self._finalize("SKIP", score, reason, "miss")
+                return self._finalize(start, "PUBLISH", score, reason, "hit")
+            if dist <= self.settings.phash_max_dist + self.settings.gray_band:
+                return self._finalize(start, "SKIP", score, reason, "gray")
+            return self._finalize(start, "SKIP", score, reason, "miss")
 
-    def _finalize(self, decision: str, score: float, reason: str,
-                  category: str | None) -> tuple[str, float, str]:
-        if category is not None:
-            self.metrics.record_candidate_result(category)
-        return decision, score, reason
+    def _finalize(self, start: float, decision: str, score: float, reason: str,
+                  zone: str | None) -> tuple[str, float, str, str | None]:
+        duration_ms = (perf_counter() - start) * 1000
+        if zone in {"hit", "gray", "miss"}:
+            self.metrics.record_candidate_result(zone)
+        self.metrics.record_recommend_request(duration_ms)
+        return decision, score, reason, zone

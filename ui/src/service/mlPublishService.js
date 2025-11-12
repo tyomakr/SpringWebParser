@@ -1,17 +1,28 @@
 import axios from "axios";
 
-const API_ROOT = `${window.location.origin}/api/ml/publish`;
+const PUBLISH_ROOT = `${window.location.origin}/api/ml/publish`;
+const API_ROOT = `${window.location.origin}/api/ml`;
 
-const mlClient = axios.create({
+const publishClient = axios.create({
+    baseURL: PUBLISH_ROOT,
+    validateStatus: (status) => status >= 200 && status < 300,
+});
+const mlBaseClient = axios.create({
     baseURL: API_ROOT,
     validateStatus: (status) => status >= 200 && status < 300,
 });
 const mlPublishService = {
     preview(images) {
-        return mlClient.post("/preview", { images });
+        return publishClient.post("/preview", { images });
     },
     commit(images) {
-        return mlClient.post("/commit", { images });
+        return publishClient.post("/commit", { images });
+    },
+    config() {
+        return mlBaseClient.get("/config");
+    },
+    feedback(entries) {
+        return mlBaseClient.post("/feedback", entries);
     },
 };
 

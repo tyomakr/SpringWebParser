@@ -30,6 +30,7 @@ async def test_recommend_text_only(tmp_path):
             return Image.new("RGB", (32, 32), color="white")
 
         analyzer.fetch_image = fake_fetch  # type: ignore[assignment]
-        decision, _, reason = await analyzer.analyze_candidate("1", "https://candidate/tt.jpg")
+        decision, _, reason, zone = await analyzer.analyze_candidate("1", "https://candidate/tt.jpg")
         assert decision == "SKIP"
         assert reason == "text-only"
+        assert zone is None

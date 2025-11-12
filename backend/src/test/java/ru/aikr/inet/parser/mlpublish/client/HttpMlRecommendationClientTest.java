@@ -42,9 +42,9 @@ class HttpMlRecommendationClientTest {
 
         MlRecommendationResponse payload = new MlRecommendationResponse(List.of(
                 new MlRecommendationResponse.MlRecommendationItem("1", "https://example.com/1.jpg", 0.9, "good",
-                        "publish"),
+                        "publish", "hit", "hash1"),
                 new MlRecommendationResponse.MlRecommendationItem("2", "https://example.com/2.jpg", 0.3, "bad",
-                        "skip")));
+                        "skip", "miss", "hash2")));
         when(response.bodyToMono(MlRecommendationResponse.class)).thenReturn(Mono.just(payload));
 
         when(exchangeFunction.exchange(any(ClientRequest.class))).thenReturn(Mono.just(response));
@@ -95,7 +95,7 @@ class HttpMlRecommendationClientTest {
         when(response.statusCode()).thenReturn(HttpStatus.OK);
         MlRecommendationResponse payload = new MlRecommendationResponse(List.of(
                 new MlRecommendationResponse.MlRecommendationItem("1", "https://example.com/1.jpg", 0.6, "wtf",
-                        "wtf")));
+                        "wtf", "gray", "hash-wtf")));
         when(response.bodyToMono(MlRecommendationResponse.class)).thenReturn(Mono.just(payload));
         when(exchangeFunction.exchange(any(ClientRequest.class))).thenReturn(Mono.just(response));
 

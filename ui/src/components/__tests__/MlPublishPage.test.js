@@ -15,6 +15,12 @@ describe("MlPublishPage", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         storeFI.webImages = [];
+        mlPublishService.config.mockResolvedValue({
+            data: { phashMaxDist: 12, grayBand: 4 },
+        });
+        mlPublishService.feedback.mockResolvedValue({
+            data: { saved: 0 },
+        });
     });
 
     it("renders preview and toggles publish", async () => {
@@ -30,6 +36,8 @@ describe("MlPublishPage", () => {
                         score: 0.8,
                         reason: "hi",
                         decision: "PUBLISH",
+                        zone: "hit",
+                        hash: "abc",
                     },
                 ],
             },
@@ -58,6 +66,8 @@ describe("MlPublishPage", () => {
                         score: 0.5,
                         reason: "mid",
                         decision: "REVIEW",
+                        zone: "gray",
+                        hash: "hash2",
                     },
                 ],
             },
@@ -75,16 +85,16 @@ describe("MlPublishPage", () => {
         fireEvent.click(screen.getByText("Опубликовать выбранные"));
 
         await waitFor(() => expect(mlPublishService.commit).toHaveBeenCalled());
-        expect(mlPublishService.commit).toHaveBeenCalledWith([
-            {
+        const commitPayload = mlPublishService.commit.mock.calls[0][0];
+        expect(commitPayload).toHaveLength(1);
+        expect(commitPayload[0]).toEqual(
+            expect.objectContaining({
                 id: "2",
-                url: "https://example.com/img2.jpg",
-                score: 0.5,
-                reason: "mid",
+                publish: false,
                 decision: "REVIEW",
-                publish: true,
-            },
-        ]);
+                score: 0.5,
+            })
+        );
     });
 
     it("shows error when preview fails", async () => {
@@ -98,5 +108,81 @@ describe("MlPublishPage", () => {
 
         const alert = await screen.findByRole("alert");
         expect(alert.textContent).toContain("oops");
+    });
+
+    it("filters uncertain recommendations", async () => {
+        storeFI.webImages = [
+            { id: "1", directLink: "https://example.com/img1.jpg" },
+            { id: "2", directLink: "https://example.com/img2.jpg" },
+        ];
+        mlPublishService.preview.mockResolvedValue({
+            data: {
+                recommendations: [
+                    {
+                        id: "1",
+                        url: "https://example.com/img1.jpg",
+                        score: 0.8,
+                        reason: "hi",
+                        decision: "PUBLISH",
+                        zone: "gray",
+                        hash: "hash-1",
+                    },
+                    {
+                        id: "2",
+                        url: "https://example.com/img2.jpg",
+                        score: 0.6,
+                        reason: "ok",
+                        decision: "SKIP",
+                        zone: "hit",
+                        hash: "hash-2",
+                    },
+                ],
+            },
+        });
+
+        render(<MlPublishPage />);
+        fireEvent.click(screen.getByText("Запросить ML-превью"));
+        await waitFor(() => expect(mlPublishService.preview).toHaveBeenCalled());
+        fireEvent.click(screen.getByLabelText("Show uncertain only"));
+
+        expect(screen.getByText("https://example.com/img1.jpg")).toBeInTheDocument();
+        expect(screen.queryByText("https://example.com/img2.jpg")).toBeNull();
+    });
+
+    it("saves feedback payload", async () => {
+        storeFI.webImages = [
+            { id: "4", directLink: "https://example.com/img4.jpg" },
+        ];
+        mlPublishService.preview.mockResolvedValue({
+            data: {
+                recommendations: [
+                    {
+                        id: "4",
+                        url: "https://example.com/img4.jpg",
+                        score: 0.7,
+                        reason: "cool",
+                        decision: "SKIP",
+                        zone: "gray",
+                        hash: "hash4",
+                    },
+                ],
+            },
+        });
+
+        render(<MlPublishPage />);
+        fireEvent.click(screen.getByText("Запросить ML-превью"));
+        await waitFor(() => expect(mlPublishService.preview).toHaveBeenCalled());
+        fireEvent.click(screen.getByText("Save feedback"));
+
+        await waitFor(() => expect(mlPublishService.feedback).toHaveBeenCalled());
+        const payload = mlPublishService.feedback.mock.calls[0][0];
+        expect(payload).toHaveLength(1);
+        expect(payload[0]).toEqual(
+            expect.objectContaining({
+                decision: "SKIP",
+                zone: "gray",
+                hash: "hash4",
+            })
+        );
     });
 });

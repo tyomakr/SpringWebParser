@@ -8,7 +8,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import ru.aikr.inet.parser.mlpublish.client.HttpMlConfigClient;
 import ru.aikr.inet.parser.mlpublish.client.HttpMlRecommendationClient;
+import ru.aikr.inet.parser.mlpublish.client.MlConfigClient;
 import ru.aikr.inet.parser.mlpublish.client.MlRecommendationClient;
 
 import java.util.Collections;
@@ -38,6 +40,12 @@ public class MlRecommendationClientConfig {
     public MlRecommendationClient mlRecommendationClient(WebClient mlRecommendationWebClient,
             MlRecommendationProperties properties) {
         return new HttpMlRecommendationClient(mlRecommendationWebClient, properties);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "ml.publish", name = "base-url")
+    public MlConfigClient mlConfigClient(WebClient mlRecommendationWebClient) {
+        return new HttpMlConfigClient(mlRecommendationWebClient);
     }
 
     @Bean

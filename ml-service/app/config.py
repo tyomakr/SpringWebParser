@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     sync_interval_sec: int = Field(default=900, alias="SYNC_INTERVAL_SEC")
     sync_page_limit: int = Field(default=500, alias="SYNC_PAGE_LIMIT")
     phash_max_dist: int = Field(default=12, alias="PHASH_MAX_DIST")
+    gray_band: int = Field(default=4, alias="GRAY_BAND")
     index_warmup_limit: int | None = Field(default=None, alias="INDEX_WARMUP_LIMIT")
     ocr_enabled: bool = Field(default=False, alias="OCR_ENABLED")
     ocr_min_chars: int = Field(default=24, alias="OCR_MIN_CHARS")

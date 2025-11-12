@@ -6,11 +6,13 @@ import {
     Box,
     Button,
     Checkbox,
+    Chip,
     CircularProgress,
     Container,
     FormControlLabel,
     IconButton,
     Paper,
+    Switch,
     Table,
     TableBody,
     TableCell,
@@ -28,6 +30,7 @@ import {
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import storeFI from "../store/StoreFI";
 import mlPublishService from "../service/mlPublishService";
+import vkHistoryService from "../service/vkHistoryService";
 
 const MlPublishPage = observer(() => {
     const [fromPage, setFromPage] = useState(1);
@@ -43,6 +46,11 @@ const MlPublishPage = observer(() => {
     const [lastFetchAt, setLastFetchAt] = useState(null);
     const [lastPreviewAt, setLastPreviewAt] = useState(null);
     const [decisionFilter, setDecisionFilter] = useState("ALL");
+    const [showUncertainOnly, setShowUncertainOnly] = useState(false);
+    const [mlConfig, setMlConfig] = useState({ phashMaxDist: 12, grayBand: 4 });
+    const [feedbackResult, setFeedbackResult] = useState(null);
+    const [feedbackError, setFeedbackError] = useState(null);
+    const [loadingFeedback, setLoadingFeedback] = useState(false);
 
     const theme = useTheme();
     const trigger = useScrollTrigger({ disableHysteresis: true, threshold: 0 });
@@ -55,11 +63,30 @@ const MlPublishPage = observer(() => {
 
     const availableImages = storeFI.webImages.slice();
     const filteredPreviewItems = useMemo(() => {
-        if (decisionFilter === "ALL") {
-            return previewItems;
+        let items = previewItems;
+        if (decisionFilter !== "ALL") {
+            items = items.filter((item) => item.decision === decisionFilter);
         }
-        return previewItems.filter((item) => item.decision === decisionFilter);
-    }, [previewItems, decisionFilter]);
+        if (showUncertainOnly) {
+            items = items.filter((item) => item.zone === "gray");
+        }
+        return items;
+    }, [previewItems, decisionFilter, showUncertainOnly]);
+    useEffect(() => {
+        let mounted = true;
+        mlPublishService.config()
+            .then((response) => {
+                if (mounted && response?.data) {
+                    setMlConfig(response.data);
+                }
+            })
+            .catch(() => {
+                // keep defaults
+            });
+        return () => {
+            mounted = false;
+        };
+    }, []);
     const publishCount = useMemo(
         () => previewItems.filter((item) => item.publish).length,
         [previewItems]
@@ -68,6 +95,11 @@ const MlPublishPage = observer(() => {
         () => previewItems.length - publishCount,
         [previewItems, publishCount]
     );
+
+    const parseCandidateId = (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
 
     const handleFetch = async () => {
         if (fromPage > toPage) {
@@ -106,12 +138,13 @@ const MlPublishPage = observer(() => {
         setPreviewEmpty(false);
         setCommitResult(null);
 
-        try {
-            const response = await mlPublishService.preview(payload);
-            const list = response.data.recommendations.map((item) => ({
-                ...item,
-                publish: item.decision === "PUBLISH",
-            }));
+            try {
+                const response = await mlPublishService.preview(payload);
+                const list = response.data.recommendations.map((item) => ({
+                    ...item,
+                    publish: item.decision === "PUBLISH",
+                    exclude: false,
+                }));
 
             if (!list.length) {
                 setPreviewEmpty(true);
@@ -146,6 +179,64 @@ const MlPublishPage = observer(() => {
                 publish: value,
             }))
         );
+    };
+
+    const handleExcludeFromTraining = async (index) => {
+        const candidate = previewItems[index];
+        if (!candidate) {
+            return;
+        }
+        const toggled = !candidate.exclude;
+        setPreviewItems((prev) => {
+            const next = [...prev];
+            next[index] = { ...candidate, exclude: toggled };
+            return next;
+        });
+
+        if (toggled) {
+            const historyId = parseCandidateId(candidate.id);
+            if (historyId != null) {
+                try {
+                    await vkHistoryService.updateUseForTraining(historyId, false);
+                } catch (_error) {
+                    toast.error("Не удалось обновить флаг исключения");
+                    setPreviewItems((prev) => {
+                        const next = [...prev];
+                        next[index] = { ...candidate, exclude: false };
+                        return next;
+                    });
+                }
+            }
+        }
+    };
+
+    const buildFeedbackPayload = () =>
+        previewItems.map((item) => ({
+            candidateId: parseCandidateId(item.id),
+            url: item.url,
+            hash: item.hash,
+            decision: item.exclude ? "EXCLUDE" : item.publish ? "PUBLISH" : "SKIP",
+            score: item.score,
+            reason: item.reason,
+            zone: item.zone,
+        }));
+
+    const handleSaveFeedback = async () => {
+        if (!previewItems.length) {
+            return;
+        }
+        setLoadingFeedback(true);
+        setFeedbackResult(null);
+        setFeedbackError(null);
+        try {
+            const response = await mlPublishService.feedback(buildFeedbackPayload());
+            setFeedbackResult(response.data);
+            toast.success(`Сохранено ${response.data?.saved ?? 0} фидбэков`);
+        } catch (err) {
+            setFeedbackError(err?.message || "Не удалось сохранить фидбэк");
+        } finally {
+            setLoadingFeedback(false);
+        }
     };
 
     const handleFilterChange = (_event, nextValue) => {
@@ -273,6 +364,19 @@ const MlPublishPage = observer(() => {
                         <ToggleButton value="PUBLISH">Publish</ToggleButton>
                         <ToggleButton value="SKIP">Skip</ToggleButton>
                     </ToggleButtonGroup>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                size="small"
+                                checked={showUncertainOnly}
+                                onChange={(event) => setShowUncertainOnly(event.target.checked)}
+                            />
+                        }
+                        label="Show uncertain only"
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                        phashMaxDist: {mlConfig.phashMaxDist} · grayBand: {mlConfig.grayBand}
+                    </Typography>
                 </Box>
 
                 <Paper sx={{ p: 3, mb: 4 }}>
@@ -328,9 +432,11 @@ const MlPublishPage = observer(() => {
                                 <TableRow>
                                     <TableCell>Картинка</TableCell>
                                     <TableCell>Score</TableCell>
+                                    <TableCell>Zone</TableCell>
                                     <TableCell>Decision</TableCell>
                                     <TableCell>Reason</TableCell>
                                     <TableCell>Publish</TableCell>
+                                    <TableCell>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -352,6 +458,15 @@ const MlPublishPage = observer(() => {
                                                 />
                                             </TableCell>
                                             <TableCell>{item.score.toFixed(3)}</TableCell>
+                                            <TableCell>
+                                                {item.zone === "gray" ? (
+                                                    <Chip label="Uncertain" color="warning" size="small" />
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {item.zone ?? "—"}
+                                                    </Typography>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{item.decision}</TableCell>
                                             <TableCell>
                                                 <Box
@@ -371,6 +486,9 @@ const MlPublishPage = observer(() => {
                                                         </IconButton>
                                                     </Tooltip>
                                                 </Box>
+                                                {item.zone === "gray" && (
+                                                    <Chip label="Uncertain" color="warning" size="small" />
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <FormControlLabel
@@ -384,6 +502,16 @@ const MlPublishPage = observer(() => {
                                                     label=""
                                                 />
                                             </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    variant={item.exclude ? "contained" : "text"}
+                                                    size="small"
+                                                    color={item.exclude ? "secondary" : "inherit"}
+                                                    onClick={() => handleExcludeFromTraining(originalIndex)}
+                                                >
+                                                    {item.exclude ? "Excluded" : "Exclude from training"}
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                     );
                                 })}
@@ -393,7 +521,7 @@ const MlPublishPage = observer(() => {
                 )}
             </Paper>
 
-            <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
                 <Button
                     variant="contained"
                     color="success"
@@ -402,10 +530,28 @@ const MlPublishPage = observer(() => {
                 >
                     {loadingCommit ? <CircularProgress size={18} /> : "Опубликовать выбранные"}
                 </Button>
+                <Button
+                    variant="outlined"
+                    color="info"
+                    onClick={handleSaveFeedback}
+                    disabled={!previewItems.length || loadingFeedback}
+                >
+                    {loadingFeedback ? <CircularProgress size={18} /> : "Save feedback"}
+                </Button>
                 {commitError && <Alert severity="error">{commitError}</Alert>}
                 {commitResult && (
                     <Alert severity="success">
                         Залито: {commitResult.uploadedCount}, опубликовано: {commitResult.publishedCount}.
+                    </Alert>
+                )}
+                {feedbackError && (
+                    <Alert severity="error">
+                        {feedbackError}
+                    </Alert>
+                )}
+                {feedbackResult && (
+                    <Alert severity="info">
+                        Сохранено фидбэков: {feedbackResult.saved}
                     </Alert>
                 )}
             </Box>

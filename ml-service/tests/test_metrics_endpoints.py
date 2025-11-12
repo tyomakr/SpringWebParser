@@ -27,3 +27,9 @@ async def test_metrics_and_health(tmp_path):
         assert "indexSize" in data
         assert "recommend" in data
         assert "sync" in data
+
+        config = await client.get("/config")
+        assert config.status_code == 200
+        conf_data = config.json()
+        assert conf_data["phashMaxDist"] == settings.phash_max_dist
+        assert conf_data["grayBand"] == settings.gray_band

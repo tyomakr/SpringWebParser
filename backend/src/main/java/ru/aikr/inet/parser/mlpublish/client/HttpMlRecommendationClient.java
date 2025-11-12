@@ -117,7 +117,9 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
                 item.url(),
                 item.score(),
                 item.reason(),
-                toDecision(item.decision())
+                toDecision(item.decision()),
+                item.zone(),
+                item.hash()
         );
     }
 

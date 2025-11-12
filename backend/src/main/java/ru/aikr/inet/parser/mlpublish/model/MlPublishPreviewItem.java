@@ -13,4 +13,6 @@ public class MlPublishPreviewItem {
     private double score;
     private String reason;
     private String recommendation;
+    private String zone;
+    private String hash;
 }

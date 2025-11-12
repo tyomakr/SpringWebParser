@@ -10,5 +10,7 @@ public record MlRecommendation(
         String url,
         double score,
         String reason,
-        RecommendationDecision decision
+        RecommendationDecision decision,
+        String zone,
+        String hash
 ) {}

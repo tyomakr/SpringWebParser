@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from time import perf_counter
 
 import httpx
 from fastapi import Depends, FastAPI
@@ -11,7 +10,14 @@ from fastapi import Depends, FastAPI
 from .config import Settings
 from .index import IndexService
 from .metrics import MetricsCollector
-from .models import Decision, RecommendationRequest, RecommendationResponse, RecommendationItem, SyncStatus
+from .models import (
+    ConfigResponse,
+    Decision,
+    RecommendationItem,
+    RecommendationRequest,
+    RecommendationResponse,
+    SyncStatus,
+)
 from .phash import ImageAnalyzer
 from .storage import Storage
 from .syncer import TrainingSyncer
@@ -73,28 +79,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def get_syncer() -> TrainingSyncer:
         return app.state.syncer
 
-    @app.post("/recommend", response_model=RecommendationResponse)
+    @app.post("/recommend", response_model=RecommendationResponse, response_model_exclude_none=True)
     async def recommend(payload: RecommendationRequest,
                         analyzer: ImageAnalyzer = Depends(get_analyzer)) -> RecommendationResponse:
         recommendations: list[RecommendationItem] = []
-        start = perf_counter()
         tasks = [
             analyzer.analyze_candidate(candidate.id, str(candidate.url))
             for candidate in payload.candidates
         ]
         results = await asyncio.gather(*tasks)
-        duration_ms = (perf_counter() - start) * 1000
-        metrics.record_recommend_request(duration_ms)
-        for candidate, (decision, score, reason) in zip(payload.candidates, results, strict=False):
-            recommendations.append(
-                RecommendationItem(
-                    id=candidate.id,
-                    url=candidate.url,
-                    score=round(score, 4),
-                    reason=reason,
-                    decision=Decision(decision),
-                )
-            )
+        for candidate, (decision, score, reason, zone) in zip(payload.candidates, results, strict=False):
+            item_data = {
+                "id": candidate.id,
+                "url": candidate.url,
+                "score": round(score, 4),
+                "reason": reason,
+                "decision": Decision(decision),
+                "hash": ImageAnalyzer.compute_hash(str(candidate.url)),
+            }
+            if zone is not None:
+                item_data["zone"] = zone
+            recommendations.append(RecommendationItem(**item_data))
         return RecommendationResponse(recommendations=recommendations)
 
     @app.post("/sync", response_model=SyncStatus)
@@ -113,6 +118,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ):
         data = metrics_collector.snapshot()
         return {"indexSize": index_service.size(), **data}
+
+    @app.get("/config", response_model=ConfigResponse)
+    def config() -> ConfigResponse:
+        return ConfigResponse(
+            phashMaxDist=settings.phash_max_dist,
+            grayBand=settings.gray_band,
+        )
 
     return app
 

@@ -56,7 +56,9 @@ class MlPublishControllerTest {
                 "https://example.com/1.jpg",
                 0.8,
                 "good",
-                RecommendationDecision.PUBLISH
+                RecommendationDecision.PUBLISH,
+                "hit",
+                "abcdef"
         );
 
         when(mlRecommendationClient.recommend(anyList()))
@@ -73,17 +75,18 @@ class MlPublishControllerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.recommendations[0].id").isEqualTo("1")
-                .jsonPath("$.recommendations[0].recommendation").isEqualTo("PUBLISH");
+                .jsonPath("$.recommendations[0].recommendation").isEqualTo("PUBLISH")
+                .jsonPath("$.recommendations[0].hash").isEqualTo("abcdef");
     }
 
     @Test
     void previewReturnsOrderedByScore() {
         MlRecommendation first = new MlRecommendation("1", "https://example.com/1.jpg", 0.5,
-                "ok", RecommendationDecision.REVIEW);
+                "ok", RecommendationDecision.REVIEW, null, null);
         MlRecommendation second = new MlRecommendation("2", "https://example.com/2.jpg", 0.9,
-                "best", RecommendationDecision.PUBLISH);
+                "best", RecommendationDecision.PUBLISH, "hit", "hash-2");
         MlRecommendation third = new MlRecommendation("3", "https://example.com/3.jpg", 0.3,
-                "skip", RecommendationDecision.SKIP);
+                "skip", RecommendationDecision.SKIP, "miss", "hash-3");
 
         when(mlRecommendationClient.recommend(anyList()))
                 .thenReturn(Mono.just(List.of(first, second, third)));
@@ -124,11 +127,11 @@ class MlPublishControllerTest {
     @Test
     void previewEmitsLogEventWithSummary() {
         MlRecommendation publish = new MlRecommendation("1", "https://example.com/1.jpg", 0.7,
-                "best", RecommendationDecision.PUBLISH);
+                "best", RecommendationDecision.PUBLISH, "hit", "hash-publish");
         MlRecommendation review = new MlRecommendation("2", "https://example.com/2.jpg", 0.5,
-                "maybe", RecommendationDecision.REVIEW);
+                "maybe", RecommendationDecision.REVIEW, "gray", "hash-review");
         MlRecommendation skip = new MlRecommendation("3", "https://example.com/3.jpg", 0.3,
-                "bad", RecommendationDecision.SKIP);
+                "bad", RecommendationDecision.SKIP, "miss", "hash-skip");
 
         when(mlRecommendationClient.recommend(anyList()))
                 .thenReturn(Mono.just(List.of(publish, review, skip)));

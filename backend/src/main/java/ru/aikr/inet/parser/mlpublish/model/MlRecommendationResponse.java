@@ -12,6 +12,8 @@ public record MlRecommendationResponse(List<MlRecommendationItem> recommendation
             String url,
             double score,
             String reason,
-            String decision
+            String decision,
+            String zone,
+            String hash
     ) {}
 }

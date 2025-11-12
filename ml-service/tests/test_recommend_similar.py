@@ -38,8 +38,9 @@ async def test_recommend_publish_when_similar(tmp_path):
             "hash": "hash-1",
             "created_at": "2024-01-01T00:00:00Z",
         })
-        decision, score, reason = await analyzer.analyze_candidate("123", "https://candidate/1.jpg")
+        decision, score, reason, zone = await analyzer.analyze_candidate("123", "https://candidate/1.jpg")
 
         assert decision == "PUBLISH"
         assert pytest.approx(score, rel=1e-3) == 1.0
         assert "dist=0" in reason
+        assert zone == "hit"

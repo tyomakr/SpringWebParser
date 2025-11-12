@@ -88,7 +88,9 @@ public class MlPublishController {
                         rec.url(),
                         rec.score(),
                         rec.reason(),
-                        rec.decision().name()
+                        rec.decision().name(),
+                        rec.zone(),
+                        rec.hash()
                 ))
                 .collect(Collectors.toList());
         return new MlPublishPreviewResponse(items);

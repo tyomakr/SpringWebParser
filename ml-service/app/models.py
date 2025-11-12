@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List
+from typing import List, Literal
 
 from pydantic import AnyHttpUrl, BaseModel, Field
 
@@ -27,6 +27,13 @@ class RecommendationItem(BaseModel):
     score: float
     reason: str
     decision: Decision
+    zone: Literal["hit", "gray", "miss"] | None = None
+    hash: str | None = None
+
+
+class ConfigResponse(BaseModel):
+    phashMaxDist: int
+    grayBand: int
 
 
 class RecommendationResponse(BaseModel):

@@ -10,3 +10,17 @@ CREATE TABLE IF NOT EXISTS vk_image_history (
   ml_reason VARCHAR(1024),
   use_for_training BOOLEAN DEFAULT TRUE
 );
+
+CREATE TABLE IF NOT EXISTS ml_feedback (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  candidate_id BIGINT,
+  url VARCHAR(1024) NOT NULL,
+  hash VARCHAR(255) NOT NULL,
+  decision VARCHAR(16) NOT NULL,
+  score DOUBLE,
+  reason VARCHAR(1024),
+  zone VARCHAR(8),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ml_feedback_hash ON ml_feedback (hash);
