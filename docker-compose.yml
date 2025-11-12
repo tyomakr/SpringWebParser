@@ -52,6 +52,7 @@ services:
       - "38000:8000"
     environment:
       - ML_PUBLISH_API_KEY=example-token
+      - TRAINING_EXPORT_URL=http://backend:8111/api/vk-history/training/export
     networks: [app-net]
 
 networks:

@@ -19,7 +19,6 @@
    &emsp; access-token: 
 
 
-
 1) Создать standalone app в VK apps и получить его ID. Его нужно будет прописать в application-secret.yml в vk.app-id
 2) Заполняем поля user-id (числовой идентификатор пользователя), group-id - идентификатор группы, в которую будет публикация (и есть соответствующие права). group-id указывается со знаком "-" перед числовым идентификатором
 
@@ -34,18 +33,38 @@ https://oauth.vk.com/blank.html#access_token=<отсюда копируем acce
 В репозитории есть минимальный ML-stub сервис (`ml-service/`), который реализует контракт из
 `backend/docs/ml-preview.md` и используется бэкендом для ML-превью.
 
-### Порты dev-стека
+### Переменные окружения
 
-В dev-docker-стеке используются отдельные порты, чтобы не конфликтовать со старыми сервисами:
+#### Backend
+```
+VK_API_TOKEN=<секрет>
+ML_PUBLISH_API_KEY=<по необходимости>
+```
+`vk.api.token` читается из `application-secret.yml`, остальные публичные `vk.api.*` прописаны в `application.yml`.
 
-- backend: `8112` на хосте (внутри контейнера слушает `8111`)
-- frontend: `3334`
-- ml-service (FastAPI): `38000` на хосте (внутри контейнера `8000`)
+#### ML-service
+```
+TRAINING_EXPORT_URL=http://backend:8111/api/vk-history/training/export
+ML_PUBLISH_API_KEY=<по необходимости>
+```
+
+Локально можно указать `http://localhost:8111/...` для `TRAINING_EXPORT_URL`.
+
+### Тесты
+
+- Backend: `./mvnw clean test`
+- ML-service: `python -m pip install -r requirements.txt && pytest -q`
+- UI: `cd ui && npm i && npm run build`
+
+### Порты dev-стека (docker)
+
+- backend: `8111`
+- frontend: `3333`
+- ml-service: `38000`
 
 ### Запуск через Docker
-
-Из корня проекта:
 
 ```bash
 docker compose build
 docker compose up -d
+```

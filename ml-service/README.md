@@ -53,8 +53,23 @@ cd ml-service
 python -m venv .venv
 .\.venv\Scripts\activate   # on Linux/macOS use: source .venv/bin/activate
 pip install -r requirements.txt
-set TRAINING_EXPORT_URL=http://dummy
-pytest
+## Переменные окружения и запуск
+Перед запуском убедитесь, что указали обязательные переменные:
+```
+TRAINING_EXPORT_URL=http://backend:8111/api/vk-history/training/export
+ML_PUBLISH_API_KEY=<secret>          # только при необходимости авторизации
+```
+`ML_PUBLISH_API_KEY` выбирается отдельно (можно оставить пустым для тестов).
+
+### Локально
+```
+python -m pip install -r requirements.txt
+set TRAINING_EXPORT_URL=http://backend:8111/api/vk-history/training/export   # Windows
+export TRAINING_EXPORT_URL=http://backend:8111/api/vk-history/training/export  # Linux/macOS
+pytest -q
+```
+
+`TRAINING_EXPORT_URL` при отладке может указывать на локальный backend (например, `http://localhost:8111/api/vk-history/training/export`).
 ```
 
 ## Docker

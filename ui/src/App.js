@@ -32,7 +32,7 @@ const AppShell = observer(({ themeStore }) => {
                             to="/"
                             variant={location.pathname === "/" ? "outlined" : "text"}
                         >
-                            Руководство
+                            Ручной отбор
                         </Button>
                         <Button
                             color="inherit"
