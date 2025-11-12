@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
+from time import perf_counter
 from typing import List
 
 import httpx
-from PIL import Image
 
 from .config import Settings, TrainingExportRecord
+from .index import IndexService
+from .metrics import MetricsCollector
 from .phash import ImageAnalyzer
 from .storage import Storage
 
@@ -17,12 +18,15 @@ logger = logging.getLogger(__name__)
 
 class TrainingSyncer:
     def __init__(self, settings: Settings, http_client: httpx.AsyncClient,
-                 storage: Storage, analyzer: ImageAnalyzer) -> None:
+                 storage: Storage, analyzer: ImageAnalyzer,
+                 index_service: IndexService, metrics: MetricsCollector) -> None:
         self.settings = settings
         self.http_client = http_client
         self.storage = storage
         self.analyzer = analyzer
         self._lock = asyncio.Lock()
+        self.index_service = index_service
+        self.metrics = metrics
 
     async def run_periodic(self, stop_event: asyncio.Event) -> None:
         while not stop_event.is_set():
@@ -38,6 +42,7 @@ class TrainingSyncer:
     async def run_once(self) -> dict:
         async with self._lock:
             logger.info("Starting training export sync")
+            start = perf_counter()
             last_sync = self.storage.get_last_sync()
             processed = 0
             latest_created = last_sync
@@ -45,6 +50,7 @@ class TrainingSyncer:
             headers = {}
             if self.settings.training_export_api_key:
                 headers["Authorization"] = f"Bearer {self.settings.training_export_api_key}"
+            bulk_items: List[tuple[int, dict]] = []
 
             while True:
                 params = {
@@ -75,6 +81,16 @@ class TrainingSyncer:
                             phash=phash_value,
                             created_at=record.createdAt,
                         )
+                        try:
+                            phash_int = int(phash_value, 16)
+                        except ValueError:
+                            continue
+                        bulk_items.append((phash_int, {
+                            "id": record.id,
+                            "url": record.url,
+                            "hash": record.hash,
+                            "created_at": record.createdAt,
+                        }))
                         processed += 1
                         latest_created = max(latest_created or record.createdAt, record.createdAt)
                     except Exception as exc:  # pylint: disable=broad-except
@@ -85,5 +101,10 @@ class TrainingSyncer:
 
             if latest_created:
                 self.storage.set_last_sync(latest_created)
-            logger.info("Sync finished: processed=%s last_sync=%s", processed, latest_created)
-            return {"processed": processed, "last_sync": latest_created}
+            if bulk_items:
+                await self.index_service.bulk_add(bulk_items)
+            duration_ms = (perf_counter() - start) * 1000
+            self.metrics.record_sync(latest_created, duration_ms, len(bulk_items))
+            logger.info("Sync finished: processed=%s last_sync=%s index-added=%s",
+                        processed, latest_created, len(bulk_items))
+            return {"processed": processed, "last_sync": latest_created, "added": len(bulk_items)}

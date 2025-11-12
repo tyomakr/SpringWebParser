@@ -4,13 +4,14 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Iterable, Optional
 
 import httpx
 import imagehash
 from PIL import Image
 
 from .config import Settings
+from .index import IndexService
+from .metrics import MetricsCollector
 from .storage import Storage
 from .text_detector import TextDetector
 
@@ -26,10 +27,13 @@ class PositiveRecord:
 
 
 class ImageAnalyzer:
-    def __init__(self, settings: Settings, http_client: httpx.AsyncClient, storage: Storage) -> None:
+    def __init__(self, settings: Settings, http_client: httpx.AsyncClient, storage: Storage,
+                 index_service: IndexService, metrics: MetricsCollector | None = None) -> None:
         self.settings = settings
         self.http_client = http_client
         self.storage = storage
+        self.index_service = index_service
+        self.metrics = metrics or MetricsCollector()
         self.text_detector = TextDetector(settings.ocr_enabled, settings.ocr_min_chars)
         self._semaphore = asyncio.Semaphore(settings.max_concurrency)
 
@@ -44,56 +48,53 @@ class ImageAnalyzer:
         hash_value = imagehash.phash(image, hash_size=8)
         return hash_value.__str__()
 
-    @staticmethod
-    def hamming_distance(hex_a: str, hex_b: str) -> int:
-        return imagehash.hex_to_hash(hex_a) - imagehash.hex_to_hash(hex_b)
-
     def load_positives(self) -> list[PositiveRecord]:
         rows = self.storage.list_active_positives()
         return [PositiveRecord(id=row["id"], url=row["url"], hash=row["hash"], phash=row["phash"]) for row in rows]
 
-    async def analyze_candidate(self, candidate_id: str, url: str,
-                                positives: list[PositiveRecord]) -> tuple[str, float, str]:
+    async def analyze_candidate(self, candidate_id: str, url: str) -> tuple[str, float, str]:
         async with self._semaphore:
             try:
                 image = await self.fetch_image(url)
             except Exception as exc:  # pylint: disable=broad-except
                 logger.warning("Failed to fetch image %s: %s", url, exc)
-                return "SKIP", 0.0, "fetch-failed"
+                return self._finalize(start, "SKIP", 0.0, "fetch-failed", None)
 
             if self.text_detector.is_text_dominant(image):
-                return "SKIP", 0.0, "text-only"
+                return self._finalize("SKIP", 0.0, "text-only", None)
 
             try:
                 phash_value = self.compute_phash(image)
             except Exception as exc:  # pylint: disable=broad-except
                 logger.warning("Failed to compute pHash for %s: %s", candidate_id, exc)
-                return "SKIP", 0.0, "phash-error"
+                return self._finalize("SKIP", 0.0, "phash-error", None)
 
-            if not positives:
-                return "SKIP", 0.0, "no-positives"
-
-            decision, score, reason = self._match_with_positives(phash_value, positives)
-            return decision, score, reason
-
-    def _match_with_positives(self, phash_value: str,
-                              positives: Iterable[PositiveRecord]) -> tuple[str, float, str]:
-        best: Optional[tuple[int, PositiveRecord]] = None
-        for record in positives:
             try:
-                dist = self.hamming_distance(phash_value, record.phash)
-            except ValueError:  # corrupted stored hash
-                logger.warning("Malformed pHash in DB for hash=%s", record.hash)
-                continue
-            if best is None or dist < best[0]:
-                best = (dist, record)
+                phash_int = int(phash_value, 16)
+            except ValueError:
+                logger.warning("Invalid pHash from image %s", candidate_id)
+                return self._finalize("SKIP", 0.0, "phash-error", None)
 
-        if best is None:
-            return "SKIP", 0.0, "no-positives"
+            if self.index_service.size() == 0:
+                return self._finalize("SKIP", 0.0, "index-empty", "miss")
 
-        dist, record = best
-        score = max(0.0, 1 - dist / 64)
-        reason = f"sim={score:.2f};nearest={record.hash};dist={dist}"
-        if dist <= self.settings.phash_max_dist:
-            return "PUBLISH", score, reason
-        return "SKIP", score, reason
+            search_limit = self.settings.phash_max_dist + 4
+            nearest = self.index_service.nearest(phash_int, search_limit)
+            if nearest is None:
+                return self._finalize("SKIP", 0.0, "no-match", "miss")
+
+            dist, meta = nearest
+            score = max(0.0, 1 - dist / 64)
+            label = meta.get("id") or meta.get("hash")
+            reason = f"sim={score:.2f};dist={dist};nearest={label}"
+            if dist <= self.settings.phash_max_dist:
+                return self._finalize("PUBLISH", score, reason, "hit")
+            if dist <= self.settings.phash_max_dist + 4:
+                return self._finalize("SKIP", score, reason, "gray")
+            return self._finalize("SKIP", score, reason, "miss")
+
+    def _finalize(self, decision: str, score: float, reason: str,
+                  category: str | None) -> tuple[str, float, str]:
+        if category is not None:
+            self.metrics.record_candidate_result(category)
+        return decision, score, reason

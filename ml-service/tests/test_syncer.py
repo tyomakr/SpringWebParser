@@ -3,6 +3,8 @@ import pytest
 from PIL import Image
 
 from app.config import Settings
+from app.index import IndexService
+from app.metrics import MetricsCollector
 from app.phash import ImageAnalyzer
 from app.storage import Storage
 from app.syncer import TrainingSyncer
@@ -38,14 +40,17 @@ async def test_syncer_fetches_and_persists(tmp_path):
         return httpx.Response(200, json=data)
 
     transport = httpx.MockTransport(handler)
+    index_service = IndexService()
+    metrics = MetricsCollector()
+
     async with httpx.AsyncClient(transport=transport) as http_client:
-        analyzer = ImageAnalyzer(settings, http_client, storage)
+        analyzer = ImageAnalyzer(settings, http_client, storage, index_service, metrics)
 
         async def fake_fetch(_):
             return sample_image
 
         analyzer.fetch_image = fake_fetch  # type: ignore[assignment]
-        syncer = TrainingSyncer(settings, http_client, storage, analyzer)
+        syncer = TrainingSyncer(settings, http_client, storage, analyzer, index_service, metrics)
 
         result = await syncer.run_once()
         assert result["processed"] == 1

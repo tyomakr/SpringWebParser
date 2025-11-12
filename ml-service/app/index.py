@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+import asyncio
+from typing import Iterable
+
+
+class _BKNode:
+    __slots__ = ("phash", "meta", "children")
+
+    def __init__(self, phash: int, meta: dict) -> None:
+        self.phash = phash
+        self.meta = meta
+        self.children: dict[int, _BKNode] = {}
+
+
+def _hamming_distance(a: int, b: int) -> int:
+    return (a ^ b).bit_count()
+
+
+class BKIndex:
+    def __init__(self) -> None:
+        self._root: _BKNode | None = None
+        self._size = 0
+
+    def add(self, phash: int, meta: dict) -> None:
+        if self._root is None:
+            self._root = _BKNode(phash, meta)
+            self._size = 1
+            return
+
+        node = self._root
+        while True:
+            dist = _hamming_distance(phash, node.phash)
+            if dist == 0:
+                node.meta = meta
+                return
+            child = node.children.get(dist)
+            if child is None:
+                node.children[dist] = _BKNode(phash, meta)
+                self._size += 1
+                return
+            node = child
+
+    def bulk_add(self, items: list[tuple[int, dict]]) -> None:
+        for phash, meta in items:
+            self.add(phash, meta)
+
+    def nearest(self, phash: int, max_dist: int) -> tuple[int, dict] | None:
+        if self._root is None:
+            return None
+
+        best: tuple[int, dict] | None = None
+        stack = [self._root]
+        while stack:
+            node = stack.pop()
+            dist = _hamming_distance(phash, node.phash)
+            if dist <= max_dist and (best is None or dist < best[0]):
+                best = (dist, node.meta)
+            lower = dist - max_dist
+            upper = dist + max_dist
+            for child_dist, child in node.children.items():
+                if lower <= child_dist <= upper:
+                    stack.append(child)
+        return best
+
+    def size(self) -> int:
+        return self._size
+
+
+class IndexService:
+    def __init__(self, lock: asyncio.Lock | None = None) -> None:
+        self._index = BKIndex()
+        self._lock = lock or asyncio.Lock()
+
+    async def add(self, phash: int, meta: dict) -> None:
+        async with self._lock:
+            self._index.add(phash, meta)
+
+    async def bulk_add(self, items: list[tuple[int, dict]]) -> None:
+        async with self._lock:
+            self._index.bulk_add(items)
+
+    def nearest(self, phash: int, max_dist: int) -> tuple[int, dict] | None:
+        return self._index.nearest(phash, max_dist)
+
+    def size(self) -> int:
+        return self._index.size()
+
+    async def warmup(self, iterator: Iterable[tuple[int, dict]], limit: int | None = None) -> None:
+        batch: list[tuple[int, dict]] = []
+        for idx, item in enumerate(iterator):
+            batch.append(item)
+            if limit and idx + 1 >= limit:
+                break
+        if batch:
+            await self.bulk_add(batch)
+
+
+__all__ = ["BKIndex", "IndexService"]

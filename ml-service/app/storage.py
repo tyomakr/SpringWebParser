@@ -55,6 +55,23 @@ class Storage:
         )
         return list(cur.fetchall())
 
+    def iter_positives(self) -> Iterable[tuple[int, dict]]:
+        cur = self._connection.execute(
+            "SELECT id, url, hash, phash, created_at FROM positives WHERE active = 1 ORDER BY created_at"
+        )
+        for row in cur:
+            phash_value = row["phash"]
+            try:
+                phash_int = int(phash_value, 16)
+            except (TypeError, ValueError):
+                continue
+            yield phash_int, {
+                "id": row["id"],
+                "url": row["url"],
+                "hash": row["hash"],
+                "created_at": row["created_at"],
+            }
+
     def set_last_sync(self, value: str) -> None:
         with self._connection:
             self._connection.execute(
