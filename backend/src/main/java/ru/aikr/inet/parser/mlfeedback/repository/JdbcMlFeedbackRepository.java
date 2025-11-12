@@ -68,7 +68,7 @@ public class JdbcMlFeedbackRepository implements MlFeedbackRepository {
             record.setCandidateId(candidateId);
         }
         record.setUrl(rs.getString("url"));
-        record.setHash(rs.getString("hash"));
+        record.setHash(Objects.requireNonNull(rs.getString("hash")));
         record.setDecision(Objects.requireNonNull(rs.getString("decision")));
         double score = rs.getDouble("score");
         if (!rs.wasNull()) {
