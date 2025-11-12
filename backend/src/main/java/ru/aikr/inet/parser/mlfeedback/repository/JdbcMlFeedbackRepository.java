@@ -57,7 +57,8 @@ public class JdbcMlFeedbackRepository implements MlFeedbackRepository {
         params.add(limit);
         params.add(offset);
 
-        return jdbcTemplate.query(sql.toString(), this::mapRow, params.toArray(Object[]::new));
+        String query = Objects.requireNonNull(sql.toString());
+        return jdbcTemplate.query(query, this::mapRow, params.toArray(Object[]::new));
     }
 
     private MlFeedbackRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
