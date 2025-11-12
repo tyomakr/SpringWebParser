@@ -89,4 +89,6 @@ logging:
 #   base-url: "http://127.0.0.1:8000"
 ml:
   publish:
-    api-key: ${ML_PUBLISH_API_KEY:}
+    base-url: http://ml-service:8000          # внутри докера, замените на http://localhost:8000 для локального запуска
+    recommendation-path: /recommend           # значение из MlRecommendationProperties
+    timeout-seconds: 6                        # таймаут REST-запроса в секундах
