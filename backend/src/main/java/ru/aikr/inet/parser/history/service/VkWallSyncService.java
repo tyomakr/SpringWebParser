@@ -1,5 +1,6 @@
 package ru.aikr.inet.parser.history.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
@@ -29,6 +30,7 @@ public class VkWallSyncService {
     private final VkApiProperties apiProperties;
     private final Duration pageDelay;
 
+    @Autowired
     public VkWallSyncService(VkApiClient vkApiClient,
                              VkHistoryRepository repository,
                              VkApiProperties apiProperties) {
