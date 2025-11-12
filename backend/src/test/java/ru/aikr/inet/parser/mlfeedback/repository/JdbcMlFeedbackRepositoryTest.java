@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,7 +27,8 @@ class JdbcMlFeedbackRepositoryTest {
 
     @BeforeEach
     void setUp() throws SQLException {
-        dataSource = new SingleConnectionDataSource("jdbc:h2:mem:mlfeedback;DB_CLOSE_DELAY=-1", true);
+        String url = "jdbc:h2:mem:mlfeedback" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1";
+        dataSource = new SingleConnectionDataSource(url, true);
         ScriptUtils.executeSqlScript(dataSource.getConnection(), new ClassPathResource("schema.sql"));
         jdbcTemplate = new JdbcTemplate(dataSource);
         repository = new JdbcMlFeedbackRepository(jdbcTemplate);
