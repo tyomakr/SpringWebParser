@@ -62,15 +62,9 @@ class MlStatusControllerTest {
     void statusReturnsMetricsAndConfig() {
         testConfig.setExchangeFunction(request -> {
             if (request.url().getPath().endsWith("/metrics")) {
-                return Mono.just(
-                        ClientResponse.create(HttpStatus.OK)
-                                .body(new MlMetricsResponse(5))
-                                .build());
+                return Mono.just(testConfig.metricsResponse(5));
             }
-            return Mono.just(
-                    ClientResponse.create(HttpStatus.OK)
-                            .body(new MlConfigResponse(12, 3))
-                            .build());
+            return Mono.just(testConfig.configResponse(new MlConfigResponse(12, 3)));
         });
 
         webTestClient.get().uri("/api/ml/status")
@@ -134,6 +128,21 @@ class MlStatusControllerTest {
 
         void setExchangeFunction(ExchangeFunction exchangeFunction) {
             delegate.set(exchangeFunction);
+        }
+
+        ClientResponse metricsResponse(long indexSize) {
+            ClientResponse response = mock(ClientResponse.class);
+            when(response.statusCode()).thenReturn(HttpStatus.OK);
+            when(response.bodyToMono(MlMetricsResponse.class))
+                    .thenReturn(Mono.just(new MlMetricsResponse(indexSize)));
+            return response;
+        }
+
+        ClientResponse configResponse(MlConfigResponse config) {
+            ClientResponse response = mock(ClientResponse.class);
+            when(response.statusCode()).thenReturn(HttpStatus.OK);
+            when(response.bodyToMono(MlConfigResponse.class)).thenReturn(Mono.just(config));
+            return response;
         }
     }
 }

@@ -80,7 +80,10 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
                                                              Duration timeout) {
         MlRecommendationRequest request = new MlRecommendationRequest(buildCandidates(chunk));
         Map<String, Integer> indexById = new HashMap<>();
-        chunk.forEach(candidate -> indexById.put(candidate.image().getId(), candidate.index()));
+        chunk.forEach(candidate -> {
+            String id = Objects.requireNonNull(candidate.image().getId(), "candidate id");
+            indexById.put(id, candidate.index());
+        });
 
         return webClient.post()
                 .uri(path)
@@ -98,8 +101,8 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
             List<CandidateWithIndex> chunk) {
         return chunk.stream()
                 .map(candidate -> new MlRecommendationRequest.MlRecommendationCandidate(
-                        candidate.image().getId(),
-                        candidate.image().getDirectLink()))
+                        Objects.requireNonNull(candidate.image().getId(), "candidate id"),
+                        Objects.requireNonNull(candidate.image().getDirectLink(), "candidate url")))
                 .collect(Collectors.toUnmodifiableList());
     }
 
