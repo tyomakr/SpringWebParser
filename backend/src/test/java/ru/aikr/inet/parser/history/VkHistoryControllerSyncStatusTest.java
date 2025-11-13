@@ -10,43 +10,44 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import ru.aikr.inet.parser.history.controller.VkHistoryController;
 import ru.aikr.inet.parser.history.model.VkWallSyncReport;
+import ru.aikr.inet.parser.history.model.VkWallSyncStatus;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
 import ru.aikr.inet.parser.history.service.VkWallSyncScheduler;
 import ru.aikr.inet.parser.history.service.VkWallSyncService;
 import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 
+import java.time.Instant;
+
 @WebFluxTest(controllers = VkHistoryController.class)
-@Import(VkHistoryControllerSyncWallTest.TestConfig.class)
-class VkHistoryControllerSyncWallTest {
+@Import(VkHistoryControllerSyncStatusTest.TestConfig.class)
+class VkHistoryControllerSyncStatusTest {
 
     @Autowired
     private WebTestClient webTestClient;
 
     @Autowired
-    private VkWallSyncService wallSyncService;
+    private VkWallSyncScheduler scheduler;
 
     @Test
-    void syncWallReturnsReport() {
-        VkWallSyncReport report = new VkWallSyncReport(2, 3, 2, 1);
-        Mockito.when(wallSyncService.syncWall(null, 3)).thenReturn(report);
+    void statusReturnsLastRun() {
+        VkWallSyncStatus status = new VkWallSyncStatus(
+                false,
+                Instant.parse("2024-01-01T00:00:00Z"),
+                new VkWallSyncReport(1, 2, 1, 1),
+                null,
+                Instant.parse("2024-01-01T00:01:00Z"),
+                Instant.parse("2024-01-01T00:00:00Z"),
+                null
+        );
+        Mockito.when(scheduler.getStatus()).thenReturn(status);
 
-        webTestClient.post()
-                .uri("/api/vk-history/sync-wall")
+        webTestClient.get()
+                .uri("/api/vk-history/sync-wall/status")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.postsFetched").isEqualTo(2)
-                .jsonPath("$.photosFound").isEqualTo(3)
-                .jsonPath("$.inserted").isEqualTo(2)
-                .jsonPath("$.skipped").isEqualTo(1);
-    }
-
-    @Test
-    void syncWallRejectsInvalidSince() {
-        webTestClient.post()
-                .uri("/api/vk-history/sync-wall?since=not-a-date")
-                .exchange()
-                .expectStatus().isBadRequest();
+                .jsonPath("$.running").isEqualTo(false)
+                .jsonPath("$.lastReport.inserted").isEqualTo(1);
     }
 
     @TestConfiguration
@@ -58,13 +59,13 @@ class VkHistoryControllerSyncWallTest {
         }
 
         @Bean
-        VkWallSyncService wallSyncService() {
-            return Mockito.mock(VkWallSyncService.class);
+        VkWallSyncScheduler wallSyncScheduler() {
+            return Mockito.mock(VkWallSyncScheduler.class);
         }
 
         @Bean
-        VkWallSyncScheduler wallSyncScheduler() {
-            return Mockito.mock(VkWallSyncScheduler.class);
+        VkWallSyncService wallSyncService() {
+            return Mockito.mock(VkWallSyncService.class);
         }
 
         @Bean

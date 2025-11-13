@@ -20,6 +20,7 @@ import {
   useTheme,
   useScrollTrigger,
 } from "@mui/material";
+import { toast } from "react-toastify";
 import vkHistoryService from "../service/vkHistoryService";
 
 export default function VkHistoryTrainingPage() {
@@ -80,6 +81,20 @@ export default function VkHistoryTrainingPage() {
     }
   };
 
+  const handleSyncWall = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await vkHistoryService.syncWall({ pages: 3 });
+      toast.success(`Синхронизация завершена: ${response.data.inserted ?? 0} записей`);
+      await load(onlyTraining);
+    } catch (e) {
+      setError(e?.message || "Не удалось синхронизировать стену");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const totals = useMemo(() => {
     const total = rows.length;
     const training = rows.filter((r) => r.useForTraining === true).length;
@@ -124,9 +139,14 @@ export default function VkHistoryTrainingPage() {
             Обновлено: {formatTimestamp(lastLoadedAt)}
           </Typography>
         </Box>
-        <Button variant="outlined" onClick={() => load(onlyTraining)} disabled={loading}>
-          Обновить
-        </Button>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button variant="outlined" onClick={() => load(onlyTraining)} disabled={loading}>
+            Обновить
+          </Button>
+          <Button variant="outlined" onClick={handleSyncWall} disabled={loading}>
+            Синхронизировать стену
+          </Button>
+        </Box>
       </Box>
 
       <Container

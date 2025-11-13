@@ -1,10 +1,14 @@
 package ru.aikr.inet.parser.history.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.model.VkWallSyncReport;
+import ru.aikr.inet.parser.history.model.VkSyncProperties;
 import ru.aikr.inet.parser.history.repository.VkHistoryRepository;
 import ru.aikr.inet.parser.vk.VkApiClient;
 import ru.aikr.inet.parser.vk.VkApiProperties;
@@ -19,37 +23,48 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Service
+@RequiredArgsConstructor
 public class VkWallSyncService {
 
-    private static final int PAGE_SIZE = 100;
+    public static class RateLimitException extends RuntimeException {
+        public RateLimitException(Throwable cause) {
+            super(cause);
+        }
+    }
 
     private final VkApiClient vkApiClient;
     private final VkHistoryRepository repository;
     private final VkApiProperties apiProperties;
-    private final Duration pageDelay;
-
-    @Autowired
-    public VkWallSyncService(VkApiClient vkApiClient,
-                             VkHistoryRepository repository,
-                             VkApiProperties apiProperties) {
-        this(vkApiClient, repository, apiProperties, Duration.ofMillis(350));
-    }
+    private final VkSyncProperties syncProperties;
+    private final Duration pageDelay = Duration.ofMillis(350);
+    private final Counter postsCounter;
+    private final Counter photosCounter;
+    private final Counter insertedCounter;
+    private final Counter skippedCounter;
 
     public VkWallSyncService(VkApiClient vkApiClient,
                              VkHistoryRepository repository,
                              VkApiProperties apiProperties,
-                             Duration pageDelay) {
+                             VkSyncProperties syncProperties,
+                             MeterRegistry meterRegistry) {
         this.vkApiClient = vkApiClient;
         this.repository = repository;
         this.apiProperties = apiProperties;
-        this.pageDelay = pageDelay != null ? pageDelay : Duration.ZERO;
+        this.syncProperties = syncProperties;
+        this.postsCounter = meterRegistry.counter("vk.wall.sync.posts");
+        this.photosCounter = meterRegistry.counter("vk.wall.sync.photos");
+        this.insertedCounter = meterRegistry.counter("vk.wall.sync.inserted");
+        this.skippedCounter = meterRegistry.counter("vk.wall.sync.skipped");
     }
 
     public VkWallSyncReport syncWall(Instant since, int pagesLimit) {
-        int safePages = Math.max(pagesLimit, 1);
-        Long ownerId = Objects.requireNonNull(apiProperties.getGroupId(), "vk.api.group-id must be configured");
+        int safePages = Math.max(1, pagesLimit);
+        Long ownerId = Objects.requireNonNull(apiProperties.getGroupId(),
+                "vk.api.group-id must be configured");
+        int pageSize = Math.max(1, syncProperties.getPageSize());
         int postsFetched = 0;
         int photosFound = 0;
         int inserted = 0;
@@ -60,8 +75,8 @@ public class VkWallSyncService {
             if (stop) {
                 break;
             }
-            int offset = pageIndex * PAGE_SIZE;
-            WallGetResponse response = vkApiClient.wallGet(ownerId, PAGE_SIZE, offset).block();
+            int offset = pageIndex * pageSize;
+            WallGetResponse response = fetchWallPage(ownerId, pageSize, offset);
             if (response == null || response.getResponse() == null) {
                 break;
             }
@@ -69,20 +84,16 @@ public class VkWallSyncService {
             if (items == null || items.isEmpty()) {
                 break;
             }
+            boolean pageInserted = false;
+            Instant latestCreated = null;
             for (WallGetResponse.WallPost post : items) {
                 if (post == null) {
                     continue;
                 }
-                Instant createdAt = Instant.ofEpochSecond(post.getDate() != null ? post.getDate() : 0L);
-                if (since != null && createdAt.isBefore(since)) {
-                    stop = true;
-                    break;
-                }
+                Instant createdAt = instantFrom(post.getDate());
+                latestCreated = latestCreated == null ? createdAt : latestCreated;
                 postsFetched++;
-                List<WallGetResponse.Attachment> attachments = post.getAttachments();
-                if (attachments == null) {
-                    continue;
-                }
+                List<WallGetResponse.Attachment> attachments = attachmentsFrom(post).toList();
                 for (WallGetResponse.Attachment attachment : attachments) {
                     if (attachment == null || !"photo".equals(attachment.getType())) {
                         continue;
@@ -98,23 +109,32 @@ public class VkWallSyncService {
                     if (bestSize.isEmpty()) {
                         continue;
                     }
-                    String url = bestSize.get().getUrl();
                     photosFound++;
+                    String url = bestSize.get().getUrl();
                     String hash = hashUrl(url);
                     VkImageHistoryRecord record = new VkImageHistoryRecord(post.getId(), url, hash, createdAt);
                     record.setUseForTraining(Boolean.TRUE);
                     boolean saved = repository.saveIfAbsent(record);
                     if (saved) {
                         inserted++;
+                        pageInserted = true;
                     } else {
                         skipped++;
                     }
                 }
             }
+            if (!pageInserted && since != null && latestCreated != null && latestCreated.isBefore(since)) {
+                stop = true;
+            }
             if (pageIndex < safePages - 1 && !stop) {
                 pauseBetweenPages();
             }
         }
+
+        postsCounter.increment(postsFetched);
+        photosCounter.increment(photosFound);
+        insertedCounter.increment(inserted);
+        skippedCounter.increment(skipped);
         return new VkWallSyncReport(postsFetched, photosFound, inserted, skipped);
     }
 
@@ -127,6 +147,41 @@ public class VkWallSyncService {
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private WallGetResponse fetchWallPage(Long ownerId, int count, int offset) {
+        try {
+            return vkApiClient.wallGet(ownerId, count, offset).block();
+        } catch (WebClientResponseException ex) {
+            String body = ex.getResponseBodyAsString();
+            if (isRateLimit(body)) {
+                throw new RateLimitException(ex);
+            }
+            throw ex;
+        }
+    }
+
+    private Stream<WallGetResponse.Attachment> attachmentsFrom(WallGetResponse.WallPost post) {
+        Stream<WallGetResponse.Attachment> direct = Optional.ofNullable(post.getAttachments())
+                .map(List::stream)
+                .orElseGet(Stream::empty);
+        Stream<WallGetResponse.Attachment> copied = Optional.ofNullable(post.getCopyHistory())
+                .map(List::stream)
+                .orElseGet(Stream::empty)
+                .flatMap(this::attachmentsFrom);
+        return Stream.concat(direct, copied);
+    }
+
+    private boolean isRateLimit(String payload) {
+        if (payload == null) {
+            return false;
+        }
+        return payload.contains("\"error_code\":6") || payload.contains("\"error_code\":29");
+    }
+
+    private Instant instantFrom(Long epochSeconds) {
+        long value = epochSeconds != null ? epochSeconds : 0L;
+        return Instant.ofEpochSecond(value);
     }
 
     private int sizeArea(WallGetResponse.PhotoSize size) {

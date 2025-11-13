@@ -56,6 +56,10 @@ ML_PUBLISH_API_KEY=<по необходимости>
 - ML-service: `python -m pip install -r requirements.txt && pytest -q`
 - UI: `cd ui && npm i && npm run build`
 
+### Scheduled VK sync
+
+Backend умеет синхронизировать стену по расписанию (`vk.sync.enabled=false` по умолчанию). Статус последней синхронизации доступен через `GET /api/vk-history/sync-wall/status`, вручную всё ещё можно запускать `POST /api/vk-history/sync-wall`.
+
 ### Порты dev-стека (docker)
 
 - backend: `8111`

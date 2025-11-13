@@ -13,6 +13,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import ru.aikr.inet.parser.history.controller.VkHistoryController;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingExportResponse;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
+import ru.aikr.inet.parser.history.service.VkWallSyncScheduler;
 import ru.aikr.inet.parser.history.service.VkWallSyncService;
 import ru.aikr.inet.parser.logging.service.LogEventsPublisher;
 
@@ -46,6 +47,11 @@ class VkHistoryControllerTrainingExportTest {
         @Bean
         VkWallSyncService wallSyncService() {
             return Mockito.mock(VkWallSyncService.class);
+        }
+
+        @Bean
+        VkWallSyncScheduler wallSyncScheduler() {
+            return Mockito.mock(VkWallSyncScheduler.class);
         }
 
         @Bean

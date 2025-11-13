@@ -21,6 +21,8 @@ import ru.aikr.inet.parser.history.model.VkHistoryTrainingExportResponse;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingToggleRequest;
 import ru.aikr.inet.parser.history.model.VkWallSyncReport;
 import ru.aikr.inet.parser.history.service.VkHistoryService;
+import ru.aikr.inet.parser.history.model.VkWallSyncStatus;
+import ru.aikr.inet.parser.history.service.VkWallSyncScheduler;
 import ru.aikr.inet.parser.history.service.VkWallSyncService;
 
 import java.time.Instant;
@@ -33,13 +35,16 @@ public class VkHistoryController {
 
     private final VkHistoryService historyService;
     private final VkWallSyncService wallSyncService;
+    private final VkWallSyncScheduler syncScheduler;
     private final Environment environment;
 
     public VkHistoryController(VkHistoryService historyService,
                                VkWallSyncService wallSyncService,
+                               VkWallSyncScheduler syncScheduler,
                                Environment environment) {
         this.historyService = historyService;
         this.wallSyncService = wallSyncService;
+        this.syncScheduler = syncScheduler;
         this.environment = environment;
     }
 
@@ -86,6 +91,11 @@ public class VkHistoryController {
         int safePages = Math.max(pages, 1);
         return Mono.fromCallable(() -> wallSyncService.syncWall(sinceInstant, safePages))
                 .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @GetMapping("/sync-wall/status")
+    public Mono<VkWallSyncStatus> syncStatus() {
+        return Mono.just(syncScheduler.getStatus());
     }
 
     @GetMapping("/training/export")

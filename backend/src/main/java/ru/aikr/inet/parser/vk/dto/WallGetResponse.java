@@ -37,6 +37,7 @@ public class WallGetResponse {
         private Long id;
         private Long date;
         private List<Attachment> attachments;
+        private List<WallPost> copyHistory;
 
         public Long getId() {
             return id;
@@ -60,6 +61,14 @@ public class WallGetResponse {
 
         public void setAttachments(List<Attachment> attachments) {
             this.attachments = attachments;
+        }
+
+        public List<WallPost> getCopyHistory() {
+            return copyHistory;
+        }
+
+        public void setCopyHistory(List<WallPost> copyHistory) {
+            this.copyHistory = copyHistory;
         }
     }
 

@@ -4,6 +4,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import reactor.core.publisher.Mono;
@@ -34,6 +35,9 @@ public class VkApiClient {
         this.webClient = builder
                 .baseUrl(baseUrl)
                 .clientConnector(new ReactorClientHttpConnector(safeClient))
+                .exchangeStrategies(ExchangeStrategies.builder()
+                        .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
+                        .build())
                 .build();
     }
 
