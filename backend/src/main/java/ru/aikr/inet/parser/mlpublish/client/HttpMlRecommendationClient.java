@@ -79,12 +79,8 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
                                                              List<CandidateWithIndex> chunk,
                                                              Duration timeout) {
         MlRecommendationRequest request = new MlRecommendationRequest(buildCandidates(chunk));
-        Map<String, Integer> indexById = chunk.stream()
-                .collect(Collectors.toUnmodifiableMap(
-                        candidate -> candidate.image().getId(),
-                        CandidateWithIndex::index,
-                        (existing, ignored) -> existing,
-                        HashMap::new));
+        Map<String, Integer> indexById = new HashMap<>();
+        chunk.forEach(candidate -> indexById.put(candidate.image().getId(), candidate.index()));
 
         return webClient.post()
                 .uri(path)

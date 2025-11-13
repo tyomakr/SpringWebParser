@@ -7,6 +7,7 @@ import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.BodyInserters;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -144,8 +146,8 @@ class HttpMlRecommendationClientTest {
         ExchangeFunction exchangeFunction = request -> {
             assertTrue(!request.headers().containsKey(HttpHeaders.AUTHORIZATION));
             ClientResponse response = ClientResponse.create(HttpStatus.OK)
-                    .body(new MlRecommendationResponse(List.of(
-                            new MlRecommendationResponse.MlRecommendationItem("x", "url", 0.1, "reason", "skip", "miss", "hash"))))
+                    .body(BodyInserters.fromValue(new MlRecommendationResponse(List.of(
+                            new MlRecommendationResponse.MlRecommendationItem("x", "url", 0.1, "reason", "skip", "miss", "hash")))))
                     .build();
             return Mono.just(response);
         };
@@ -174,7 +176,7 @@ class HttpMlRecommendationClientTest {
                             String.valueOf(i), "https://example.com/" + i, 0.5, "reason", "publish", "hit", "hash-" + i))
                     .collect(Collectors.toList());
             ClientResponse response = ClientResponse.create(HttpStatus.OK)
-                    .body(new MlRecommendationResponse(items))
+                    .body(BodyInserters.fromValue(new MlRecommendationResponse(items)))
                     .build();
             return Mono.just(response);
         };
@@ -196,7 +198,7 @@ class HttpMlRecommendationClientTest {
         ExchangeFunction exchangeFunction = request -> Mono.just(
                 ClientResponse
                         .create(HttpStatus.UNAUTHORIZED)
-                        .body("nope")
+                        .body(BodyInserters.fromValue("nope"))
                         .build());
 
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
@@ -214,7 +216,7 @@ class HttpMlRecommendationClientTest {
         ExchangeFunction exchangeFunction = request -> Mono.just(
                 ClientResponse
                         .create(HttpStatus.UNAUTHORIZED)
-                        .body("nope")
+                        .body(BodyInserters.fromValue("nope"))
                         .build());
 
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
