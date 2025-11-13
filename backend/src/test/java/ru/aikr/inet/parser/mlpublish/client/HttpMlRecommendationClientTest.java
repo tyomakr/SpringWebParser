@@ -1,15 +1,11 @@
 package ru.aikr.inet.parser.mlpublish.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.http.server.reactive.ReactiveHttpOutputMessage;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
@@ -18,10 +14,8 @@ import ru.aikr.inet.parser.mlpublish.exception.MlRecommendationException;
 import ru.aikr.inet.parser.mlpublish.model.MlRecommendation;
 import ru.aikr.inet.parser.mlpublish.model.MlRecommendationResponse;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -35,20 +29,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-@SuppressWarnings("null")
 class HttpMlRecommendationClientTest {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final DefaultDataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory();
 
     @Test
     void shouldReturnRecommendationsOnSuccess() {
-        ExchangeFunction exchangeFunction = Objects.requireNonNull(mock(ExchangeFunction.class));
+        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         MlRecommendationProperties properties = withDefaults();
         HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
 
-        ClientResponse response = recommendationResponse(List.of(
+        ClientResponse response = mockRecommendationResponse(List.of(
                 new MlRecommendationResponse.MlRecommendationItem("1", "https://example.com/1.jpg", 0.9, "good",
                         "publish", "hit", "hash1"),
                 new MlRecommendationResponse.MlRecommendationItem("2", "https://example.com/2.jpg", 0.3, "bad",
@@ -69,8 +59,8 @@ class HttpMlRecommendationClientTest {
 
     @Test
     void shouldPropagateStatusError() {
-        ClientResponse response = stringResponse(HttpStatus.INTERNAL_SERVER_ERROR, "oops");
-        ExchangeFunction exchangeFunction = Objects.requireNonNull((ClientRequest request) -> Mono.just(response));
+        ClientResponse response = mockStringResponse(HttpStatus.INTERNAL_SERVER_ERROR, "oops");
+        ExchangeFunction exchangeFunction = request -> Mono.just(response);
 
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         MlRecommendationProperties properties = withDefaults();
@@ -86,10 +76,10 @@ class HttpMlRecommendationClientTest {
 
     @Test
     void shouldFallbackOnUnknownDecision() {
-        ClientResponse response = recommendationResponse(List.of(
+        ClientResponse response = mockRecommendationResponse(List.of(
                 new MlRecommendationResponse.MlRecommendationItem("1", "https://example.com/1.jpg", 0.6, "wtf",
                         "wtf", "gray", "hash-wtf")));
-        ExchangeFunction exchangeFunction = Objects.requireNonNull((ClientRequest request) -> Mono.just(response));
+        ExchangeFunction exchangeFunction = request -> Mono.just(response);
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         MlRecommendationProperties properties = withDefaults();
         HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
@@ -102,8 +92,8 @@ class HttpMlRecommendationClientTest {
 
     @Test
     void shouldFailOnEmptyPayload() {
-        ClientResponse response = recommendationResponse(null);
-        ExchangeFunction exchangeFunction = Objects.requireNonNull((ClientRequest request) -> Mono.just(response));
+        ClientResponse response = mockRecommendationResponse(null);
+        ExchangeFunction exchangeFunction = request -> Mono.just(response);
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         MlRecommendationProperties properties = withDefaults();
         HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
@@ -115,7 +105,7 @@ class HttpMlRecommendationClientTest {
 
     @Test
     void shouldReturnEmptyForEmptyCandidates() {
-        ExchangeFunction exchangeFunction = Objects.requireNonNull(mock(ExchangeFunction.class));
+        ExchangeFunction exchangeFunction = mock(ExchangeFunction.class);
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         MlRecommendationProperties properties = withDefaults();
         HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
@@ -129,9 +119,9 @@ class HttpMlRecommendationClientTest {
 
     @Test
     void shouldCallWithoutApiKeyAndReturnMappedItems() {
-        ClientResponse response = recommendationResponse(List.of(
+        ClientResponse response = mockRecommendationResponse(List.of(
                 new MlRecommendationResponse.MlRecommendationItem("x", "url", 0.1, "reason", "skip", "miss", "hash")));
-        ExchangeFunction exchangeFunction = Objects.requireNonNull((ClientRequest request) -> Mono.just(response));
+        ExchangeFunction exchangeFunction = request -> Mono.just(response);
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         MlRecommendationProperties properties = withDefaults();
         properties.setApiKey(null);
@@ -149,14 +139,13 @@ class HttpMlRecommendationClientTest {
                 .mapToObj(i -> new WebImage(String.valueOf(i), "https://example.com/" + i))
                 .collect(Collectors.toList());
         List<ClientResponse> responses = IntStream.range(0, 4)
-                .mapToObj(call -> recommendationResponse(IntStream.range(call * 100, Math.min(call * 100 + 100, many.size()))
+                .mapToObj(call -> mockRecommendationResponse(IntStream.range(call * 100, Math.min(call * 100 + 100, many.size()))
                         .mapToObj(i -> new MlRecommendationResponse.MlRecommendationItem(
                                 String.valueOf(i), "https://example.com/" + i, 0.5, "reason",
                                 "publish", "hit", "hash-" + i))
                         .collect(Collectors.toList())))
                 .collect(Collectors.toList());
-        ExchangeFunction exchangeFunction = Objects.requireNonNull((ClientRequest request) ->
-                Mono.just(responses.get(count.getAndIncrement())));
+        ExchangeFunction exchangeFunction = request -> Mono.just(responses.get(count.getAndIncrement()));
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         MlRecommendationProperties properties = withDefaults();
         properties.setMaxBatchSize(100);
@@ -173,7 +162,7 @@ class HttpMlRecommendationClientTest {
     @Test
     void unauthorizedWhenRequireApiKeyFalseThrows() {
         ClientResponse response = stringResponse(HttpStatus.UNAUTHORIZED, "nope");
-        ExchangeFunction exchangeFunction = Objects.requireNonNull((ClientRequest request) -> Mono.just(response));
+        ExchangeFunction exchangeFunction = request -> Mono.just(response);
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
 
         MlRecommendationProperties properties = withDefaults();
@@ -187,7 +176,7 @@ class HttpMlRecommendationClientTest {
     @Test
     void unauthorizedWhenRequireApiKeyTrueFallsBack() {
         ClientResponse response = stringResponse(HttpStatus.UNAUTHORIZED, "nope");
-        ExchangeFunction exchangeFunction = Objects.requireNonNull((ClientRequest request) -> Mono.just(response));
+        ExchangeFunction exchangeFunction = request -> Mono.just(response);
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
 
         MlRecommendationProperties properties = withDefaults();
@@ -215,32 +204,18 @@ class HttpMlRecommendationClientTest {
         return properties;
     }
 
-    private static ClientResponse recommendationResponse(List<MlRecommendationResponse.MlRecommendationItem> items) {
-        return createResponse(HttpStatus.OK, new MlRecommendationResponse(items));
+    private static ClientResponse mockRecommendationResponse(List<MlRecommendationResponse.MlRecommendationItem> items) {
+        ClientResponse response = mock(ClientResponse.class);
+        when(response.statusCode()).thenReturn(HttpStatus.OK);
+        when(response.bodyToMono(MlRecommendationResponse.class))
+                .thenReturn(Mono.just(new MlRecommendationResponse(items)));
+        return response;
     }
 
     private static ClientResponse stringResponse(HttpStatus status, String body) {
-        return createResponse(status, body);
-    }
-
-    private static ClientResponse createResponse(HttpStatus status, Object payload) {
-        return ClientResponse.create(status)
-                .body((ReactiveHttpOutputMessage outputMessage) -> {
-                    byte[] bytes = toBytes(payload);
-                    DataBuffer buffer = BUFFER_FACTORY.wrap(bytes);
-                    return outputMessage.writeWith(Mono.just(buffer));
-                })
-                .build();
-    }
-
-    private static byte[] toBytes(Object payload) {
-        try {
-            if (payload instanceof String string) {
-                return string.getBytes(StandardCharsets.UTF_8);
-            }
-            return OBJECT_MAPPER.writeValueAsBytes(payload);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
+        ClientResponse response = mock(ClientResponse.class);
+        when(response.statusCode()).thenReturn(status);
+        when(response.bodyToMono(String.class)).thenReturn(Mono.just(body));
+        return response;
     }
 }
