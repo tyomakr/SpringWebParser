@@ -1,6 +1,5 @@
 package ru.aikr.inet.parser.mlpublish.controller;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
@@ -19,7 +18,6 @@ import ru.aikr.inet.parser.mlpublish.model.MlStatusResponse;
 import java.time.Duration;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/ml")
 public class MlStatusController {
 
@@ -27,6 +25,14 @@ public class MlStatusController {
     private final MlRecommendationProperties properties;
     @Qualifier("mlStatusWebClient")
     private final WebClient statusWebClient;
+
+    public MlStatusController(MlConfigClient configClient,
+                              MlRecommendationProperties properties,
+                              @Qualifier("mlStatusWebClient") WebClient statusWebClient) {
+        this.configClient = configClient;
+        this.properties = properties;
+        this.statusWebClient = statusWebClient;
+    }
 
     @GetMapping("/config")
     public Mono<MlClientConfigResponse> config() {

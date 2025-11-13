@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -36,6 +37,7 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
 
     private final WebClient webClient;
     private final MlRecommendationProperties properties;
+    private static final String EMPTY_BODY = "empty";
 
     public HttpMlRecommendationClient(WebClient webClient, MlRecommendationProperties properties) {
         this.webClient = webClient;
@@ -75,9 +77,10 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
                 .onErrorResume(this::handleErrorFallback);
     }
 
-    private Mono<List<RecommendationWithIndex>> requestChunk(String path,
+    private Mono<List<RecommendationWithIndex>> requestChunk(@NonNull String path,
                                                              List<CandidateWithIndex> chunk,
                                                              Duration timeout) {
+        Objects.requireNonNull(path, "path must not be null");
         MlRecommendationRequest request = new MlRecommendationRequest(buildCandidates(chunk));
         Map<String, Integer> indexById = new HashMap<>();
         chunk.forEach(candidate -> {
@@ -109,25 +112,30 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
     private void applyAuthorization(HttpHeaders headers) {
         String apiKey = properties.getApiKey();
         if (StringUtils.hasText(apiKey)) {
-            headers.setBearerAuth(apiKey);
+            headers.setBearerAuth(Objects.requireNonNull(apiKey, "apiKey must not be null"));
         }
     }
 
     private Mono<Throwable> handleUnauthorized(ClientResponse response) {
-        return response.bodyToMono(String.class)
-                .defaultIfEmpty("empty")
-                .flatMap(body -> Mono.error(new MlRecommendationUnauthorizedException(
+        return readBodySafely(response)
+                .defaultIfEmpty(EMPTY_BODY)
+                .map(body -> new MlRecommendationUnauthorizedException(
                         "ML service responded with 401 Unauthorized: " + body
-                )));
+                ));
     }
 
     private Mono<Throwable> handleHttpError(ClientResponse response) {
-        return response.bodyToMono(String.class)
-                .defaultIfEmpty("empty")
-                .flatMap(body -> Mono.error(new MlRecommendationException(
+        return readBodySafely(response)
+                .defaultIfEmpty(EMPTY_BODY)
+                .map(body -> new MlRecommendationException(
                         "ML service responded with error: " +
                                 response.statusCode() + " - " + body
-                )));
+                ));
+    }
+
+    private Mono<String> readBodySafely(ClientResponse response) {
+        Mono<String> body = response.bodyToMono(String.class);
+        return body != null ? body : Mono.just(EMPTY_BODY);
     }
 
     private List<RecommendationWithIndex> mapChunkResponse(MlRecommendationResponse response,

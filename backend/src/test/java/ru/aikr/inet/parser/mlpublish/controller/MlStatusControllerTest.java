@@ -8,6 +8,8 @@ import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.http.HttpStatus;
@@ -26,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 @WebFluxTest(MlStatusController.class)
 @Import(MlStatusControllerTest.TestConfig.class)
+@TestPropertySource(properties = "ml.publish.api-key=dummy")
 @SuppressWarnings("null")
 class MlStatusControllerTest {
 
@@ -95,6 +98,7 @@ class MlStatusControllerTest {
                 request -> Mono.error(new IllegalStateException("no handler set")));
 
         @Bean
+        @Primary
         MlRecommendationProperties properties() {
             MlRecommendationProperties properties = new MlRecommendationProperties();
             properties.setBaseUrl("http://ml-service");
