@@ -59,7 +59,7 @@ class HttpMlRecommendationClientTest {
 
     @Test
     void shouldPropagateStatusError() {
-        ClientResponse response = mockStringResponse(HttpStatus.INTERNAL_SERVER_ERROR, "oops");
+        ClientResponse response = stringResponse(HttpStatus.INTERNAL_SERVER_ERROR, "oops");
         ExchangeFunction exchangeFunction = request -> Mono.just(response);
 
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
