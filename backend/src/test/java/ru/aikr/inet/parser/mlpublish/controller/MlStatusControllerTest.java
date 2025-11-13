@@ -18,7 +18,6 @@ import ru.aikr.inet.parser.mlpublish.client.MlConfigClient;
 import ru.aikr.inet.parser.mlpublish.config.MlRecommendationProperties;
 import ru.aikr.inet.parser.mlpublish.model.MlConfigResponse;
 import ru.aikr.inet.parser.mlpublish.model.MlMetricsResponse;
-import ru.aikr.inet.parser.mlpublish.model.MlStatusResponse;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -27,6 +26,7 @@ import static org.mockito.Mockito.when;
 
 @WebFluxTest(MlStatusController.class)
 @Import(MlStatusControllerTest.TestConfig.class)
+@SuppressWarnings("null")
 class MlStatusControllerTest {
 
     @Autowired
