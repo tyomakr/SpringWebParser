@@ -2,7 +2,6 @@ package ru.aikr.inet.parser.history.service;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -26,7 +25,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 @Service
-@RequiredArgsConstructor
 public class VkWallSyncService {
 
     public static class RateLimitException extends RuntimeException {

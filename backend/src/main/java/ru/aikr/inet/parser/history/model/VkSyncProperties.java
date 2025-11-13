@@ -1,10 +1,7 @@
 package ru.aikr.inet.parser.history.model;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.time.Duration;
 
-@ConfigurationProperties(prefix = "vk.sync")
 public class VkSyncProperties {
 
     private boolean enabled = false;

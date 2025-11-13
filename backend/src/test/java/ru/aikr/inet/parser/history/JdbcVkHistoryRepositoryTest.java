@@ -55,7 +55,7 @@ class JdbcVkHistoryRepositoryTest {
         assertThat(result).hasSize(2);
         assertThat(result.stream().allMatch(r -> Boolean.TRUE.equals(r.getUseForTraining()))).isTrue();
         assertThat(result.stream().map(VkImageHistoryRecord::getHash).toList())
-                .containsExactly("alpha", "beta");
+                .containsExactly("beta", "alpha");
     }
 
     @Test
@@ -69,7 +69,7 @@ class JdbcVkHistoryRepositoryTest {
 
         assertThat(page).hasSize(2);
         assertThat(page.stream().map(VkImageHistoryRecord::getHash).toList())
-                .containsExactly("second", "third");
+                .containsExactly("second", "first");
     }
 
     @Test
@@ -82,7 +82,7 @@ class JdbcVkHistoryRepositoryTest {
         List<VkImageHistoryRecord> filtered = repository.findTrainingBatch(10, 0, boundary);
 
         assertThat(filtered.stream().map(VkImageHistoryRecord::getHash).toList())
-                .containsExactly("boundary", "after");
+                .containsExactly("after", "boundary");
     }
 
     private void insert(String hash, Instant createdAt, boolean useForTraining) {

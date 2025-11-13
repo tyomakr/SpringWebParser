@@ -1,12 +1,13 @@
 package ru.aikr.inet.parser.history.repository;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -110,10 +111,12 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
         params.add(safeLimit);
         params.add(safeOffset);
 
+        String sql = Objects.requireNonNull(query.toString());
+        Object[] queryArgs = params.toArray();
         List<VkImageHistoryRecord> items = jdbcTemplate.query(
-                query.toString(),
+                sql,
                 this::mapRow,
-                params.toArray()
+                queryArgs
         );
         long total = count(useForTraining, since);
         int pageNumber = safeOffset / safeLimit;
@@ -126,7 +129,9 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
     public long count(Boolean useForTraining, Instant since) {
         StringBuilder query = new StringBuilder("SELECT COUNT(*) FROM vk_image_history");
         List<Object> params = applyFilters(query, useForTraining, since);
-        Long value = jdbcTemplate.queryForObject(query.toString(), params.toArray(), Long.class);
+        String sql = Objects.requireNonNull(query.toString());
+        Object[] queryArgs = params.toArray();
+        Long value = jdbcTemplate.queryForObject(sql, Long.class, queryArgs);
         return value != null ? value : 0L;
     }
 
