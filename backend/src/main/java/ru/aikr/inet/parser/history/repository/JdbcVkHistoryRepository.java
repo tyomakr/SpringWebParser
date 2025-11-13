@@ -1,5 +1,9 @@
 package ru.aikr.inet.parser.history.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
@@ -8,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -88,26 +93,56 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
 
     @Override
     public List<VkImageHistoryRecord> findTrainingBatch(int limit, int offset, Instant since) {
-        String baseSelect = "SELECT id, post_id, url, hash, created_at, synced_at, " +
-                "ml_decision, ml_score, ml_reason, use_for_training FROM vk_image_history " +
-                "WHERE use_for_training = TRUE";
+        Page<VkImageHistoryRecord> page = findPage(limit, offset, Boolean.TRUE, since);
+        return page.getContent();
+    }
 
-        if (since != null) {
-            return jdbcTemplate.query(
-                    baseSelect + " AND created_at >= ? ORDER BY created_at, id LIMIT ? OFFSET ?",
-                    this::mapRow,
-                    Timestamp.from(since),
-                    limit,
-                    offset
-            );
-        }
-
-        return jdbcTemplate.query(
-                baseSelect + " ORDER BY created_at, id LIMIT ? OFFSET ?",
-                this::mapRow,
-                limit,
-                offset
+    @Override
+    public Page<VkImageHistoryRecord> findPage(int limit, int offset, Boolean useForTraining, Instant since) {
+        int safeLimit = Math.max(limit, 1);
+        int safeOffset = Math.max(offset, 0);
+        StringBuilder query = new StringBuilder(
+                "SELECT id, post_id, url, hash, created_at, synced_at, " +
+                        "ml_decision, ml_score, ml_reason, use_for_training FROM vk_image_history"
         );
+        List<Object> params = applyFilters(query, useForTraining, since);
+        query.append(" ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?");
+        params.add(safeLimit);
+        params.add(safeOffset);
+
+        List<VkImageHistoryRecord> items = jdbcTemplate.query(
+                query.toString(),
+                this::mapRow,
+                params.toArray()
+        );
+        long total = count(useForTraining, since);
+        int pageNumber = safeOffset / safeLimit;
+        PageRequest pageRequest = PageRequest.of(pageNumber, safeLimit,
+                Sort.by(Sort.Order.desc("created_at"), Sort.Order.desc("id")));
+        return new PageImpl<>(items, pageRequest, total);
+    }
+
+    @Override
+    public long count(Boolean useForTraining, Instant since) {
+        StringBuilder query = new StringBuilder("SELECT COUNT(*) FROM vk_image_history");
+        List<Object> params = applyFilters(query, useForTraining, since);
+        Long value = jdbcTemplate.queryForObject(query.toString(), params.toArray(), Long.class);
+        return value != null ? value : 0L;
+    }
+
+    private List<Object> applyFilters(StringBuilder query, Boolean useForTraining, Instant since) {
+        List<Object> params = new ArrayList<>();
+        boolean whereAdded = false;
+        if (useForTraining != null) {
+            query.append(" WHERE use_for_training = ?");
+            params.add(useForTraining);
+            whereAdded = true;
+        }
+        if (since != null) {
+            query.append(whereAdded ? " AND " : " WHERE ").append("created_at >= ?");
+            params.add(Timestamp.from(since));
+        }
+        return params;
     }
 
     private VkImageHistoryRecord mapRow(ResultSet rs, int rowNum) throws SQLException {

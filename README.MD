@@ -60,6 +60,10 @@ ML_PUBLISH_API_KEY=<по необходимости>
 
 Backend умеет синхронизировать стену по расписанию (`vk.sync.enabled=false` по умолчанию). Статус последней синхронизации доступен через `GET /api/vk-history/sync-wall/status`, вручную всё ещё можно запускать `POST /api/vk-history/sync-wall`.
 
+### VK history page pagination
+
+`/api/vk-history/entries/page` теперь возвращает пагинированный `PageDTO` (limit, offset, useForTraining, since). UI `/vk-history` лениво подгружает блоки по 50 записей через `IntersectionObserver`, отображает фильтры (все / только для обучения / исключённые) и параметр `since`, а также обновлённый счётчик и загрузчик внизу.
+
 ### Порты dev-стека (docker)
 
 - backend: `8111`

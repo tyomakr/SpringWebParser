@@ -6,6 +6,9 @@ const vkHistoryService = {
   entries() {
     return axios.get(`${API_ROOT}/entries`);
   },
+  entriesPage(params) {
+    return axios.get(`${API_ROOT}/entries/page`, { params });
+  },
   training() {
     return axios.get(`${API_ROOT}/training`);
   },

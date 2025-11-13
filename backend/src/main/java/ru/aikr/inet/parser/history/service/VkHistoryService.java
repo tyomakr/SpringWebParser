@@ -1,8 +1,10 @@
 package ru.aikr.inet.parser.history.service;
 
+import org.springframework.data.domain.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import ru.aikr.inet.parser.history.model.PageDTO;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingExportResponse;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.repository.VkHistoryRepository;
@@ -54,6 +56,13 @@ public class VkHistoryService {
         return repository.findAll().stream()
                 .filter(record -> Boolean.TRUE.equals(record.getUseForTraining()))
                 .toList();
+    }
+
+    public PageDTO<VkImageHistoryRecord> entriesPage(int limit, int offset, Boolean useForTraining, Instant since) {
+        int safeLimit = Math.max(limit, 1);
+        int safeOffset = Math.max(offset, 0);
+        Page<VkImageHistoryRecord> page = repository.findPage(safeLimit, safeOffset, useForTraining, since);
+        return new PageDTO<>(page.getContent(), page.getTotalElements(), safeLimit, safeOffset);
     }
 
     public void updateUseForTraining(long id, boolean useForTraining) {

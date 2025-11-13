@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.data.domain.Page;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.repository.JdbcVkHistoryRepository;
 import ru.aikr.inet.parser.history.repository.VkHistoryRepository;
@@ -97,5 +98,29 @@ class JdbcVkHistoryRepositoryTest {
                 "reason",
                 useForTraining
         );
+    }
+
+    @Test
+    void shouldReturnPagedEntriesOrderedByCreatedAtAndId() {
+        insert("alpha", Instant.parse("2023-01-01T00:00:00Z"), true);
+        insert("beta", Instant.parse("2023-01-02T00:00:00Z"), false);
+        insert("gamma", Instant.parse("2023-01-03T00:00:00Z"), true);
+
+        Page<VkImageHistoryRecord> page = repository.findPage(2, 0, null, null);
+
+        assertThat(page.getTotalElements()).isEqualTo(3);
+        assertThat(page.getContent().stream().map(VkImageHistoryRecord::getHash).toList())
+                .containsExactly("gamma", "beta");
+    }
+
+    @Test
+    void countAppliesUseForTrainingAndSinceFilters() {
+        insert("zero", Instant.parse("2023-01-01T00:00:00Z"), true);
+        insert("one", Instant.parse("2023-01-02T00:00:00Z"), true);
+        insert("two", Instant.parse("2023-01-03T00:00:00Z"), false);
+
+        long totalTraining = repository.count(true, Instant.parse("2023-01-02T00:00:00Z"));
+
+        assertThat(totalTraining).isEqualTo(1);
     }
 }

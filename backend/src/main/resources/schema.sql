@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS vk_image_history (
   use_for_training BOOLEAN DEFAULT TRUE
 );
 
+CREATE INDEX IF NOT EXISTS idx_vk_image_history_use_training_created ON vk_image_history (use_for_training, created_at);
+
 CREATE TABLE IF NOT EXISTS ml_feedback (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   candidate_id BIGINT,

@@ -15,13 +15,15 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import ru.aikr.inet.parser.history.model.PageDTO;
 import ru.aikr.inet.parser.history.model.VkHistoryEntryResponse;
 import ru.aikr.inet.parser.history.model.VkHistoryStats;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingExportResponse;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingToggleRequest;
+import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.model.VkWallSyncReport;
-import ru.aikr.inet.parser.history.service.VkHistoryService;
 import ru.aikr.inet.parser.history.model.VkWallSyncStatus;
+import ru.aikr.inet.parser.history.service.VkHistoryService;
 import ru.aikr.inet.parser.history.service.VkWallSyncScheduler;
 import ru.aikr.inet.parser.history.service.VkWallSyncService;
 
@@ -65,6 +67,17 @@ public class VkHistoryController {
                         .map(VkHistoryEntryResponse::fromRecord)
                         .toList()
         );
+    }
+
+    @GetMapping("/entries/page")
+    public Mono<PageDTO<VkImageHistoryRecord>> entriesPage(@RequestParam(defaultValue = "50") int limit,
+                                                          @RequestParam(defaultValue = "0") int offset,
+                                                          @RequestParam(required = false) Boolean useForTraining,
+                                                          @RequestParam(required = false) String since) {
+        Instant sinceInstant = parseSince(since);
+        int safeLimit = Math.max(limit, 1);
+        int safeOffset = Math.max(offset, 0);
+        return Mono.fromCallable(() -> historyService.entriesPage(safeLimit, safeOffset, useForTraining, sinceInstant));
     }
 
     @GetMapping("/training")

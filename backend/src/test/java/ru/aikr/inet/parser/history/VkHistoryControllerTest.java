@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import ru.aikr.inet.parser.history.controller.VkHistoryController;
+import ru.aikr.inet.parser.history.model.PageDTO;
 import ru.aikr.inet.parser.history.model.VkHistoryStats;
 import ru.aikr.inet.parser.history.model.VkHistoryTrainingToggleRequest;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
@@ -57,6 +58,30 @@ class VkHistoryControllerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.totalCount").isEqualTo(10);
+    }
+
+    @Test
+    void entriesPageReturnsPageDto() {
+        Instant since = Instant.parse("2024-01-01T00:00:00Z");
+        VkImageHistoryRecord record = new VkImageHistoryRecord();
+        record.setHash("hash-page");
+        record.setUrl("https://example.com/page.jpg");
+        PageDTO<VkImageHistoryRecord> pageDto = new PageDTO<>(List.of(record), 1, 50, 0);
+
+        when(historyService.entriesPage(50, 0, null, since)).thenReturn(pageDto);
+
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/vk-history/entries/page")
+                        .queryParam("limit", "50")
+                        .queryParam("offset", "0")
+                        .queryParam("since", since.toString())
+                        .build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.total").isEqualTo(1)
+                .jsonPath("$.items[0].hash").isEqualTo("hash-page");
     }
 
     @Test

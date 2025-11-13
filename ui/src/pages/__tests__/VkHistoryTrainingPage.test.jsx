@@ -1,50 +1,93 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import VkHistoryTrainingPage from "../../pages/VkHistoryTrainingPage";
 import vkHistoryService from "../../service/vkHistoryService";
 
 jest.mock("../../service/vkHistoryService");
 
+const originalIntersectionObserver = window.IntersectionObserver;
+let intersectionCallback;
+
+beforeAll(() => {
+  window.IntersectionObserver = class {
+    constructor(callback) {
+      intersectionCallback = callback;
+    }
+    observe() {}
+    disconnect() {}
+  };
+});
+
+afterAll(() => {
+  window.IntersectionObserver = originalIntersectionObserver;
+});
+
+const triggerIntersection = () => {
+  if (intersectionCallback) {
+    intersectionCallback([{ isIntersecting: true }]);
+  }
+};
+
 describe("VkHistoryTrainingPage", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    intersectionCallback = null;
   });
 
-  it("loads entries and toggles flag", async () => {
-    vkHistoryService.entries.mockResolvedValue({
-      data: [
-        { id: 1, url: "https://example.com/a.jpg", hash: "h1", useForTraining: true },
-        { id: 2, url: "https://example.com/b.jpg", hash: "h2", useForTraining: false },
-      ],
-    });
+  it("loads first page and fetches more on scroll", async () => {
+    const firstPage = {
+      data: {
+        items: [{ id: 1, hash: "h1", url: "https://example.com/1.jpg" }],
+        total: 2,
+        limit: 50,
+        offset: 0,
+      },
+    };
+    const secondPage = {
+      data: {
+        items: [{ id: 2, hash: "h2", url: "https://example.com/2.jpg" }],
+        total: 2,
+        limit: 50,
+        offset: 1,
+      },
+    };
+
+    vkHistoryService.entriesPage.mockResolvedValueOnce(firstPage).mockResolvedValueOnce(secondPage);
     vkHistoryService.updateUseForTraining.mockResolvedValue({});
+    vkHistoryService.syncWall.mockResolvedValue({ data: { inserted: 0 } });
 
     render(<VkHistoryTrainingPage />);
+
+    await waitFor(() => expect(vkHistoryService.entriesPage).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      triggerIntersection();
+    });
+
+    await waitFor(() => expect(vkHistoryService.entriesPage).toHaveBeenCalledTimes(2));
+    const images = await screen.findAllByRole("img");
+    expect(images).toHaveLength(2);
+  });
+
+  it("resets pagination when training filter is applied", async () => {
+    vkHistoryService.entriesPage.mockResolvedValue({
+      data: { items: [], total: 0, limit: 50, offset: 0 },
+    });
+
+    render(<VkHistoryTrainingPage />);
+
+    await waitFor(() => expect(vkHistoryService.entriesPage).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Для обучения" }));
 
     await waitFor(() => {
-      expect(screen.getAllByRole("checkbox", { name: "use-for-training" })).toHaveLength(2);
+      expect(vkHistoryService.entriesPage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          useForTraining: true,
+          limit: 50,
+          offset: 0,
+        })
+      );
     });
-
-    const [first, second] = screen.getAllByRole("checkbox", { name: "use-for-training" });
-
-    fireEvent.click(second);
-    expect(vkHistoryService.updateUseForTraining).toHaveBeenCalledWith(2, true);
-
-    fireEvent.click(first);
-    expect(vkHistoryService.updateUseForTraining).toHaveBeenCalledWith(1, false);
-  });
-
-  it("only training toggle hits training endpoint", async () => {
-    vkHistoryService.entries.mockResolvedValue({ data: [] });
-    vkHistoryService.training.mockResolvedValue({ data: [] });
-
-    render(<VkHistoryTrainingPage />);
-
-    await waitFor(() => expect(vkHistoryService.entries).toHaveBeenCalled());
-
-    const toggle = screen.getByRole("checkbox", { name: /Показывать только/i });
-    fireEvent.click(toggle);
-
-    await waitFor(() => expect(vkHistoryService.training).toHaveBeenCalled());
   });
 });

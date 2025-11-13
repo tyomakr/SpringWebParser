@@ -1,21 +1,23 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
   Button,
   Checkbox,
+  CircularProgress,
   Container,
-  FormControlLabel,
   LinearProgress,
   Link as MuiLink,
   Paper,
-  Switch,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   useTheme,
   useScrollTrigger,
@@ -23,12 +25,22 @@ import {
 import { toast } from "react-toastify";
 import vkHistoryService from "../service/vkHistoryService";
 
+const PAGE_SIZE = 50;
+const FILTER_ALL = "all";
+const FILTER_TRAINING = "training";
+const FILTER_EXCLUDED = "excluded";
+
 export default function VkHistoryTrainingPage() {
-  const [onlyTraining, setOnlyTraining] = useState(false);
+  const [filter, setFilter] = useState(FILTER_ALL);
+  const [sinceInput, setSinceInput] = useState("");
+  const [activeSince, setActiveSince] = useState("");
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
-  const [rows, setRows] = useState([]);
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
+  const [pagination, setPagination] = useState({ limit: PAGE_SIZE, offset: 0, total: 0 });
 
   const theme = useTheme();
   const trigger = useScrollTrigger({ disableHysteresis: true, threshold: 0 });
@@ -36,70 +48,119 @@ export default function VkHistoryTrainingPage() {
   const headerH = 64;
   const headerTop = trigger ? 0 : appBarH;
 
-  const formatTimestamp = (date) =>
-    date ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—";
+  const sentinelRef = useRef(null);
 
-  const load = async (trainingOnly) => {
-    setLoading(true);
+  const loadPage = useCallback(async (offsetParam, reset = false) => {
     setError(null);
+    if (reset) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      const res = trainingOnly
-        ? await vkHistoryService.training()
-        : await vkHistoryService.entries();
-      setRows(res.data || []);
+      const resolvedFilter =
+        filter === FILTER_TRAINING ? true : filter === FILTER_EXCLUDED ? false : undefined;
+      const normalizedSince = activeSince?.trim();
+      const safeOffset = Math.max(0, offsetParam);
+
+      const params = {
+        limit: PAGE_SIZE,
+        offset: safeOffset,
+      };
+      if (resolvedFilter !== undefined) {
+        params.useForTraining = resolvedFilter;
+      }
+      if (normalizedSince) {
+        params.since = normalizedSince;
+      }
+
+      const response = await vkHistoryService.entriesPage(params);
+      const data = response.data || {};
+      const fetched = Array.isArray(data.items) ? data.items : [];
+      setItems((prev) => (reset ? fetched : [...prev, ...fetched]));
+      const nextOffset = safeOffset + fetched.length;
+      const total = typeof data.total === "number" ? data.total : 0;
+      setPagination({ limit: PAGE_SIZE, offset: nextOffset, total });
+      setHasMore(nextOffset < total);
       setLastLoadedAt(new Date());
     } catch (e) {
-      setError(e?.message || "Ошибка загрузки");
-      setRows([]);
+      setError(e?.message || "Не удалось загрузить записи");
     } finally {
-      setLoading(false);
+      if (reset) {
+        setLoading(false);
+      }
+      setLoadingMore(false);
     }
-  };
+  }, [filter, activeSince]);
 
   useEffect(() => {
-    load(onlyTraining);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onlyTraining]);
+    setItems([]);
+    setPagination({ limit: PAGE_SIZE, offset: 0, total: 0 });
+    setHasMore(true);
+    loadPage(0, true);
+  }, [loadPage]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) {
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && hasMore && !loading && !loadingMore) {
+        loadPage(pagination.offset, false);
+      }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, loadPage, pagination.offset]);
+
+  const totals = useMemo(() => {
+    const trainingCount = items.filter((item) => Boolean(item.useForTraining)).length;
+    return {
+      loaded: items.length,
+      total: pagination.total,
+      training: trainingCount,
+    };
+  }, [items, pagination.total]);
+
+  const applySinceFilter = () => {
+    setActiveSince(sinceInput.trim());
+  };
 
   const handleToggle = async (rowIndex) => {
-    const row = rows[rowIndex];
+    const row = items[rowIndex];
     const next = !Boolean(row.useForTraining);
-
-    const prevRows = [...rows];
-    const updated = [...rows];
+    const previousItems = [...items];
+    const updated = [...previousItems];
     updated[rowIndex] = { ...row, useForTraining: next };
-    setRows(updated);
+    setItems(updated);
 
     try {
       await vkHistoryService.updateUseForTraining(row.id, next);
-      if (onlyTraining && !next) {
-        load(true);
+      if (filter === FILTER_TRAINING && !next) {
+        loadPage(0, true);
       }
     } catch (e) {
+      setItems(previousItems);
       setError(e?.message || "Не удалось обновить флаг");
-      setRows(prevRows);
     }
   };
 
   const handleSyncWall = async () => {
-    setLoading(true);
     setError(null);
     try {
       const response = await vkHistoryService.syncWall({ pages: 3 });
       toast.success(`Синхронизация завершена: ${response.data.inserted ?? 0} записей`);
-      await load(onlyTraining);
+      loadPage(0, true);
     } catch (e) {
       setError(e?.message || "Не удалось синхронизировать стену");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const totals = useMemo(() => {
-    const total = rows.length;
-    const training = rows.filter((r) => r.useForTraining === true).length;
-    return { total, training };
-  }, [rows]);
+  const handleRefresh = () => {
+    loadPage(0, true);
+  };
 
   return (
     <>
@@ -123,24 +184,46 @@ export default function VkHistoryTrainingPage() {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={onlyTraining}
-                onChange={(e) => setOnlyTraining(e.target.checked)}
-              />
-            }
-            label="Только обучение"
+          <ToggleButtonGroup
+            value={filter}
+            exclusive
+            onChange={(_, next) => {
+              if (next) {
+                setFilter(next);
+              }
+            }}
+            size="small"
+          >
+            <ToggleButton value={FILTER_ALL}>Все</ToggleButton>
+            <ToggleButton value={FILTER_TRAINING}>Для обучения</ToggleButton>
+            <ToggleButton value={FILTER_EXCLUDED}>Исключённые</ToggleButton>
+          </ToggleButtonGroup>
+          <TextField
+            size="small"
+            label="С (ISO)"
+            placeholder="2024-01-01T00:00:00Z"
+            value={sinceInput}
+            onChange={(event) => setSinceInput(event.target.value)}
           />
+          <Button variant="outlined" size="small" onClick={applySinceFilter} disabled={loading}>
+            Применить
+          </Button>
           <Typography variant="body2" color="text.secondary">
-            Всего: {totals.total} · Для обучения: {totals.training}
+            Показано {totals.loaded} из {totals.total}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Обновлено: {formatTimestamp(lastLoadedAt)}
+            Обновлено:{" "}
+            {lastLoadedAt
+              ? lastLoadedAt.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })
+              : "—"}
           </Typography>
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Button variant="outlined" onClick={() => load(onlyTraining)} disabled={loading}>
+          <Button variant="outlined" onClick={handleRefresh} disabled={loading}>
             Обновить
           </Button>
           <Button variant="outlined" onClick={handleSyncWall} disabled={loading}>
@@ -158,47 +241,47 @@ export default function VkHistoryTrainingPage() {
           История VK / Обучающий датасет
         </Typography>
 
-      {loading && <LinearProgress />}
+        {loading && <LinearProgress sx={{ mb: 2 }} />}
 
-      {error && (
-        <Alert severity="error" sx={{ my: 2 }}>
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert severity="error" sx={{ my: 2 }}>
+            {error}
+          </Alert>
+        )}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Превью</TableCell>
-              <TableCell>URL</TableCell>
-              <TableCell>ML decision</TableCell>
-              <TableCell>Score</TableCell>
-              <TableCell>Reason</TableCell>
-              <TableCell align="center">Use for training</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row, idx) => (
-              <TableRow key={row.id ?? `${row.hash}-${idx}`}>
-                <TableCell>{row.id ?? "—"}</TableCell>
-                <TableCell>
-                  <img
-                    src={row.url}
-                    alt={row.hash}
-                    style={{ width: 120, height: 80, objectFit: "cover" }}
-                    onError={(e) => (e.currentTarget.style.visibility = "hidden")}
-                  />
-                </TableCell>
-                <TableCell>
-                  <MuiLink href={row.url} target="_blank" rel="noreferrer">
-                    {row.url}
-                  </MuiLink>
-                </TableCell>
-                <TableCell>{row.mlDecision ?? "—"}</TableCell>
-                <TableCell>{row.mlScore != null ? row.mlScore.toFixed(3) : "—"}</TableCell>
-                <TableCell>{row.mlReason ?? "—"}</TableCell>
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>ID</TableCell>
+                <TableCell>Превью</TableCell>
+                <TableCell>URL</TableCell>
+                <TableCell>ML decision</TableCell>
+                <TableCell>Score</TableCell>
+                <TableCell>Reason</TableCell>
+                <TableCell align="center">Use for training</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.map((row, idx) => (
+                <TableRow key={row.id ?? `${row.hash}-${idx}`}>
+                  <TableCell>{row.id ?? "—"}</TableCell>
+                  <TableCell>
+                    <img
+                      src={row.url}
+                      alt={row.hash}
+                      style={{ width: 120, height: 80, objectFit: "cover" }}
+                      onError={(e) => (e.currentTarget.style.visibility = "hidden")}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <MuiLink href={row.url} target="_blank" rel="noreferrer">
+                      {row.url}
+                    </MuiLink>
+                  </TableCell>
+                  <TableCell>{row.mlDecision ?? "—"}</TableCell>
+                  <TableCell>{row.mlScore != null ? row.mlScore.toFixed(3) : "—"}</TableCell>
+                  <TableCell>{row.mlReason ?? "—"}</TableCell>
                 <TableCell align="center">
                   <Checkbox
                     checked={Boolean(row.useForTraining)}
@@ -207,18 +290,30 @@ export default function VkHistoryTrainingPage() {
                     inputProps={{ "aria-label": "use-for-training" }}
                   />
                 </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 && !loading && !error && (
-              <TableRow>
-                <TableCell colSpan={7}>
-                  <Alert severity="info">Записей нет.</Alert>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                </TableRow>
+              ))}
+              {items.length === 0 && !loading && !error && (
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <Alert severity="info">Записей нет.</Alert>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Box
+          ref={sentinelRef}
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            mt: 2,
+            minHeight: 32,
+          }}
+        >
+          {loadingMore && <CircularProgress size={24} />}
+        </Box>
       </Container>
     </>
   );
