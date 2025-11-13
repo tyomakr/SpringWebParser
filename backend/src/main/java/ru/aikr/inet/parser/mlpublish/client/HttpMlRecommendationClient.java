@@ -107,8 +107,9 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
     }
 
     private void applyAuthorization(HttpHeaders headers) {
-        if (StringUtils.hasText(properties.getApiKey())) {
-            headers.setBearerAuth(properties.getApiKey());
+        String apiKey = properties.getApiKey();
+        if (StringUtils.hasText(apiKey)) {
+            headers.setBearerAuth(apiKey);
         }
     }
 

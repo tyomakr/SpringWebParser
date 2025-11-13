@@ -9,6 +9,7 @@ import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.server.reactive.ReactiveHttpOutputMessage;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
@@ -224,7 +225,7 @@ class HttpMlRecommendationClientTest {
 
     private static ClientResponse createResponse(HttpStatus status, Object payload) {
         return ClientResponse.create(status)
-                .body(outputMessage -> {
+                .body((ReactiveHttpOutputMessage outputMessage) -> {
                     byte[] bytes = toBytes(payload);
                     DataBuffer buffer = BUFFER_FACTORY.wrap(bytes);
                     return outputMessage.writeWith(Mono.just(buffer));
