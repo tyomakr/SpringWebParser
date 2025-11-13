@@ -1,8 +1,8 @@
 package ru.aikr.inet.parser.mlpublish.client;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
@@ -17,12 +17,14 @@ import ru.aikr.inet.parser.mlpublish.model.MlRecommendationResponse;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -137,6 +139,95 @@ class HttpMlRecommendationClientTest {
         verifyNoInteractions(exchangeFunction);
     }
 
+    @Test
+    void shouldCallWithoutApiKeyAndReturnMappedItems() {
+        ExchangeFunction exchangeFunction = request -> {
+            assertTrue(!request.headers().containsKey(HttpHeaders.AUTHORIZATION));
+            ClientResponse response = ClientResponse.create(HttpStatus.OK)
+                    .body(new MlRecommendationResponse(List.of(
+                            new MlRecommendationResponse.MlRecommendationItem("x", "url", 0.1, "reason", "skip", "miss", "hash"))))
+                    .build();
+            return Mono.just(response);
+        };
+        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+        MlRecommendationProperties properties = withDefaults();
+        properties.setApiKey(null);
+        HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
+
+        List<MlRecommendation> actual = client.recommend(sampleImages()).block();
+        assertNotNull(actual);
+        assertEquals(1, actual.size());
+    }
+
+    @Test
+    void shouldChunkLargeCandidateListAndPreserveOrder() {
+        AtomicInteger requestCount = new AtomicInteger();
+        List<WebImage> many = IntStream.range(0, 371)
+                .mapToObj(i -> new WebImage(String.valueOf(i), "https://example.com/" + i))
+                .collect(Collectors.toList());
+        ExchangeFunction exchangeFunction = request -> {
+            int call = requestCount.getAndIncrement();
+            int start = call * 100;
+            int end = Math.min(start + 100, many.size());
+            List<MlRecommendationResponse.MlRecommendationItem> items = IntStream.range(start, end)
+                    .mapToObj(i -> new MlRecommendationResponse.MlRecommendationItem(
+                            String.valueOf(i), "https://example.com/" + i, 0.5, "reason", "publish", "hit", "hash-" + i))
+                    .collect(Collectors.toList());
+            ClientResponse response = ClientResponse.create(HttpStatus.OK)
+                    .body(new MlRecommendationResponse(items))
+                    .build();
+            return Mono.just(response);
+        };
+        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+        MlRecommendationProperties properties = withDefaults();
+        properties.setMaxBatchSize(100);
+        HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
+
+        List<MlRecommendation> actual = client.recommend(many).block();
+        assertNotNull(actual);
+        assertEquals(371, actual.size());
+        assertEquals("0", actual.get(0).id());
+        assertEquals("370", actual.get(actual.size() - 1).id());
+        assertEquals(4, requestCount.get());
+    }
+
+    @Test
+    void unauthorizedWhenRequireApiKeyFalseThrows() {
+        ExchangeFunction exchangeFunction = request -> Mono.just(
+                ClientResponse
+                        .create(HttpStatus.UNAUTHORIZED)
+                        .body("nope")
+                        .build());
+
+        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+
+        MlRecommendationProperties properties = withDefaults();
+        properties.setRequireApiKey(false);
+        HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
+
+        assertThrows(MlRecommendationException.class,
+                () -> client.recommend(sampleImages()).block());
+    }
+
+    @Test
+    void unauthorizedWhenRequireApiKeyTrueFallsBack() {
+        ExchangeFunction exchangeFunction = request -> Mono.just(
+                ClientResponse
+                        .create(HttpStatus.UNAUTHORIZED)
+                        .body("nope")
+                        .build());
+
+        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+
+        MlRecommendationProperties properties = withDefaults();
+        properties.setRequireApiKey(true);
+        HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
+
+        List<MlRecommendation> actual = client.recommend(sampleImages()).block();
+        assertNotNull(actual);
+        assertTrue(actual.isEmpty());
+    }
+
     private static List<WebImage> sampleImages() {
         return List.of(
                 new WebImage("1", "https://example.com/1.jpg"),
@@ -148,44 +239,8 @@ class HttpMlRecommendationClientTest {
         properties.setRecommendationPath("/recommend");
         properties.setTimeoutSeconds(1);
         properties.setApiKey("dummy");
+        properties.setMaxBatchSize(100);
+        properties.setRequireApiKey(false);
         return properties;
-    }
-
-    @Test
-    void shouldFallbackOnUnauthorized() {
-        ExchangeFunction exchangeFunction = request -> {
-            assertEquals("Bearer dummy", request.headers().getFirst(HttpHeaders.AUTHORIZATION));
-            return Mono.just(
-                    ClientResponse
-                        .create(HttpStatus.UNAUTHORIZED)
-                        .body("nope")
-                        .build());
-        };
-
-        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
-
-        MlRecommendationProperties properties = withDefaults();
-        HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
-
-        List<MlRecommendation> actual = client.recommend(sampleImages()).block();
-
-        assertNotNull(actual);
-        assertTrue(actual.isEmpty());
-    }
-
-    @Test
-    void shouldFallbackOnTimeout() {
-        ExchangeFunction exchangeFunction = request -> Mono.<ClientResponse>never();
-
-        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
-
-        MlRecommendationProperties properties = withDefaults();
-        properties.setTimeoutSeconds(0);
-        HttpMlRecommendationClient client = new HttpMlRecommendationClient(webClient, properties);
-
-        List<MlRecommendation> actual = client.recommend(sampleImages()).block();
-
-        assertNotNull(actual);
-        assertTrue(actual.isEmpty());
     }
 }

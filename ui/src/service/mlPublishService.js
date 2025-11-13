@@ -21,6 +21,9 @@ const mlPublishService = {
     config() {
         return mlBaseClient.get("/config");
     },
+    status() {
+        return mlBaseClient.get("/status");
+    },
     feedback(entries) {
         return mlBaseClient.post("/feedback", entries);
     },

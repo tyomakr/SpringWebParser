@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { observer } from "mobx-react";
 import { toast } from "react-toastify";
 import {
@@ -47,7 +47,17 @@ const MlPublishPage = observer(() => {
     const [lastPreviewAt, setLastPreviewAt] = useState(null);
     const [decisionFilter, setDecisionFilter] = useState("ALL");
     const [showUncertainOnly, setShowUncertainOnly] = useState(false);
-    const [mlConfig, setMlConfig] = useState({ phashMaxDist: 12, grayBand: 4 });
+    const [mlPublishConfig, setMlPublishConfig] = useState({
+        apiKeyConfigured: true,
+        requireApiKey: false,
+        maxBatchSize: 100,
+        mlServiceConfig: { phashMaxDist: 12, grayBand: 4 },
+    });
+    const [mlStatus, setMlStatus] = useState(null);
+    const [statusLoading, setStatusLoading] = useState(false);
+    const [statusLastCheckedAt, setStatusLastCheckedAt] = useState(0);
+    const [previewMetrics, setPreviewMetrics] = useState({ processed: 0, durationMs: 0 });
+    const STATUS_DEBOUNCE_MS = 15000;
     const [feedbackResult, setFeedbackResult] = useState(null);
     const [feedbackError, setFeedbackError] = useState(null);
     const [loadingFeedback, setLoadingFeedback] = useState(false);
@@ -77,7 +87,11 @@ const MlPublishPage = observer(() => {
         mlPublishService.config()
             .then((response) => {
                 if (mounted && response?.data) {
-                    setMlConfig(response.data);
+                    setMlPublishConfig((prev) => ({
+                        ...prev,
+                        ...response.data,
+                        mlServiceConfig: response.data?.mlServiceConfig ?? prev.mlServiceConfig,
+                    }));
                 }
             })
             .catch(() => {
@@ -119,6 +133,70 @@ const MlPublishPage = observer(() => {
         }
     };
 
+    const checkMlStatus = useCallback(async (force = false) => {
+        const now = Date.now();
+        if (!force && now - statusLastCheckedAt < STATUS_DEBOUNCE_MS) {
+            return;
+        }
+        setStatusLoading(true);
+        try {
+            const response = await mlPublishService.status();
+            setMlStatus(response.data);
+        } catch (error) {
+            setMlStatus({
+                mlReachable: false,
+                indexSize: null,
+                config: null,
+                error: error?.message || "Unknown",
+            });
+        } finally {
+            setStatusLastCheckedAt(now);
+            setStatusLoading(false);
+        }
+    }, [statusLastCheckedAt]);
+
+    const handleCheckStatus = () => {
+        checkMlStatus(true);
+    };
+
+    const renderStatusBanner = () => {
+        if (!previewEmpty) {
+            return null;
+        }
+        if (!mlStatus && statusLoading) {
+            return (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    ML service status check in progress...
+                </Alert>
+            );
+        }
+        if (!mlStatus) {
+            return null;
+        }
+        if (!mlStatus.mlReachable) {
+            return (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    ML service is unreachable/timeout. Check the ml-service container{mlStatus.error ? ` (${mlStatus.error})` : ""}.
+                </Alert>
+            );
+        }
+        if (mlStatus.indexSize === 0) {
+            return (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Training index is empty. Run VK wall sync.
+                </Alert>
+            );
+        }
+        if (mlStatus.indexSize > 0) {
+            return (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    No recommendations for given candidates. Try a different batch or adjust thresholds.
+                </Alert>
+            );
+        }
+        return null;
+    };
+
     const buildPreviewPayload = () =>
         availableImages.map((image) => ({
             id: image.id || image.directLink,
@@ -133,29 +211,39 @@ const MlPublishPage = observer(() => {
             return;
         }
 
+        const start = Date.now();
         setLoadingPreview(true);
         setPreviewError(null);
         setPreviewEmpty(false);
         setCommitResult(null);
 
-            try {
-                const response = await mlPublishService.preview(payload);
-                const list = response.data.recommendations.map((item) => ({
-                    ...item,
-                    publish: item.decision === "PUBLISH",
-                    exclude: false,
-                }));
+        try {
+            const response = await mlPublishService.preview(payload);
+            const recommendations = response.data?.recommendations ?? [];
+            const list = recommendations.map((item) => ({
+                ...item,
+                publish: item.decision === "PUBLISH",
+                exclude: false,
+            }));
+            setPreviewMetrics({
+                processed: payload.length,
+                durationMs: Date.now() - start,
+            });
 
             if (!list.length) {
                 setPreviewEmpty(true);
                 setPreviewItems([]);
+                await checkMlStatus();
             } else {
                 setPreviewItems(list);
+                setPreviewEmpty(false);
             }
             setLastPreviewAt(new Date());
         } catch (err) {
             setPreviewError(err?.message || "Ошибка запроса ML-превью");
             setPreviewItems([]);
+            setPreviewEmpty(true);
+            await checkMlStatus();
         } finally {
             setLoadingPreview(false);
         }
@@ -339,6 +427,12 @@ const MlPublishPage = observer(() => {
                 <Typography variant="h4" gutterBottom>
                     ML-публикация
                 </Typography>
+                {!mlPublishConfig.apiKeyConfigured && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        ML export auth is disabled (dev).
+                    </Alert>
+                )}
+                {renderStatusBanner()}
                 <Box
                     sx={{
                         display: "flex",
@@ -354,6 +448,11 @@ const MlPublishPage = observer(() => {
                     <Typography variant="caption" color="text.secondary">
                         ML-превью обновлено: {formatTimestamp(lastPreviewAt)}
                     </Typography>
+                    {previewMetrics.processed > 0 && (
+                        <Typography variant="caption" color="text.secondary">
+                            Обработано {previewMetrics.processed} кандидатов за {previewMetrics.durationMs} мс
+                        </Typography>
+                    )}
                     <ToggleButtonGroup
                         size="small"
                         value={decisionFilter}
@@ -375,8 +474,20 @@ const MlPublishPage = observer(() => {
                         label="Show uncertain only"
                     />
                     <Typography variant="caption" color="text.secondary">
-                        phashMaxDist: {mlConfig.phashMaxDist} · grayBand: {mlConfig.grayBand}
+                        phashMaxDist: {mlPublishConfig.mlServiceConfig?.phashMaxDist} · grayBand:{" "}
+                        {mlPublishConfig.mlServiceConfig?.grayBand}
                     </Typography>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleCheckStatus}
+                        disabled={statusLoading}
+                        startIcon={
+                            statusLoading ? <CircularProgress size={16} /> : null
+                        }
+                    >
+                        Check ML status
+                    </Button>
                 </Box>
 
                 <Paper sx={{ p: 3, mb: 4 }}>

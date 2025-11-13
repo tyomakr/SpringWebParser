@@ -12,6 +12,8 @@ public class MlRecommendationProperties {
     private String apiKey;
     private String recommendationPath = "/recommend";
     private int timeoutSeconds = 6;
+    private boolean requireApiKey = false;
+    private int maxBatchSize = 100;
 
     public String getBaseUrl() {
         return baseUrl;
@@ -43,5 +45,21 @@ public class MlRecommendationProperties {
 
     public void setTimeoutSeconds(int timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
+    }
+
+    public boolean isRequireApiKey() {
+        return requireApiKey;
+    }
+
+    public void setRequireApiKey(boolean requireApiKey) {
+        this.requireApiKey = requireApiKey;
+    }
+
+    public int getMaxBatchSize() {
+        return maxBatchSize;
+    }
+
+    public void setMaxBatchSize(int maxBatchSize) {
+        this.maxBatchSize = maxBatchSize;
     }
 }

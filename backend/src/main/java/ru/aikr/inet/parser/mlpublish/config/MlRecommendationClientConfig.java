@@ -1,11 +1,11 @@
 package ru.aikr.inet.parser.mlpublish.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.mlpublish.client.HttpMlConfigClient;
@@ -21,6 +21,7 @@ import java.util.Objects;
 public class MlRecommendationClientConfig {
 
     @Bean
+    @Qualifier("mlRecommendationWebClient")
     @ConditionalOnProperty(prefix = "ml.publish", name = "base-url")
     public WebClient mlRecommendationWebClient(WebClient.Builder builder,
             MlRecommendationProperties properties) {
@@ -28,23 +29,31 @@ public class MlRecommendationClientConfig {
                 properties.getBaseUrl(),
                 "ml.publish.base-url must not be null when ml.publish.base-url is set");
 
-        WebClient.Builder clientBuilder = builder.baseUrl(baseUrl);
-        if (StringUtils.hasText(properties.getApiKey())) {
-            clientBuilder.defaultHeader("Authorization", "Bearer " + properties.getApiKey());
-        }
-        return clientBuilder.build();
+        return builder.baseUrl(baseUrl).build();
+    }
+
+    @Bean
+    @Qualifier("mlStatusWebClient")
+    @ConditionalOnProperty(prefix = "ml.publish", name = "base-url")
+    public WebClient mlStatusWebClient(WebClient.Builder builder,
+            MlRecommendationProperties properties) {
+        String baseUrl = Objects.requireNonNull(
+                properties.getBaseUrl(),
+                "ml.publish.base-url must not be null when ml.publish.base-url is set");
+
+        return builder.baseUrl(baseUrl).build();
     }
 
     @Bean
     @ConditionalOnProperty(prefix = "ml.publish", name = "base-url")
-    public MlRecommendationClient mlRecommendationClient(WebClient mlRecommendationWebClient,
+    public MlRecommendationClient mlRecommendationClient(@Qualifier("mlRecommendationWebClient") WebClient mlRecommendationWebClient,
             MlRecommendationProperties properties) {
         return new HttpMlRecommendationClient(mlRecommendationWebClient, properties);
     }
 
     @Bean
     @ConditionalOnProperty(prefix = "ml.publish", name = "base-url")
-    public MlConfigClient mlConfigClient(WebClient mlRecommendationWebClient) {
+    public MlConfigClient mlConfigClient(@Qualifier("mlRecommendationWebClient") WebClient mlRecommendationWebClient) {
         return new HttpMlConfigClient(mlRecommendationWebClient);
     }
 

@@ -1,10 +1,13 @@
 package ru.aikr.inet.parser.mlpublish.client;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.aikr.inet.parser.model.WebImage;
 import ru.aikr.inet.parser.recommendation.model.RecommendationDecision;
@@ -16,12 +19,17 @@ import ru.aikr.inet.parser.mlpublish.model.MlRecommendationRequest;
 import ru.aikr.inet.parser.mlpublish.model.MlRecommendationResponse;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Slf4j
 public class HttpMlRecommendationClient implements MlRecommendationClient {
@@ -39,75 +47,98 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
         if (candidates == null || candidates.isEmpty()) {
             return Mono.just(Collections.emptyList());
         }
-        if (!StringUtils.hasText(properties.getApiKey())) {
-            log.warn("ML publish API key is not configured, skipping ML recommendations");
-            return Mono.just(Collections.emptyList());
-        }
 
-        final String apiKey = Objects.requireNonNull(
-                properties.getApiKey(),
-                "ml.publish.api-key must not be null"
-        );
-
-        MlRecommendationRequest request = new MlRecommendationRequest(
-                candidates.stream()
-                        .map(img -> new MlRecommendationRequest.MlRecommendationCandidate(
-                                img.getId(), img.getDirectLink()))
-                        .collect(Collectors.toUnmodifiableList())
-        );
-
-        Duration timeout = Duration.ofSeconds(properties.getTimeoutSeconds());
         String path = Objects.requireNonNull(
                 properties.getRecommendationPath(),
                 "ml.publish.recommendation-path must not be null"
         );
+        Duration timeout = Duration.ofSeconds(properties.getTimeoutSeconds());
+        int chunkSize = Math.max(1, properties.getMaxBatchSize());
+        List<CandidateWithIndex> indexedCandidates = IntStream.range(0, candidates.size())
+                .mapToObj(i -> new CandidateWithIndex(candidates.get(i), i))
+                .collect(Collectors.toUnmodifiableList());
+        List<List<CandidateWithIndex>> chunks = partitionCandidates(indexedCandidates, chunkSize);
 
-        return webClient.post()
-                .uri(path)
-                .headers(h -> h.setBearerAuth(apiKey))
-                .bodyValue(request)
-                .retrieve()
-                .onStatus(status -> status.isSameCodeAs(HttpStatus.UNAUTHORIZED), response ->
-                        response.bodyToMono(String.class)
-                                .defaultIfEmpty("empty")
-                                .flatMap(body -> Mono.error(new MlRecommendationUnauthorizedException(
-                                        "ML service responded with 401 Unauthorized: " + body
-                                )))
-                )
-                .onStatus(HttpStatusCode::isError, response ->
-                        response.bodyToMono(String.class)
-                                .defaultIfEmpty("empty")
-                                .flatMap(body -> Mono.error(new MlRecommendationException(
-                                        "ML service responded with error: " +
-                                                response.statusCode() + " - " + body
-                                )))
-                )
-                .bodyToMono(MlRecommendationResponse.class)
-                .timeout(timeout)
-                .map(this::mapResponse)
+        return Flux.fromIterable(chunks)
+                .concatMap(chunk -> requestChunk(path, chunk, timeout))
+                .collectList()
+                .map(listOfLists -> listOfLists.stream()
+                        .flatMap(List::stream)
+                        .sorted(Comparator.comparingInt(RecommendationWithIndex::index))
+                        .map(RecommendationWithIndex::recommendation)
+                        .collect(Collectors.toUnmodifiableList()))
                 .doOnError(error -> {
                     if (!shouldFallback(error)) {
                         log.warn("Failed to call ML recommendation service", error);
                     }
                 })
-                .onErrorResume(error -> {
-                    if (shouldFallback(error)) {
-                        log.warn("ML recommendation fallback triggered: {}", error.getMessage());
-                        return Mono.just(Collections.emptyList());
-                    }
-                    if (error instanceof MlRecommendationException) {
-                        return Mono.error(error);
-                    }
-                    return Mono.error(new MlRecommendationException("Failed to fetch ML recommendations", error));
-                });
+                .onErrorResume(this::handleErrorFallback);
     }
 
-    private List<MlRecommendation> mapResponse(MlRecommendationResponse response) {
+    private Mono<List<RecommendationWithIndex>> requestChunk(String path,
+                                                             List<CandidateWithIndex> chunk,
+                                                             Duration timeout) {
+        MlRecommendationRequest request = new MlRecommendationRequest(buildCandidates(chunk));
+        Map<String, Integer> indexById = chunk.stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        candidate -> candidate.image().getId(),
+                        CandidateWithIndex::index,
+                        (existing, ignored) -> existing,
+                        HashMap::new));
+
+        return webClient.post()
+                .uri(path)
+                .headers(this::applyAuthorization)
+                .bodyValue(request)
+                .retrieve()
+                .onStatus(status -> status.isSameCodeAs(HttpStatus.UNAUTHORIZED), this::handleUnauthorized)
+                .onStatus(HttpStatusCode::isError, this::handleHttpError)
+                .bodyToMono(MlRecommendationResponse.class)
+                .timeout(timeout)
+                .map(response -> mapChunkResponse(response, indexById));
+    }
+
+    private List<MlRecommendationRequest.MlRecommendationCandidate> buildCandidates(
+            List<CandidateWithIndex> chunk) {
+        return chunk.stream()
+                .map(candidate -> new MlRecommendationRequest.MlRecommendationCandidate(
+                        candidate.image().getId(),
+                        candidate.image().getDirectLink()))
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    private void applyAuthorization(HttpHeaders headers) {
+        if (StringUtils.hasText(properties.getApiKey())) {
+            headers.setBearerAuth(properties.getApiKey());
+        }
+    }
+
+    private Mono<Throwable> handleUnauthorized(ClientResponse response) {
+        return response.bodyToMono(String.class)
+                .defaultIfEmpty("empty")
+                .flatMap(body -> Mono.error(new MlRecommendationUnauthorizedException(
+                        "ML service responded with 401 Unauthorized: " + body
+                )));
+    }
+
+    private Mono<Throwable> handleHttpError(ClientResponse response) {
+        return response.bodyToMono(String.class)
+                .defaultIfEmpty("empty")
+                .flatMap(body -> Mono.error(new MlRecommendationException(
+                        "ML service responded with error: " +
+                                response.statusCode() + " - " + body
+                )));
+    }
+
+    private List<RecommendationWithIndex> mapChunkResponse(MlRecommendationResponse response,
+                                                           Map<String, Integer> indexMap) {
         if (response == null || response.recommendations() == null) {
             throw new MlRecommendationException("ML service returned empty payload");
         }
         return response.recommendations().stream()
                 .map(this::mapItem)
+                .map(rec -> new RecommendationWithIndex(rec,
+                        indexMap.getOrDefault(rec.id(), Integer.MAX_VALUE)))
                 .collect(Collectors.toUnmodifiableList());
     }
 
@@ -135,7 +166,40 @@ public class HttpMlRecommendationClient implements MlRecommendationClient {
         }
     }
 
-    private static boolean shouldFallback(Throwable error) {
-        return error instanceof MlRecommendationUnauthorizedException || error instanceof TimeoutException;
+    private boolean shouldFallback(Throwable error) {
+        if (error instanceof TimeoutException) {
+            return true;
+        }
+        if (error instanceof MlRecommendationUnauthorizedException) {
+            return properties.isRequireApiKey();
+        }
+        return false;
+    }
+
+    private Mono<List<MlRecommendation>> handleErrorFallback(Throwable error) {
+        if (shouldFallback(error)) {
+            log.warn("ML recommendation fallback triggered: {}", error.getMessage());
+            return Mono.just(Collections.emptyList());
+        }
+        if (error instanceof MlRecommendationException) {
+            return Mono.error(error);
+        }
+        return Mono.error(new MlRecommendationException("Failed to fetch ML recommendations", error));
+    }
+
+    private static List<List<CandidateWithIndex>> partitionCandidates(List<CandidateWithIndex> candidates,
+                                                                      int chunkSize) {
+        List<List<CandidateWithIndex>> result = new ArrayList<>();
+        int size = candidates.size();
+        for (int start = 0; start < size; start += chunkSize) {
+            result.add(candidates.subList(start, Math.min(start + chunkSize, size)));
+        }
+        return result;
+    }
+
+    private record CandidateWithIndex(WebImage image, int index) {
+    }
+
+    private record RecommendationWithIndex(MlRecommendation recommendation, int index) {
     }
 }
