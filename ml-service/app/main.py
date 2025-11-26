@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
+    if settings.sync_debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
+        logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
+        logging.getLogger("app.syncer").setLevel(logging.DEBUG)
     storage = Storage(settings.db_path)
     storage.init()
     index_service = IndexService()
@@ -54,13 +59,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stop_event = asyncio.Event()
             sync_task = None
             if settings.sync_startup:
+                # Try to populate index before serving requests (with short retries so startup isn't too slow).
+                for attempt in range(1, 4):
+                    try:
+                        await syncer.run_once()
+                        break
+                    except Exception:  # pylint: disable=broad-except
+                        logger.exception("Initial training sync failed (attempt %s/3)", attempt)
+                        await asyncio.sleep(5)
                 sync_task = asyncio.create_task(syncer.run_periodic(stop_event))
             try:
                 yield
             finally:
                 stop_event.set()
                 if sync_task:
-                    await sync_task
+                    try:
+                        await sync_task
+                    except Exception:  # pylint: disable=broad-except
+                        logger.exception("Background sync task failed during shutdown")
 
     app.router.lifespan_context = lifespan
 
@@ -81,7 +97,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/recommend", response_model=RecommendationResponse, response_model_exclude_none=True)
     async def recommend(payload: RecommendationRequest,
-                        analyzer: ImageAnalyzer = Depends(get_analyzer)) -> RecommendationResponse:
+                        analyzer: ImageAnalyzer = Depends(get_analyzer),
+                        syncer: TrainingSyncer = Depends(get_syncer),
+                        index_service: IndexService = Depends(get_index_service)) -> RecommendationResponse:
+        # If index is empty, try a one-off sync so recommendations have training data.
+        if index_service.size() == 0:
+            try:
+                await syncer.run_once()
+            except Exception:  # pylint: disable=broad-except
+                logger.exception("On-demand training sync failed before recommend")
         recommendations: list[RecommendationItem] = []
         tasks = [
             analyzer.analyze_candidate(candidate.id, str(candidate.url))
@@ -124,6 +148,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return ConfigResponse(
             phashMaxDist=settings.phash_max_dist,
             grayBand=settings.gray_band,
+            trainingExportUrl=settings.training_export_url,
+            syncEnabled=settings.sync_startup,
+            syncIntervalSec=settings.sync_interval_sec,
+            apiKeyConfigured=bool(settings.training_export_api_key),
         )
 
     return app
