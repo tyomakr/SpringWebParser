@@ -34,6 +34,10 @@ class RecommendationItem(BaseModel):
 class ConfigResponse(BaseModel):
     phashMaxDist: int
     grayBand: int
+    trainingExportUrl: AnyHttpUrl
+    syncEnabled: bool
+    syncIntervalSec: int
+    apiKeyConfigured: bool
 
 
 class RecommendationResponse(BaseModel):

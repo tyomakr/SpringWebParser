@@ -8,6 +8,7 @@ ui/node_modules/
 ui/build/
 ui/.idea
 ui/ui.iml
+ui/package-lock.json
 
 # Maven / Gradle wrapper
 !backend/.mvn/**

@@ -33,3 +33,7 @@ async def test_metrics_and_health(tmp_path):
         conf_data = config.json()
         assert conf_data["phashMaxDist"] == settings.phash_max_dist
         assert conf_data["grayBand"] == settings.gray_band
+        assert conf_data["trainingExportUrl"] == str(settings.training_export_url)
+        assert conf_data["syncEnabled"] is False
+        assert conf_data["syncIntervalSec"] == settings.sync_interval_sec
+        assert conf_data["apiKeyConfigured"] is False
