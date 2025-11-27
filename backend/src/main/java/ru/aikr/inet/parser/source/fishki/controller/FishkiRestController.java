@@ -33,7 +33,7 @@ public class FishkiRestController {
     private final VKPublishService vkPublishService;
     private final RecommendationClient recommendationClient;
 
-    private static final int MAX_PAGES_RANGE = 100;
+    private static final int MAX_PAGES_RANGE = 10_000;
     private static final int MAX_IMAGES_TO_PUBLISH = 100;
 
     public FishkiRestController(WebImageService webImageService,
