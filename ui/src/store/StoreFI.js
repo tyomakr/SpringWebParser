@@ -38,11 +38,15 @@ export class StoreFI {
                 this.webImages = response.data;
                 this.step1 = true;
             });
+            toast.success(`Загружено ${response.data.length} изображений`, { position: 'bottom-right' });
         } catch (e) {
             console.error('Ошибка при запросе изображений:', e);
-            toast.error(`Не удалось загрузить изображения: ${e.message}`, {
+            const serverMessage = e.response?.data ?? e.message;
+            toast.error(`Не удалось загрузить изображения: ${serverMessage}`, {
                 position: 'bottom-right'
             });
+            this.step1 = false;
+            this.webImages = [];
         }
     }
 
