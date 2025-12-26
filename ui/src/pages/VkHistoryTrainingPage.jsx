@@ -41,6 +41,9 @@ export default function VkHistoryTrainingPage() {
   const [error, setError] = useState(null);
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
   const [pagination, setPagination] = useState({ limit: PAGE_SIZE, offset: 0, total: 0 });
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [syncPolling, setSyncPolling] = useState(false);
+  const [syncError, setSyncError] = useState(null);
 
   const theme = useTheme();
   const trigger = useScrollTrigger({ disableHysteresis: true, threshold: 0 });
@@ -49,12 +52,32 @@ export default function VkHistoryTrainingPage() {
   const headerTop = trigger ? 0 : appBarH;
 
   const sentinelRef = useRef(null);
+  const offsetRef = useRef(0);
+  const hasMoreRef = useRef(true);
+  const loadingRef = useRef(false);
+  const loadingMoreRef = useRef(false);
+
+  const fetchSyncStatus = useCallback(async () => {
+    try {
+      const response = await vkHistoryService.syncStatus();
+      setSyncStatus(response.data);
+      setSyncError(null);
+      if (response.data?.running === false) {
+        setSyncPolling(false);
+      }
+    } catch (e) {
+      setSyncError(e?.message || "Не удалось получить статус синхронизации");
+      setSyncPolling(false);
+    }
+  }, []);
 
   const loadPage = useCallback(async (offsetParam, reset = false) => {
     setError(null);
     if (reset) {
+      loadingRef.current = true;
       setLoading(true);
     } else {
+      loadingMoreRef.current = true;
       setLoadingMore(true);
     }
 
@@ -82,6 +105,8 @@ export default function VkHistoryTrainingPage() {
       const nextOffset = safeOffset + fetched.length;
       const total = typeof data.total === "number" ? data.total : 0;
       setPagination({ limit: PAGE_SIZE, offset: nextOffset, total });
+      offsetRef.current = nextOffset;
+      hasMoreRef.current = nextOffset < total;
       setHasMore(nextOffset < total);
       setLastLoadedAt(new Date());
     } catch (e) {
@@ -89,8 +114,10 @@ export default function VkHistoryTrainingPage() {
     } finally {
       if (reset) {
         setLoading(false);
+        loadingRef.current = false;
       }
       setLoadingMore(false);
+      loadingMoreRef.current = false;
     }
   }, [filter, activeSince]);
 
@@ -98,6 +125,8 @@ export default function VkHistoryTrainingPage() {
     setItems([]);
     setPagination({ limit: PAGE_SIZE, offset: 0, total: 0 });
     setHasMore(true);
+    offsetRef.current = 0;
+    hasMoreRef.current = true;
     loadPage(0, true);
   }, [loadPage]);
 
@@ -107,13 +136,28 @@ export default function VkHistoryTrainingPage() {
       return;
     }
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting && hasMore && !loading && !loadingMore) {
-        loadPage(pagination.offset, false);
+      if (
+        entries[0]?.isIntersecting &&
+        hasMoreRef.current &&
+        !loadingRef.current &&
+        !loadingMoreRef.current
+      ) {
+        loadPage(offsetRef.current, false);
       }
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasMore, loading, loadingMore, loadPage, pagination.offset]);
+  }, [loadPage]);
+
+  useEffect(() => {
+    if (!syncPolling) {
+      return;
+    }
+    const interval = setInterval(() => {
+      fetchSyncStatus();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchSyncStatus, syncPolling]);
 
   const totals = useMemo(() => {
     const trainingCount = items.filter((item) => Boolean(item.useForTraining)).length;
@@ -150,8 +194,10 @@ export default function VkHistoryTrainingPage() {
   const handleSyncWall = async () => {
     setError(null);
     try {
-      const response = await vkHistoryService.syncWall({ pages: 3 });
-      toast.success(`Синхронизация завершена: ${response.data.inserted ?? 0} записей`);
+      await vkHistoryService.triggerSyncWall();
+      setSyncPolling(true);
+      fetchSyncStatus();
+      toast.info("Синхронизация запущена — это может занять время");
       loadPage(0, true);
     } catch (e) {
       setError(e?.message || "Не удалось синхронизировать стену");
@@ -240,6 +286,24 @@ export default function VkHistoryTrainingPage() {
         <Typography variant="h4" gutterBottom>
           История VK / Обучающий датасет
         </Typography>
+
+        {syncError && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {syncError}
+          </Alert>
+        )}
+        {syncStatus && (
+          <Alert severity={syncStatus.running ? "info" : "success"} sx={{ mb: 2 }}>
+            {syncStatus.running
+              ? "Синхронизация выполняется..."
+              : `Синхронизация завершена. Добавлено: ${syncStatus.lastReport?.inserted ?? 0}`}
+          </Alert>
+        )}
+        {syncStatus?.lastError && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Ошибка синхронизации: {syncStatus.lastError}
+          </Alert>
+        )}
 
         {loading && <LinearProgress sx={{ mb: 2 }} />}
 

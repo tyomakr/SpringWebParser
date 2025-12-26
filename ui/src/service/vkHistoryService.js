@@ -16,7 +16,13 @@ const vkHistoryService = {
     return axios.patch(`${API_ROOT}/entries/${id}/training`, { useForTraining });
   },
   syncWall(params) {
-    return axios.post(`${API_ROOT}/sync-wall`, null, { params });
+    return axios.post(`${API_ROOT}/sync-wall`, null, params ? { params } : undefined);
+  },
+  triggerSyncWall(params) {
+    return axios.post(`${API_ROOT}/sync-wall/trigger`, null, params ? { params } : undefined);
+  },
+  syncStatus() {
+    return axios.get(`${API_ROOT}/sync-wall/status`);
   },
 };
 

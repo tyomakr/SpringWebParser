@@ -20,7 +20,11 @@ class Settings(BaseSettings):
     sync_startup: bool = Field(default=True, alias="SYNC_STARTUP")
     sync_interval_sec: int = Field(default=900, alias="SYNC_INTERVAL_SEC")
     sync_page_limit: int = Field(default=500, alias="SYNC_PAGE_LIMIT")
+    sync_max_pages_per_run: int = Field(default=0, alias="SYNC_MAX_PAGES_PER_RUN")
     sync_debug: bool = Field(default=False, alias="SYNC_DEBUG")
+    similarity_mode: str = Field(default="phash", alias="SIMILARITY_MODE")
+    semantic_publish_threshold: float = Field(default=0.35, alias="SEMANTIC_MIN_SIMILARITY_PUBLISH")
+    semantic_gray_threshold: float = Field(default=0.30, alias="SEMANTIC_MIN_SIMILARITY_GRAY")
     phash_max_dist: int = Field(default=12, alias="PHASH_MAX_DIST")
     gray_band: int = Field(default=4, alias="GRAY_BAND")
     index_warmup_limit: int | None = Field(default=None, alias="INDEX_WARMUP_LIMIT")
@@ -58,12 +62,16 @@ class Settings(BaseSettings):
                 data["sync_startup"] = cls._clean_bool(data["sync_startup"])
             if "sync_interval_sec" in data:
                 data["sync_interval_sec"] = cls._clean_int(data["sync_interval_sec"])
+            if "sync_max_pages_per_run" in data:
+                data["sync_max_pages_per_run"] = cls._clean_int(data["sync_max_pages_per_run"])
             if "sync_debug" in data:
                 data["sync_debug"] = cls._clean_bool(data["sync_debug"])
             if not data.get("training_export_api_key"):
                 from_env = os.getenv("TRAINING_EXPORT_API_KEY") or os.getenv("ML_PUBLISH_API_KEY")
                 if from_env:
                     data["training_export_api_key"] = from_env
+            if "similarity_mode" in data and isinstance(data["similarity_mode"], str):
+                data["similarity_mode"] = data["similarity_mode"].lower()
         return data
 
 

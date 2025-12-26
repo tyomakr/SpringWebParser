@@ -19,6 +19,9 @@ FROM nginx:1.25-alpine
 RUN rm -rf /usr/share/nginx/html/* && \
     rm -f /etc/nginx/conf.d/default.conf
 
+# wget нужен для healthcheck
+RUN apk add --no-cache wget
+
 # Копируем сборку и конфиг nginx
 COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

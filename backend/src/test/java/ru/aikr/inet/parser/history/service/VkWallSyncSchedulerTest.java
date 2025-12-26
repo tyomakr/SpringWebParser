@@ -30,12 +30,13 @@ class VkWallSyncSchedulerTest {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         VkSyncProperties props = new VkSyncProperties();
         props.setEnabled(true);
+        props.setPageLimit(0);
         scheduler = new VkWallSyncScheduler(syncService, checkpointRepository, props, registry);
     }
 
     @Test
     void scheduledSyncRecordsSuccess() {
-        when(syncService.syncWall(null, 10))
+        when(syncService.syncWall(null, 0))
                 .thenReturn(new VkWallSyncReport(1, 1, 1, 0));
         when(checkpointRepository.getSince()).thenReturn(null);
 
@@ -50,7 +51,7 @@ class VkWallSyncSchedulerTest {
     @Test
     void scheduledSyncBacksOffOnRateLimit() {
         when(checkpointRepository.getSince()).thenReturn(null);
-        when(syncService.syncWall(null, 10))
+        when(syncService.syncWall(null, 0))
                 .thenThrow(new VkWallSyncService.RateLimitException(new RuntimeException("limit")));
 
         scheduler.scheduledSync();

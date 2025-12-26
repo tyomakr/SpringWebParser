@@ -54,19 +54,19 @@ describe("VkHistoryTrainingPage", () => {
 
     vkHistoryService.entriesPage.mockResolvedValueOnce(firstPage).mockResolvedValueOnce(secondPage);
     vkHistoryService.updateUseForTraining.mockResolvedValue({});
-    vkHistoryService.syncWall.mockResolvedValue({ data: { inserted: 0 } });
+    vkHistoryService.triggerSyncWall.mockResolvedValue({ data: {} });
 
     render(<VkHistoryTrainingPage />);
 
     await waitFor(() => expect(vkHistoryService.entriesPage).toHaveBeenCalledTimes(1));
+    await screen.findAllByRole("img");
 
     act(() => {
       triggerIntersection();
     });
 
     await waitFor(() => expect(vkHistoryService.entriesPage).toHaveBeenCalledTimes(2));
-    const images = await screen.findAllByRole("img");
-    expect(images).toHaveLength(2);
+    await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(2));
   });
 
   it("resets pagination when training filter is applied", async () => {

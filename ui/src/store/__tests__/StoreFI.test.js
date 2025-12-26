@@ -6,7 +6,7 @@ jest.mock('../../service/backendApiService', () => ({
 
 // 2. Мокаем toast.error из react-toastify
 jest.mock('react-toastify', () => ({
-    toast: { error: jest.fn() }
+    toast: { error: jest.fn(), success: jest.fn() }
 }));
 
 // 3. Дальше уже require нужных модулей
@@ -24,6 +24,7 @@ describe('StoreFI — шаг 1: getWebImagesFromPages', () => {
         // Сброс моков
         backendApiService.getWebImagesOnPages.mockReset();
         toast.error.mockClear();
+        toast.success.mockClear();
     });
 
     it('должен загрузить массив и выставить step1=true при успешном ответе', async () => {

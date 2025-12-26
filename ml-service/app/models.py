@@ -38,6 +38,9 @@ class ConfigResponse(BaseModel):
     syncEnabled: bool
     syncIntervalSec: int
     apiKeyConfigured: bool
+    similarityMode: str
+    semanticPublishThreshold: float
+    semanticGrayThreshold: float
 
 
 class RecommendationResponse(BaseModel):

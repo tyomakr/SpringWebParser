@@ -101,7 +101,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         syncer: TrainingSyncer = Depends(get_syncer),
                         index_service: IndexService = Depends(get_index_service)) -> RecommendationResponse:
         # If index is empty, try a one-off sync so recommendations have training data.
-        if index_service.size() == 0:
+        needs_sync = index_service.size() == 0
+        if settings.similarity_mode in {"semantic", "hybrid"}:
+            needs_sync = needs_sync and index_service.semantic_size() == 0
+        if needs_sync:
             try:
                 await syncer.run_once()
             except Exception:  # pylint: disable=broad-except
@@ -152,6 +155,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             syncEnabled=settings.sync_startup,
             syncIntervalSec=settings.sync_interval_sec,
             apiKeyConfigured=bool(settings.training_export_api_key),
+            similarityMode=settings.similarity_mode,
+            semanticPublishThreshold=settings.semantic_publish_threshold,
+            semanticGrayThreshold=settings.semantic_gray_threshold,
         )
 
     return app

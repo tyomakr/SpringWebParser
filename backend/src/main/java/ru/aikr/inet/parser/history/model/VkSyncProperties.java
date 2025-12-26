@@ -7,7 +7,7 @@ public class VkSyncProperties {
     private boolean enabled = false;
     private String cron = "0 */15 * * * *";
     private int pageSize = 100;
-    private int pageLimit = 10;
+    private int pageLimit = 0;
     private Duration rateLimit = Duration.ofMillis(350);
 
     public boolean isEnabled() {

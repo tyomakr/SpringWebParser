@@ -5,6 +5,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import ru.aikr.inet.parser.history.model.VkSyncProperties;
 import ru.aikr.inet.parser.history.model.VkWallSyncReport;
 import ru.aikr.inet.parser.history.model.VkWallSyncStatus;
@@ -67,6 +69,27 @@ public class VkWallSyncScheduler {
         } finally {
             running.set(false);
         }
+    }
+
+    public boolean triggerManualSync(Instant since, int pagesLimit) {
+        if (!running.compareAndSet(false, true)) {
+            return false;
+        }
+        lastSince = since;
+        lastError = null;
+        Mono.fromCallable(() -> syncService.syncWall(since, pagesLimit))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doOnNext(report -> {
+                    lastReport = report;
+                    lastRun = Instant.now();
+                })
+                .doOnError(ex -> {
+                    lastError = ex.getMessage();
+                    log.error("Manual VK sync failed", ex);
+                })
+                .doFinally(signal -> running.set(false))
+                .subscribe();
+        return true;
     }
 
     public VkWallSyncStatus getStatus() {

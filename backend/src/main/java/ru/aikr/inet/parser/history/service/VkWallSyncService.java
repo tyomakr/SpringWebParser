@@ -59,7 +59,7 @@ public class VkWallSyncService {
     }
 
     public VkWallSyncReport syncWall(Instant since, int pagesLimit) {
-        int safePages = Math.max(1, pagesLimit);
+        int safePages = pagesLimit <= 0 ? Integer.MAX_VALUE : pagesLimit;
         Long ownerId = Objects.requireNonNull(apiProperties.getGroupId(),
                 "vk.api.group-id must be configured");
         int pageSize = Math.max(1, syncProperties.getPageSize());

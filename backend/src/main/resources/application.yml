@@ -58,7 +58,7 @@ vk:
     enabled: false
     cron: 0 */15 * * * *
     page-size: 100
-    page-limit: 10
+    page-limit: 0
     rate-limit-ms: 350
 
 

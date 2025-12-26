@@ -99,11 +99,23 @@ public class VkHistoryController {
 
     @PostMapping("/sync-wall")
     public Mono<VkWallSyncReport> syncWall(@RequestParam(required = false) String since,
-                                           @RequestParam(defaultValue = "3") int pages) {
+                                           @RequestParam(required = false) Integer pages) {
         Instant sinceInstant = parseSince(since);
-        int safePages = Math.max(pages, 1);
+        int safePages = pages == null ? 0 : pages;
         return Mono.fromCallable(() -> wallSyncService.syncWall(sinceInstant, safePages))
                 .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @PostMapping("/sync-wall/trigger")
+    public Mono<VkWallSyncStatus> triggerSyncWall(@RequestParam(required = false) String since,
+                                                  @RequestParam(required = false) Integer pages) {
+        Instant sinceInstant = parseSince(since);
+        int safePages = pages == null ? 0 : pages;
+        boolean started = syncScheduler.triggerManualSync(sinceInstant, safePages);
+        if (!started) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sync already running");
+        }
+        return Mono.just(syncScheduler.getStatus());
     }
 
     @GetMapping("/sync-wall/status")

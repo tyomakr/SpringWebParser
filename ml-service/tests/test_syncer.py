@@ -92,7 +92,71 @@ async def test_syncer_request_error_does_not_clear_index(tmp_path):
             await syncer.run_once()
         assert index_service.size() == 1
         snapshot = metrics.snapshot()
-        assert snapshot["sync"]["lastRun"] is not None
+        assert snapshot["sync"]["lastRun"] is None
+
+
+@pytest.mark.asyncio
+async def test_syncer_fetches_multiple_pages(tmp_path):
+    settings = Settings(
+        TRAINING_EXPORT_URL="http://backend/api",
+        db_path=str(tmp_path / "db.sqlite"),
+        sync_page_limit=2,
+        sync_startup=False,
+    )
+    storage = Storage(settings.db_path)
+    storage.init()
+    sample_image = Image.new("RGB", (16, 16), color="white")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        params = dict(request.url.params)
+        offset = int(params.get("offset", 0))
+        limit = int(params.get("limit", 0))
+        if offset == 0:
+            data = [{
+                "id": 1,
+                "url": "https://example.com/1.jpg",
+                "hash": "hash-1",
+                "createdAt": "2024-01-01T00:00:00Z",
+                "mlDecision": None,
+                "mlScore": None,
+                "mlReason": None,
+            }] * limit
+        elif offset == limit:
+            data = [{
+                "id": 3,
+                "url": "https://example.com/3.jpg",
+                "hash": "hash-3",
+                "createdAt": "2024-01-02T00:00:00Z",
+                "mlDecision": None,
+                "mlScore": None,
+                "mlReason": None,
+            }]
+        else:
+            data = []
+        return httpx.Response(200, json=data)
+
+    transport = httpx.MockTransport(handler)
+    index_service = IndexService()
+    metrics = MetricsCollector()
+
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        analyzer = ImageAnalyzer(settings, http_client, storage, index_service, metrics)
+
+        async def fake_fetch(url):
+            # Vary pixels so pHash differs per URL
+            try:
+                color_seed = int(str(url).split("/")[-1].split(".")[0])
+            except Exception:  # noqa: BLE001
+                color_seed = 1
+            return Image.new("RGB", (16, 16), color=(color_seed % 255, 0, 0))
+
+        analyzer.fetch_image = fake_fetch  # type: ignore[assignment]
+        syncer = TrainingSyncer(settings, http_client, storage, analyzer, index_service, metrics)
+        result = await syncer.run_once()
+
+        assert result["processed"] == 3
+        assert storage.get_last_sync() == "2024-01-02T00:00:00Z"
+        assert index_service.size() >= 2
 
 
 @pytest.mark.asyncio

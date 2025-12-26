@@ -111,13 +111,16 @@ export class StoreFI {
             // Если axios выбросил ошибку, но есть ответ от сервера (даже с кодом ошибки), используем его
             if (error.response?.data) {
                 console.log('[StoreFI] Server returned error response:', error.response.status, error.response.data);
-                // Если статус 202 (ACCEPTED) или другой успешный, но axios считает это ошибкой
+                const serverData = error.response.data;
+                const fieldErrors = serverData.fieldErrors
+                    ? Object.values(serverData.fieldErrors).flat().join('; ')
+                    : undefined;
+                const msg = fieldErrors || serverData.error || serverData.message || error.message;
+                // Если статус 2xx — воспринимаем как успех
                 if (error.response.status >= 200 && error.response.status < 300) {
-                    // Возвращаем данные, так как это успешный ответ
-                    return error.response.data;
+                    return serverData;
                 }
-                // Для реальных ошибок пробрасываем
-                const serverError = new Error(error.response.data);
+                const serverError = new Error(msg);
                 serverError.response = error.response;
                 throw serverError;
             }

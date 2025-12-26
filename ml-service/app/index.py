@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from typing import Iterable
 
+import numpy as np
+
 
 class _BKNode:
     __slots__ = ("phash", "meta", "children")
@@ -70,6 +72,7 @@ class BKIndex:
 class IndexService:
     def __init__(self, lock: asyncio.Lock | None = None) -> None:
         self._index = BKIndex()
+        self._semantic_index = SemanticIndex()
         self._lock = lock or asyncio.Lock()
 
     async def add(self, phash: int, meta: dict) -> None:
@@ -86,6 +89,20 @@ class IndexService:
     def size(self) -> int:
         return self._index.size()
 
+    async def add_semantic(self, vector: np.ndarray, meta: dict) -> None:
+        async with self._lock:
+            self._semantic_index.add(vector, meta)
+
+    async def bulk_add_semantic(self, items: list[tuple[np.ndarray, dict]]) -> None:
+        async with self._lock:
+            self._semantic_index.bulk_add(items)
+
+    def nearest_semantic(self, vector: np.ndarray) -> tuple[float, dict] | None:
+        return self._semantic_index.top_one(vector)
+
+    def semantic_size(self) -> int:
+        return self._semantic_index.size()
+
     async def warmup(self, iterator: Iterable[tuple[int, dict]], limit: int | None = None) -> None:
         batch: list[tuple[int, dict]] = []
         for idx, item in enumerate(iterator):
@@ -96,4 +113,38 @@ class IndexService:
             await self.bulk_add(batch)
 
 
-__all__ = ["BKIndex", "IndexService"]
+class SemanticIndex:
+    def __init__(self) -> None:
+        self._vectors: list[np.ndarray] = []
+        self._meta: list[dict] = []
+
+    @staticmethod
+    def _normalize(vector: np.ndarray) -> np.ndarray:
+        norm = float(np.linalg.norm(vector))
+        if norm == 0:
+            return vector
+        return vector / norm
+
+    def add(self, vector: np.ndarray, meta: dict) -> None:
+        vec = self._normalize(vector)
+        self._vectors.append(vec)
+        self._meta.append(meta)
+
+    def bulk_add(self, items: list[tuple[np.ndarray, dict]]) -> None:
+        for vector, meta in items:
+            self.add(vector, meta)
+
+    def top_one(self, vector: np.ndarray) -> tuple[float, dict] | None:
+        if not self._vectors:
+            return None
+        vec = self._normalize(vector)
+        matrix = np.stack(self._vectors)
+        sims = matrix @ vec
+        best_idx = int(np.argmax(sims))
+        return float(sims[best_idx]), self._meta[best_idx]
+
+    def size(self) -> int:
+        return len(self._meta)
+
+
+__all__ = ["BKIndex", "IndexService", "SemanticIndex"]

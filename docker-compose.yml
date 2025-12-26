@@ -23,7 +23,10 @@ services:
       - ml-service
     environment:
       ML_PUBLISH_API_KEY: example-token
+      SPRING_DATASOURCE_URL: jdbc:h2:file:/app/data/spring_web_parser;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
       SPRING_APPLICATION_JSON: '{"ml":{"publish":{"base-url":"http://ml-service:8000","recommendation-path":"/recommend","timeout-seconds":6}}}'
+    volumes:
+      - ./backend/data:/app/data
     networks: [app-net]
 
   frontend:

@@ -11,6 +11,13 @@ CREATE TABLE IF NOT EXISTS vk_image_history (
   use_for_training BOOLEAN DEFAULT TRUE
 );
 
+ALTER TABLE vk_image_history ADD COLUMN IF NOT EXISTS synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE vk_image_history ADD COLUMN IF NOT EXISTS ml_decision VARCHAR(32);
+ALTER TABLE vk_image_history ADD COLUMN IF NOT EXISTS ml_score DOUBLE;
+ALTER TABLE vk_image_history ADD COLUMN IF NOT EXISTS ml_reason VARCHAR(1024);
+ALTER TABLE vk_image_history ADD COLUMN IF NOT EXISTS use_for_training BOOLEAN DEFAULT TRUE;
+UPDATE vk_image_history SET use_for_training = TRUE WHERE use_for_training IS NULL;
+
 CREATE INDEX IF NOT EXISTS idx_vk_image_history_use_training_created ON vk_image_history (use_for_training, created_at);
 
 CREATE TABLE IF NOT EXISTS ml_feedback (

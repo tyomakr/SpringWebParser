@@ -27,6 +27,7 @@ async def test_metrics_and_health(tmp_path):
         assert "indexSize" in data
         assert "recommend" in data
         assert "sync" in data
+        assert "semantic" in data
 
         config = await client.get("/config")
         assert config.status_code == 200
@@ -37,3 +38,6 @@ async def test_metrics_and_health(tmp_path):
         assert conf_data["syncEnabled"] is False
         assert conf_data["syncIntervalSec"] == settings.sync_interval_sec
         assert conf_data["apiKeyConfigured"] is False
+        assert conf_data["similarityMode"] == settings.similarity_mode
+        assert conf_data["semanticPublishThreshold"] == settings.semantic_publish_threshold
+        assert conf_data["semanticGrayThreshold"] == settings.semantic_gray_threshold
