@@ -1,32 +1,53 @@
-Небольшой проект для изучения нескольких моментов:
-1) Парсинг страниц
-2) Обработка данных, полученных с бэкэнд в фронтэнде
-3) Взаимодействие с VK API
+# AK Content Pipeline (AKCP)
 
+AKCP — персональный контент‑пайплайн: сбор материалов из источников (сейчас — web), единая библиотека с тегами, затем публикация в целевые каналы (в MVP — VK как заглушка). Архитектура заранее оставляет место для AI‑рекомендаций и удалённого GPU‑ускорителя.
 
-Для взаимодействия с VK API необходимо:
+## Быстрый старт (локально)
 
-0) В resources создать файл application-secret.yml такого типа:
+1) Подготовьте переменные окружения:
 
-   vk:
+```bash
+cp .env.example .env
+```
 
-   &emsp; app-id: 
+2) Запуск через Docker Compose:
 
-   &emsp; user-id: 
+```bash
+docker compose up --build
+```
 
-   &emsp; group-id: 
+3) Локальный запуск без Docker:
 
-   &emsp; access-token: 
+```bash
+mvn -pl backend/akcp-app spring-boot:run
+```
 
+## Документация
 
+- `docs/architecture.md`
+- `docs/modules.md`
+- `docs/security.md`
+- `docs/deployment.md`
+- `docs/api.md`
+- `docs/ai-design.md`
 
-1) Создать standalone app в VK apps и получить его ID. Его нужно будет прописать в application-secret.yml в vk.app-id
-2) Заполняем поля user-id (числовой идентификатор пользователя), group-id - идентификатор группы, в которую будет публикация (и есть соответствующие права). group-id указывается со знаком "-" перед числовым идентификатором
+## Полезные команды
 
-3) Получаем новый токен (access_token) выполнением запроса:
-https://oauth.vk.com/authorize?client_id=<сюда app_id>&display=page&redirect_uri=https://oauth.vk.com/blank.html&scope=friends,notify,photos,wall,email,mail,groups,stats,offline&response_type=token&v=5.74
-Получаем ответ в виде:
-https://oauth.vk.com/blank.html#access_token=<отсюда копируем access_token>&expires_in=0&user_id=<тут user_id>&email=<почта пользователя>
+```bash
+mvn test
+```
 
+Swagger UI доступен по:
 
-старт через docker compose up -d
+- `http://localhost:8080/swagger-ui.html`
+
+## Основные эндпоинты MVP
+
+- `POST /api/auth/login` — получение JWT
+- `GET /api/items` — список элементов (cursor‑pagination)
+- `POST /api/items` — создать элемент
+- `GET /api/items/{id}` — получить элемент
+- `PATCH /api/items/{id}/tags` — добавить/удалить теги
+- `POST /api/ingestion/web/parse` — парсинг URL, опционально создание Item
+- `POST /api/publish/vk/{itemId}` — постановка job на публикацию в VK
+

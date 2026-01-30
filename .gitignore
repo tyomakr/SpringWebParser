@@ -1,21 +1,24 @@
-# backend artefacts
-backend/target/
-backend/.idea/
-backend/*.iml
+# Maven / Gradle
+**/target/
+**/.idea/
+**/*.iml
 
-# frontend artefacts
+# Frontend
 ui/node_modules/
-ui/build/
-ui/.idea
-ui/ui.iml
+ui/dist/
 
-# Maven / Gradle wrapper
-!backend/.mvn/**
-!backend/mvnw*
-
-# Secret configuration files
-**/application-secret.yml
+# Secrets
+.env
+.env.*
 **/application-secret*.yml
 
+# Editors
 .vscode
 .idea
+
+# Logs
+.codex-logs/**
+*.log
+
+
+log.txt

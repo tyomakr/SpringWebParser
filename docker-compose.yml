@@ -1,43 +1,44 @@
 services:
-  backend:
-    build: ./backend
-    image: swp-backend:latest
-    container_name: swp-backend
-    expose: ["8111"]
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8111/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    deploy:
-      resources:
-        limits:
-          cpus: '1.5'
-          memory: 1.5G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    networks: [app-net]
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-akcp}
+      POSTGRES_USER: ${POSTGRES_USER:-akcp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-akcp}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
-  frontend:
-    build: ./ui                 # <-- контекст = ui/
-    image: swp-frontend:latest
-    container_name: swp-frontend
+  backend:
+    build:
+      context: .
+      dockerfile: backend/akcp-app/Dockerfile
+    environment:
+      AKCP_DB_HOST: db
+      AKCP_DB_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-akcp}
+      POSTGRES_USER: ${POSTGRES_USER:-akcp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-akcp}
+      AKCP_JWT_SECRET: ${AKCP_JWT_SECRET:-change-me}
+      AKCP_ADMIN_USERNAME: ${AKCP_ADMIN_USERNAME:-admin}
+      AKCP_ADMIN_PASSWORD: ${AKCP_ADMIN_PASSWORD:-admin}
+      AKCP_AI_MODE: ${AKCP_AI_MODE:-local}
+      AKCP_AI_REMOTE_URL: ${AKCP_AI_REMOTE_URL:-}
+      VK_ACCESS_TOKEN: ${VK_ACCESS_TOKEN:-}
+    ports:
+      - "8280:8080"
+    depends_on:
+      - db
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
     ports:
       - "3333:80"
     depends_on:
       - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
-    networks: [app-net]
 
-networks:
-  app-net:
-    driver: bridge
+volumes:
+  db-data:

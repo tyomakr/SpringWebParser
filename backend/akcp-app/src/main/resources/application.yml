@@ -1,0 +1,42 @@
+server:
+  port: ${AKCP_SERVER_PORT:8080}
+
+spring:
+  r2dbc:
+    url: ${AKCP_R2DBC_URL:r2dbc:postgresql://${AKCP_DB_HOST:localhost}:${AKCP_DB_PORT:5432}/${POSTGRES_DB:akcp}}
+    username: ${POSTGRES_USER:akcp}
+    password: ${POSTGRES_PASSWORD:akcp}
+  flyway:
+    enabled: true
+    url: ${AKCP_FLYWAY_URL:jdbc:postgresql://${AKCP_DB_HOST:localhost}:${AKCP_DB_PORT:5432}/${POSTGRES_DB:akcp}}
+    user: ${POSTGRES_USER:akcp}
+    password: ${POSTGRES_PASSWORD:akcp}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+akcp:
+  jwt:
+    secret: ${AKCP_JWT_SECRET:change-me}
+    issuer: ${AKCP_JWT_ISSUER:akcp}
+    ttl: ${AKCP_JWT_TTL:PT12H}
+  admin:
+    username: ${AKCP_ADMIN_USERNAME:admin}
+    password: ${AKCP_ADMIN_PASSWORD:admin}
+  ai:
+    mode: ${AKCP_AI_MODE:local}
+    remote:
+      url: ${AKCP_AI_REMOTE_URL:}
+  jobs:
+    poll-interval-ms: ${AKCP_JOBS_POLL_INTERVAL_MS:10000}
+  vk:
+    access-token: ${VK_ACCESS_TOKEN:}
