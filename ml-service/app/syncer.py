@@ -29,7 +29,7 @@ class TrainingSyncer:
         self._lock = asyncio.Lock()
         self.index_service = index_service
         self.metrics = metrics
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = EmbeddingService(settings)
 
     async def run_periodic(self, stop_event: asyncio.Event) -> None:
         interval = max(1, self.settings.sync_interval_sec)
@@ -55,20 +55,30 @@ class TrainingSyncer:
             start = perf_counter()
             initial_index_size = self.index_service.size()
             last_sync = None if initial_index_size == 0 else self.storage.get_last_sync()
+            backfill_complete = self.storage.get_value("backfill_complete") == "true"
+            if initial_index_size == 0:
+                backfill_complete = False
             processed = 0
+            fetched_total = 0
+            failed_records = 0
             latest_created = last_sync
+            since_filter = last_sync if backfill_complete else None
             offset = 0
             page_count = 0
             headers = {}
             if self.settings.training_export_api_key:
                 headers["Authorization"] = f"Bearer {self.settings.training_export_api_key}"
-            bulk_items: List[tuple[int, dict]] = []
-            bulk_semantic: List[tuple] = []
+            skipped_text = 0
             had_error = False
             max_attempts = 3
 
             if self.settings.sync_debug:
-                logger.debug("Sync start | last_sync=%s index_before=%s", last_sync, initial_index_size)
+                logger.debug(
+                    "Sync start | last_sync=%s index_before=%s backfill_complete=%s",
+                    last_sync,
+                    initial_index_size,
+                    backfill_complete,
+                )
 
             last_error: Exception | None = None
             try:
@@ -77,8 +87,8 @@ class TrainingSyncer:
                         "limit": self.settings.sync_page_limit,
                         "offset": offset,
                     }
-                    if latest_created:
-                        params["since"] = latest_created
+                    if since_filter:
+                        params["since"] = since_filter
 
                     resp = None
                     for attempt in range(1, max_attempts + 1):
@@ -137,14 +147,26 @@ class TrainingSyncer:
                     if self.settings.sync_debug:
                         logger.debug("Fetched page offset=%s size=%s", offset, len(records))
                     if not records:
+                        if not backfill_complete:
+                            self.storage.set_value("backfill_complete", "true")
+                            backfill_complete = True
                         break
 
                     page_count += 1
+                    fetched_total += len(records)
+                    page_processed = 0
+                    page_items: List[tuple[int, dict]] = []
+                    page_semantic: List[tuple] = []
                     for record in records:
                         phash_value: str | None = None
                         embedding_vec = None
                         try:
                             image = await self.analyzer.fetch_image(record.url)
+                            if self.analyzer.text_detector.is_text_dominant(image):
+                                skipped_text += 1
+                                if self.settings.sync_debug:
+                                    logger.debug("Skipping text-dominant record %s", record.id)
+                                continue
                             phash_value = self.analyzer.compute_phash(image)
                             if self.settings.similarity_mode in {"semantic", "hybrid"}:
                                 try:
@@ -153,12 +175,14 @@ class TrainingSyncer:
                                     logger.warning("Failed to compute embedding for record %s: %s", record.id, exc)
                         except Exception as exc:  # pylint: disable=broad-except
                             logger.warning("Failed to sync record %s: %s", record.id, exc)
+                            failed_records += 1
                         # Fallback: try to derive pHash surrogate from provided hash/url to avoid empty index.
-                        if record.hash:
-                            phash_value = record.hash
-                        else:
-                            import hashlib
-                            phash_value = hashlib.md5(record.url.encode("utf-8")).hexdigest()
+                        if not phash_value:
+                            if record.hash:
+                                phash_value = record.hash
+                            else:
+                                import hashlib
+                                phash_value = hashlib.md5(record.url.encode("utf-8")).hexdigest()
                         if not phash_value:
                             continue
                         self.storage.upsert_positive(
@@ -173,7 +197,7 @@ class TrainingSyncer:
                             # If hash is not hex, derive a stable surrogate
                             import hashlib
                             phash_int = int(hashlib.md5(phash_value.encode("utf-8")).hexdigest(), 16)
-                        bulk_items.append((phash_int, {
+                        page_items.append((phash_int, {
                             "id": record.id,
                             "url": record.url,
                             "hash": record.hash,
@@ -182,17 +206,36 @@ class TrainingSyncer:
                         if embedding_vec is None:
                             fallback_key = phash_value or record.hash or record.url
                             embedding_vec = self.embedding_service.fallback_from_hash(fallback_key)
-                        bulk_semantic.append((embedding_vec, {
+                        page_semantic.append((embedding_vec, {
                             "id": record.id,
                             "url": record.url,
                             "hash": record.hash,
                             "created_at": record.createdAt,
                         }))
                         processed += 1
-                        latest_created = max(latest_created or record.createdAt, record.createdAt)
+                        page_processed += 1
+                        if record.createdAt:
+                            if latest_created is None or record.createdAt > latest_created:
+                                latest_created = record.createdAt
                     if self.settings.sync_debug:
-                        logger.debug("Page done offset=%s processed_in_page=%s latest_created=%s",
-                                     offset, processed, latest_created)
+                        logger.debug(
+                            "Page done offset=%s processed_in_page=%s latest_created=%s",
+                            offset,
+                            page_processed,
+                            latest_created,
+                        )
+                    if page_items:
+                        await self.index_service.bulk_add(page_items)
+                    if page_semantic:
+                        await self.index_service.bulk_add_semantic(page_semantic)
+                    self.metrics.record_sync_progress(
+                        (perf_counter() - start) * 1000,
+                        processed,
+                        fetched_total,
+                        skipped_text,
+                        failed_records,
+                        page_count,
+                    )
                     if 0 < self.settings.sync_max_pages_per_run <= page_count:
                         logger.info("Stopping sync early after %s pages (max per run)", page_count)
                         break
@@ -202,23 +245,42 @@ class TrainingSyncer:
 
                 if latest_created:
                     self.storage.set_last_sync(latest_created)
-                if bulk_items:
-                    await self.index_service.bulk_add(bulk_items)
-                if bulk_semantic:
-                    await self.index_service.bulk_add_semantic(bulk_semantic)
+                run_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                self.storage.set_value("last_run", run_ts)
                 added_count = max(0, self.index_service.size() - initial_index_size)
                 duration_ms = (perf_counter() - start) * 1000
-                run_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-                self.metrics.record_sync(run_ts, duration_ms, added_count, success=not had_error)
+                self.metrics.record_sync(
+                    run_ts,
+                    duration_ms,
+                    added_count,
+                    success=not had_error,
+                    processed=processed,
+                    fetched=fetched_total,
+                    skipped_text=skipped_text,
+                    failed=failed_records,
+                    pages=page_count,
+                    error=None,
+                )
                 logger.info("Sync finished: processed=%s last_sync=%s index-added=%s error=%s",
                             processed, latest_created, added_count, had_error)
                 if self.settings.sync_debug:
-                    logger.debug("Sync summary | index_before=%s index_after=%s added=%s duration_ms=%.2f error=%s",
-                                 initial_index_size, self.index_service.size(), added_count, duration_ms, had_error)
+                    logger.debug("Sync summary | index_before=%s index_after=%s added=%s skipped_text=%s duration_ms=%.2f error=%s",
+                                 initial_index_size, self.index_service.size(), added_count, skipped_text, duration_ms, had_error)
             except Exception as exc:  # pylint: disable=broad-except
                 had_error = True
                 duration_ms = (perf_counter() - start) * 1000
-                self.metrics.record_sync(None, duration_ms, 0, success=False)
+                self.metrics.record_sync(
+                    None,
+                    duration_ms,
+                    0,
+                    success=False,
+                    processed=processed,
+                    fetched=fetched_total,
+                    skipped_text=skipped_text,
+                    failed=failed_records,
+                    pages=page_count,
+                    error=repr(exc),
+                )
                 logger.error("Sync cycle failed: %r", exc, exc_info=True)
                 raise
             return {"processed": processed, "last_sync": latest_created, "added": added_count, "error": had_error}

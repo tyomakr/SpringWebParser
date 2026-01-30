@@ -21,6 +21,12 @@ class MetricsCollector:
         self._sync_last_run: str | None = None
         self._sync_last_duration_ms = 0.0
         self._sync_added = 0
+        self._sync_processed = 0
+        self._sync_fetched = 0
+        self._sync_skipped_text = 0
+        self._sync_failed = 0
+        self._sync_pages = 0
+        self._sync_last_error: str | None = None
 
     def record_candidate_result(self, category: Literal["hit", "gray", "miss"]) -> None:
         with self._lock:
@@ -50,11 +56,48 @@ class MetricsCollector:
             if max_similarity is not None:
                 self._semantic_max_sim_total += max_similarity
 
-    def record_sync(self, last_run: str | None, duration_ms: float, added: int, success: bool = True) -> None:
+    def record_sync(
+        self,
+        last_run: str | None,
+        duration_ms: float,
+        added: int,
+        success: bool = True,
+        processed: int = 0,
+        fetched: int = 0,
+        skipped_text: int = 0,
+        failed: int = 0,
+        pages: int = 0,
+        error: str | None = None,
+    ) -> None:
         with self._lock:
+            self._sync_processed = processed
+            self._sync_fetched = fetched
+            self._sync_skipped_text = skipped_text
+            self._sync_failed = failed
+            self._sync_pages = pages
             if success:
                 self._sync_last_run = last_run
                 self._sync_added = added
+                self._sync_last_error = None
+            else:
+                self._sync_last_error = error
+            self._sync_last_duration_ms = duration_ms
+
+    def record_sync_progress(
+        self,
+        duration_ms: float,
+        processed: int,
+        fetched: int,
+        skipped_text: int,
+        failed: int,
+        pages: int,
+    ) -> None:
+        with self._lock:
+            self._sync_processed = processed
+            self._sync_fetched = fetched
+            self._sync_skipped_text = skipped_text
+            self._sync_failed = failed
+            self._sync_pages = pages
             self._sync_last_duration_ms = duration_ms
 
     def snapshot(self) -> dict:
@@ -82,6 +125,12 @@ class MetricsCollector:
                     "lastRun": self._sync_last_run,
                     "lastDurationMs": round(self._sync_last_duration_ms, 2),
                     "added": self._sync_added,
+                    "processed": self._sync_processed,
+                    "fetched": self._sync_fetched,
+                    "skippedText": self._sync_skipped_text,
+                    "failedRecords": self._sync_failed,
+                    "pages": self._sync_pages,
+                    "lastError": self._sync_last_error,
                 },
             }
 

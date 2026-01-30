@@ -4,6 +4,15 @@ backend/.idea/
 backend/*.iml
 backend/data/
 
+# ml-service artefacts
+ml-service/data/
+
+# postgres artefacts
+postgres/data/
+
+# local samples
+for-gpt/
+
 # frontend artefacts
 ui/node_modules/
 ui/build/

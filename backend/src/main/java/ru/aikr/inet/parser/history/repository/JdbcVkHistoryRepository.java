@@ -37,9 +37,18 @@ public class JdbcVkHistoryRepository implements VkHistoryRepository {
         }
 
         int updated = jdbcTemplate.update(
-                "MERGE INTO vk_image_history (" +
+                "INSERT INTO vk_image_history (" +
                         "hash, post_id, url, created_at, synced_at, ml_decision, ml_score, ml_reason, use_for_training" +
-                        ") KEY (hash) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)",
+                        ") VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?) " +
+                        "ON CONFLICT (hash) DO UPDATE SET " +
+                        "post_id = EXCLUDED.post_id, " +
+                        "url = EXCLUDED.url, " +
+                        "created_at = EXCLUDED.created_at, " +
+                        "synced_at = CURRENT_TIMESTAMP, " +
+                        "ml_decision = EXCLUDED.ml_decision, " +
+                        "ml_score = EXCLUDED.ml_score, " +
+                        "ml_reason = EXCLUDED.ml_reason, " +
+                        "use_for_training = EXCLUDED.use_for_training",
                 record.getHash(),
                 record.getPostId(),
                 record.getUrl(),

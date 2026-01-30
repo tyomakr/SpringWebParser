@@ -4,15 +4,19 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import com.fasterxml.jackson.databind.JsonNode;
 import ru.aikr.inet.parser.mlpublish.client.MlConfigClient;
 import ru.aikr.inet.parser.mlpublish.config.MlRecommendationProperties;
 import ru.aikr.inet.parser.mlpublish.model.MlClientConfigResponse;
 import ru.aikr.inet.parser.mlpublish.model.MlConfigResponse;
 import ru.aikr.inet.parser.mlpublish.model.MlMetricsResponse;
+import ru.aikr.inet.parser.mlpublish.model.MlOcrDiagnosticsResponse;
 import ru.aikr.inet.parser.mlpublish.model.MlStatusResponse;
 
 import java.time.Duration;
@@ -43,7 +47,13 @@ public class MlStatusController {
                         properties.isRequireApiKey(),
                         properties.getMaxBatchSize(),
                         mlService
-                ));
+                ))
+                .onErrorResume(error -> Mono.just(new MlClientConfigResponse(
+                        configured,
+                        properties.isRequireApiKey(),
+                        properties.getMaxBatchSize(),
+                        null
+                )));
     }
 
     @GetMapping("/status")
@@ -62,6 +72,45 @@ public class MlStatusController {
         return Mono.zip(metricsMono, configMono)
                 .map(tuple -> new MlStatusResponse(true, tuple.getT1().indexSize(), tuple.getT2(), null))
                 .onErrorResume(error -> Mono.just(new MlStatusResponse(false, null, null, deriveError(error))));
+    }
+
+    @GetMapping("/ocr-diagnostics")
+    public Mono<MlOcrDiagnosticsResponse> ocrDiagnostics() {
+        Duration timeout = diagnosticsTimeout();
+        return statusWebClient.get()
+                .uri("/ocr/diagnostics")
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(timeout)
+                .map(report -> new MlOcrDiagnosticsResponse(true, report, null))
+                .onErrorResume(error -> Mono.just(new MlOcrDiagnosticsResponse(false, null, deriveError(error))));
+    }
+
+    @PostMapping("/ocr-diagnostics/run")
+    public Mono<MlOcrDiagnosticsResponse> runOcrDiagnostics(
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) Integer offset) {
+        Duration timeout = diagnosticsTimeout();
+        return statusWebClient.post()
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder.path("/ocr/diagnostics/run");
+                    if (limit != null) {
+                        builder.queryParam("limit", limit);
+                    }
+                    if (offset != null) {
+                        builder.queryParam("offset", offset);
+                    }
+                    return builder.build();
+                })
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(timeout)
+                .map(report -> new MlOcrDiagnosticsResponse(true, report, null))
+                .onErrorResume(error -> Mono.just(new MlOcrDiagnosticsResponse(false, null, deriveError(error))));
+    }
+
+    private Duration diagnosticsTimeout() {
+        return Duration.ofSeconds(Math.max(30, properties.getTimeoutSeconds()));
     }
 
     private String deriveError(Throwable error) {

@@ -1,4 +1,42 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: swp-postgres
+    environment:
+      POSTGRES_USER: swp
+      POSTGRES_PASSWORD: swp_pass
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks: [app-net]
+
+  postgres-init:
+    image: postgres:16-alpine
+    container_name: swp-postgres-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: swp_pass
+    command:
+      - sh
+      - -c
+      - |
+        psql -h postgres -U swp -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='swp_backend'" | grep -q 1 \
+          || psql -h postgres -U swp -d postgres -c "CREATE DATABASE swp_backend";
+        psql -h postgres -U swp -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='swp_ml'" | grep -q 1 \
+          || psql -h postgres -U swp -d postgres -c "CREATE DATABASE swp_ml";
+    networks: [app-net]
+
   backend:
     build: ./backend
     image: swp-backend:latest
@@ -20,13 +58,17 @@ services:
           cpus: '0.5'
           memory: 512M
     depends_on:
-      - ml-service
+      postgres-init:
+        condition: service_completed_successfully
+      ml-service:
+        condition: service_started
     environment:
       ML_PUBLISH_API_KEY: example-token
-      SPRING_DATASOURCE_URL: jdbc:h2:file:/app/data/spring_web_parser;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/swp_backend
+      SPRING_DATASOURCE_USERNAME: swp
+      SPRING_DATASOURCE_PASSWORD: swp_pass
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_APPLICATION_JSON: '{"ml":{"publish":{"base-url":"http://ml-service:8000","recommendation-path":"/recommend","timeout-seconds":6}}}'
-    volumes:
-      - ./backend/data:/app/data
     networks: [app-net]
 
   frontend:
@@ -48,19 +90,35 @@ services:
     networks: [app-net]
 
   ml-service:
-    build: ./ml-service
+    build:
+      context: ./ml-service
+      args:
+        OCR_ENABLED: "true"
+        CLIP_ENABLED: "true"
     image: swp-ml-service:latest
     container_name: swp-ml-service
     ports:
       - "38000:8000"
+    depends_on:
+      postgres-init:
+        condition: service_completed_successfully
     volumes:
-      - ./ml-service/ml.db:/app/ml.db
+      - ./ml-service/data:/app/data
     environment:
       - ML_PUBLISH_API_KEY=example-token
       - TRAINING_EXPORT_URL=http://backend:8111/api/vk-history/training/export
       - TRAINING_EXPORT_API_KEY=example-token
+      - DB_URL=postgresql://swp:swp_pass@postgres:5432/swp_ml
       - SYNC_INTERVAL_SEC=60
       - SYNC_DEBUG=true
+      - OCR_ENABLED=true
+      - SIMILARITY_MODE=hybrid
+      - SEMANTIC_BACKEND=clip
+      - CLIP_MODEL_NAME=ViT-B-32
+      - CLIP_PRETRAINED=openai
+      - CLIP_DEVICE=cpu
+      - SEMANTIC_MIN_SIMILARITY_PUBLISH=0.35
+      - SEMANTIC_MIN_SIMILARITY_GRAY=0.30
     networks: [app-net]
 
 networks:

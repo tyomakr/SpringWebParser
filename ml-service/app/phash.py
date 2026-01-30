@@ -37,9 +37,17 @@ class ImageAnalyzer:
         self.storage = storage
         self.index_service = index_service
         self.metrics = metrics or MetricsCollector()
-        self.text_detector = TextDetector(settings.ocr_enabled, settings.ocr_min_chars)
+        self.text_detector = TextDetector(
+            settings.ocr_enabled,
+            settings.ocr_min_chars,
+            settings.ocr_min_conf,
+            settings.ocr_text_area_min,
+            settings.ocr_text_area_max,
+            settings.ocr_low_detail_threshold,
+            settings.ocr_low_detail_std_threshold,
+        )
         self._semaphore = asyncio.Semaphore(settings.max_concurrency)
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = EmbeddingService(settings)
 
     async def fetch_image(self, url: str) -> Image.Image:
         timeout = httpx.Timeout(self.settings.request_timeout, connect=self.settings.request_timeout)
@@ -87,14 +95,10 @@ class ImageAnalyzer:
                     phash_int = int(phash_value, 16)
                 except Exception as exc:  # pylint: disable=broad-except
                     logger.warning("Failed to compute pHash for %s: %s", candidate_id, exc)
-                    return self._finalize(start, "SKIP", 0.0, "phash-error", None)
-
-            if use_semantic:
-                try:
-                    embedding_vec = self.embedding_service.compute(image)
-                except Exception as exc:  # pylint: disable=broad-except
-                    logger.warning("Failed to compute embedding for %s: %s", candidate_id, exc)
-                    embedding_vec = None
+                    if mode == "phash":
+                        return self._finalize(start, "SKIP", 0.0, "phash-error", None)
+                    phash_value = None
+                    phash_int = None
 
             phash_index_size = self.index_service.size()
             semantic_index_size = self.index_service.semantic_size()
@@ -133,6 +137,13 @@ class ImageAnalyzer:
             if semantic_index_size == 0:
                 return self._finalize(start, "SKIP", 0.0, "semantic-index-empty", None, semantic=True,
                                       max_similarity=None)
+
+            if embedding_vec is None:
+                try:
+                    embedding_vec = self.embedding_service.compute(image)
+                except Exception as exc:  # pylint: disable=broad-except
+                    logger.warning("Failed to compute embedding for %s: %s", candidate_id, exc)
+                    embedding_vec = None
 
             if embedding_vec is None:
                 fallback_key = phash_value or url

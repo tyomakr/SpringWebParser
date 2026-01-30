@@ -1,3 +1,3 @@
-from .main import create_app, app
+"""Package marker for ML service."""
 
-__all__ = ["create_app", "app"]
+__all__ = []

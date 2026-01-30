@@ -39,5 +39,6 @@ async def test_metrics_and_health(tmp_path):
         assert conf_data["syncIntervalSec"] == settings.sync_interval_sec
         assert conf_data["apiKeyConfigured"] is False
         assert conf_data["similarityMode"] == settings.similarity_mode
+        assert conf_data["semanticBackend"] == settings.semantic_backend
         assert conf_data["semanticPublishThreshold"] == settings.semantic_publish_threshold
         assert conf_data["semanticGrayThreshold"] == settings.semantic_gray_threshold

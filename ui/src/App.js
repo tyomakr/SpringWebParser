@@ -5,6 +5,7 @@ import { inject, observer } from "mobx-react";
 import FWIStepper from "./components/FWIStepper";
 import MlPublishPage from "./components/MlPublishPage";
 import VkHistoryTrainingPage from "./pages/VkHistoryTrainingPage";
+import MlDiagnosticsPage from "./pages/MlDiagnosticsPage";
 
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { CssBaseline, AppBar, Toolbar, Typography, Button, Box, Container } from "@mui/material";
@@ -50,6 +51,14 @@ const AppShell = observer(({ themeStore }) => {
                         >
                             VK история/обучение
                         </Button>
+                        <Button
+                            color="inherit"
+                            component={Link}
+                            to="/ml-diagnostics"
+                            variant={location.pathname === "/ml-diagnostics" ? "outlined" : "text"}
+                        >
+                            ML диагностика
+                        </Button>
                     </Box>
                     <Button color="inherit" onClick={toggleMode}>
                         {mode === "dark" ? "Светлая тема" : "Темная тема"}
@@ -62,6 +71,7 @@ const AppShell = observer(({ themeStore }) => {
                     <Route path="/" element={<FWIStepper />} />
                     <Route path="/ml-publish" element={<MlPublishPage />} />
                     <Route path="/vk-history" element={<VkHistoryTrainingPage />} />
+                    <Route path="/ml-diagnostics" element={<MlDiagnosticsPage />} />
                 </Routes>
             </Container>
         </ThemeProvider>

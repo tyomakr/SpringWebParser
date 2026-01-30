@@ -1,14 +1,20 @@
 package ru.aikr.inet.parser.history;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.data.domain.Page;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.DockerClientFactory;
 import ru.aikr.inet.parser.history.model.VkImageHistoryRecord;
 import ru.aikr.inet.parser.history.repository.JdbcVkHistoryRepository;
 import ru.aikr.inet.parser.history.repository.VkHistoryRepository;
@@ -22,12 +28,45 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 @JdbcTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({JdbcVkHistoryRepository.class, JdbcVkHistoryRepositoryTest.TestConfig.class})
 @TestPropertySource(properties = {
-        // заставляем Spring прогнать schema.sql для H2
+        // заставляем Spring прогнать schema.sql
         "spring.sql.init.mode=always"
 })
 class JdbcVkHistoryRepositoryTest {
+
+    private static final String H2_URL = "jdbc:h2:mem:vk_history_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1";
+    private static PostgreSQLContainer<?> postgres;
+
+    @DynamicPropertySource
+    static void registerProps(DynamicPropertyRegistry registry) {
+        if (isDockerAvailable()) {
+            if (postgres == null) {
+                postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+                        .withDatabaseName("swp_backend_test")
+                        .withUsername("swp")
+                        .withPassword("swp_pass");
+                postgres.start();
+            }
+            registry.add("spring.datasource.url", postgres::getJdbcUrl);
+            registry.add("spring.datasource.username", postgres::getUsername);
+            registry.add("spring.datasource.password", postgres::getPassword);
+            registry.add("spring.datasource.driver-class-name", postgres::getDriverClassName);
+        } else {
+            registry.add("spring.datasource.url", () -> H2_URL);
+            registry.add("spring.datasource.username", () -> "sa");
+            registry.add("spring.datasource.password", () -> "");
+            registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+        }
+    }
+
+    @AfterAll
+    static void stopContainer() {
+        if (postgres != null) {
+            postgres.stop();
+        }
+    }
 
     @TestConfiguration
     static class TestConfig {
@@ -122,5 +161,13 @@ class JdbcVkHistoryRepositoryTest {
         long totalTraining = repository.count(true, Instant.parse("2023-01-02T00:00:00Z"));
 
         assertThat(totalTraining).isEqualTo(1);
+    }
+
+    private static boolean isDockerAvailable() {
+        try {
+            return DockerClientFactory.instance().isDockerAvailable();
+        } catch (Exception ex) {
+            return false;
+        }
     }
 }

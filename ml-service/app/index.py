@@ -74,6 +74,7 @@ class IndexService:
         self._index = BKIndex()
         self._semantic_index = SemanticIndex()
         self._lock = lock or asyncio.Lock()
+        self._semantic_keys: set[str] = set()
 
     async def add(self, phash: int, meta: dict) -> None:
         async with self._lock:
@@ -91,11 +92,25 @@ class IndexService:
 
     async def add_semantic(self, vector: np.ndarray, meta: dict) -> None:
         async with self._lock:
+            key = self._semantic_key(meta)
+            if key and key in self._semantic_keys:
+                return
             self._semantic_index.add(vector, meta)
+            if key:
+                self._semantic_keys.add(key)
 
     async def bulk_add_semantic(self, items: list[tuple[np.ndarray, dict]]) -> None:
         async with self._lock:
-            self._semantic_index.bulk_add(items)
+            filtered: list[tuple[np.ndarray, dict]] = []
+            for vector, meta in items:
+                key = self._semantic_key(meta)
+                if key and key in self._semantic_keys:
+                    continue
+                if key:
+                    self._semantic_keys.add(key)
+                filtered.append((vector, meta))
+            if filtered:
+                self._semantic_index.bulk_add(filtered)
 
     def nearest_semantic(self, vector: np.ndarray) -> tuple[float, dict] | None:
         return self._semantic_index.top_one(vector)
@@ -112,11 +127,20 @@ class IndexService:
         if batch:
             await self.bulk_add(batch)
 
+    @staticmethod
+    def _semantic_key(meta: dict) -> str | None:
+        for key in ("hash", "url", "id"):
+            value = meta.get(key)
+            if value is not None:
+                return str(value)
+        return None
+
 
 class SemanticIndex:
     def __init__(self) -> None:
         self._vectors: list[np.ndarray] = []
         self._meta: list[dict] = []
+        self._matrix: np.ndarray | None = None
 
     @staticmethod
     def _normalize(vector: np.ndarray) -> np.ndarray:
@@ -126,9 +150,10 @@ class SemanticIndex:
         return vector / norm
 
     def add(self, vector: np.ndarray, meta: dict) -> None:
-        vec = self._normalize(vector)
+        vec = self._normalize(vector).astype(np.float32, copy=False)
         self._vectors.append(vec)
         self._meta.append(meta)
+        self._matrix = None
 
     def bulk_add(self, items: list[tuple[np.ndarray, dict]]) -> None:
         for vector, meta in items:
@@ -137,9 +162,10 @@ class SemanticIndex:
     def top_one(self, vector: np.ndarray) -> tuple[float, dict] | None:
         if not self._vectors:
             return None
-        vec = self._normalize(vector)
-        matrix = np.stack(self._vectors)
-        sims = matrix @ vec
+        vec = self._normalize(vector).astype(np.float32, copy=False)
+        if self._matrix is None:
+            self._matrix = np.stack(self._vectors)
+        sims = self._matrix @ vec
         best_idx = int(np.argmax(sims))
         return float(sims[best_idx]), self._meta[best_idx]
 

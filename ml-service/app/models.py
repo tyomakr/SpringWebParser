@@ -39,6 +39,7 @@ class ConfigResponse(BaseModel):
     syncIntervalSec: int
     apiKeyConfigured: bool
     similarityMode: str
+    semanticBackend: str
     semanticPublishThreshold: float
     semanticGrayThreshold: float
 

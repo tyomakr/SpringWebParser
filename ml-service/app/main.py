@@ -5,7 +5,8 @@ import logging
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import Depends, FastAPI
+import sys
+from fastapi import Depends, FastAPI, HTTPException, Query
 
 from .config import Settings
 from .index import IndexService
@@ -18,6 +19,7 @@ from .models import (
     RecommendationResponse,
     SyncStatus,
 )
+from .ocr_diagnostics import build_report, build_report_from_training, load_report, write_report
 from .phash import ImageAnalyzer
 from .storage import Storage
 from .syncer import TrainingSyncer
@@ -32,10 +34,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
         logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
         logging.getLogger("app.syncer").setLevel(logging.DEBUG)
-    storage = Storage(settings.db_path)
+    storage = Storage(
+        db_path=settings.db_path,
+        db_url=settings.db_url,
+        connect_attempts=settings.db_connect_max_attempts,
+        connect_delay_sec=settings.db_connect_delay_sec,
+    )
     storage.init()
     index_service = IndexService()
     metrics = MetricsCollector()
+    last_run = storage.get_value("last_run")
+    if last_run:
+        metrics.record_sync(last_run, 0.0, 0, success=True)
 
     app = FastAPI(title="ML Recommendation Service", version="1.0.0")
     app.state.index_service = index_service
@@ -59,14 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stop_event = asyncio.Event()
             sync_task = None
             if settings.sync_startup:
-                # Try to populate index before serving requests (with short retries so startup isn't too slow).
-                for attempt in range(1, 4):
-                    try:
-                        await syncer.run_once()
-                        break
-                    except Exception:  # pylint: disable=broad-except
-                        logger.exception("Initial training sync failed (attempt %s/3)", attempt)
-                        await asyncio.sleep(5)
+                # Run sync in background so startup isn't blocked by long downloads.
                 sync_task = asyncio.create_task(syncer.run_periodic(stop_event))
             try:
                 yield
@@ -144,7 +147,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         metrics_collector: MetricsCollector = Depends(get_metrics_collector),
     ):
         data = metrics_collector.snapshot()
-        return {"indexSize": index_service.size(), **data}
+        return {
+            "indexSize": index_service.size(),
+            "semanticIndexSize": index_service.semantic_size(),
+            **data,
+        }
 
     @app.get("/config", response_model=ConfigResponse)
     def config() -> ConfigResponse:
@@ -156,11 +163,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             syncIntervalSec=settings.sync_interval_sec,
             apiKeyConfigured=bool(settings.training_export_api_key),
             similarityMode=settings.similarity_mode,
+            semanticBackend=settings.semantic_backend,
             semanticPublishThreshold=settings.semantic_publish_threshold,
             semanticGrayThreshold=settings.semantic_gray_threshold,
         )
 
+    @app.get("/ocr/diagnostics")
+    def ocr_diagnostics():
+        report = load_report(settings.ocr_diagnostics_path)
+        if report is None:
+            raise HTTPException(status_code=404, detail="OCR diagnostics not found")
+        return report
+
+    @app.post("/ocr/diagnostics/run")
+    async def ocr_diagnostics_run(
+        limit: int | None = Query(default=None, ge=1),
+        offset: int | None = Query(default=None, ge=0),
+    ):
+        report = None
+        if settings.ocr_diagnostics_dir:
+            report = await asyncio.to_thread(build_report, settings, settings.ocr_diagnostics_dir)
+        else:
+            use_limit = limit if limit is not None else settings.ocr_diagnostics_limit
+            use_offset = offset if offset is not None else settings.ocr_diagnostics_offset
+            report = await build_report_from_training(settings, app.state.http_client, use_limit, use_offset)
+        write_report(report, settings.ocr_diagnostics_path)
+        return report
+
     return app
 
 
-app = create_app()
+app = None
+if "pytest" not in sys.modules:
+    app = create_app()

@@ -24,6 +24,19 @@ const mlPublishService = {
     status() {
         return mlBaseClient.get("/status");
     },
+    ocrDiagnostics() {
+        return mlBaseClient.get("/ocr-diagnostics");
+    },
+    runOcrDiagnostics(limit, offset) {
+        const params = {};
+        if (Number.isFinite(limit) && limit > 0) {
+            params.limit = limit;
+        }
+        if (Number.isFinite(offset) && offset >= 0) {
+            params.offset = offset;
+        }
+        return mlBaseClient.post("/ocr-diagnostics/run", null, { params });
+    },
     feedback(entries) {
         return mlBaseClient.post("/feedback", entries);
     },
