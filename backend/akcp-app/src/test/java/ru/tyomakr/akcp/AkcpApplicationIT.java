@@ -3,6 +3,7 @@ package ru.tyomakr.akcp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,25 +117,7 @@ class AkcpApplicationIT {
   void publishRequiresAdminRole() {
     LoginResponse login = loginAsAdmin();
 
-    CreateItemRequest createRequest = new CreateItemRequest(
-        "Publish title",
-        "Publish content",
-        null,
-        null,
-        List.of(new AttachmentRequest("IMAGE", "https://example.com/p.jpg", null)),
-        List.of("publish")
-    );
-
-    ItemResponse created = webTestClient.post()
-        .uri("/api/items")
-        .header("Authorization", "Bearer " + login.token())
-        .bodyValue(createRequest)
-        .exchange()
-        .expectStatus().isOk()
-        .expectBody(ItemResponse.class)
-        .returnResult()
-        .getResponseBody();
-
+    ItemResponse created = createItem("Publish title");
     assertThat(created).isNotNull();
 
     String moderatorToken = jwtService.issueToken("moderator", List.of(UserRole.MODERATOR.name()));
@@ -155,6 +138,21 @@ class AkcpApplicationIT {
         .getResponseBody();
 
     assertThat(response).isNotNull();
+    assertThat(response.type()).isEqualTo("PUBLISH_VK");
+    assertThat(response.status()).isEqualTo("QUEUED");
+    assertThat(response.createdAt()).isNotNull();
+  }
+
+  @Test
+  void publishUnknownItemReturnsNotFound() {
+    LoginResponse login = loginAsAdmin();
+    UUID missing = UUID.randomUUID();
+
+    webTestClient.post()
+        .uri("/api/publish/vk/" + missing)
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isNotFound();
   }
 
   private LoginResponse loginAsAdmin() {
@@ -164,6 +162,27 @@ class AkcpApplicationIT {
         .exchange()
         .expectStatus().isOk()
         .expectBody(LoginResponse.class)
+        .returnResult()
+        .getResponseBody();
+  }
+
+  private ItemResponse createItem(String title) {
+    LoginResponse login = loginAsAdmin();
+    CreateItemRequest createRequest = new CreateItemRequest(
+        title,
+        "Content",
+        null,
+        null,
+        List.of(new AttachmentRequest("IMAGE", "https://example.com/p.jpg", null)),
+        List.of("publish")
+    );
+    return webTestClient.post()
+        .uri("/api/items")
+        .header("Authorization", "Bearer " + login.token())
+        .bodyValue(createRequest)
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(ItemResponse.class)
         .returnResult()
         .getResponseBody();
   }

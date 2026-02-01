@@ -25,6 +25,10 @@ springdoc:
     path: /swagger-ui.html
 
 akcp:
+  cors:
+    allowed-origins: ${AKCP_CORS_ALLOWED_ORIGINS:http://localhost:3333}
+  http:
+    max-in-memory-bytes: ${AKCP_HTTP_MAX_IN_MEMORY_BYTES:2097152}
   jwt:
     secret: ${AKCP_JWT_SECRET:change-me}
     issuer: ${AKCP_JWT_ISSUER:akcp}
@@ -40,3 +44,14 @@ akcp:
     poll-interval-ms: ${AKCP_JOBS_POLL_INTERVAL_MS:10000}
   vk:
     access-token: ${VK_ACCESS_TOKEN:}
+  ingestion:
+    web:
+      user-agents-file: ${AKCP_INGESTION_USER_AGENTS_FILE:classpath:user-agents.txt}
+      delay:
+        enabled: ${AKCP_INGESTION_DELAY_ENABLED:true}
+        min-ms: ${AKCP_INGESTION_MIN_PARSE_DELAY_MS:1500}
+        max-ms: ${AKCP_INGESTION_MAX_PARSE_DELAY_MS:4000}
+        hosts: ${AKCP_INGESTION_DELAY_HOSTS:fishki.net}
+    fishki:
+      base-url: ${AKCP_INGESTION_FISHKI_BASE_URL:https://fishki.net/mix/}
+      container-selector: ${AKCP_INGESTION_FISHKI_CONTAINER_SELECTOR:div.embed-image-single, a.tiny__info__img img, img.lazy_load_image_past, img.lazy_load_image_future, img.lazy_load_image}

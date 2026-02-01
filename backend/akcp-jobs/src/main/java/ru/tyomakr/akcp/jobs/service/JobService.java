@@ -33,6 +33,10 @@ public class JobService {
     return jobRepository.insert(row).map(JobMapper::toJob);
   }
 
+  public Mono<Job> getJob(UUID id) {
+    return jobRepository.findById(id).map(JobMapper::toJob);
+  }
+
   public Flux<Job> fetchQueued(int limit) {
     return jobRepository.findQueued(limit).map(JobMapper::toJob);
   }
@@ -47,5 +51,9 @@ public class JobService {
 
   public Mono<Void> markFailed(UUID id, String error) {
     return jobRepository.updateStatus(id, JobStatus.FAILED.name(), error);
+  }
+
+  public Mono<Void> updatePayload(UUID id, String payload) {
+    return jobRepository.updatePayload(id, payload);
   }
 }

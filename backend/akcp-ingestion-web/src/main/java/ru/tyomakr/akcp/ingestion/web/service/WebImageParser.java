@@ -16,11 +16,22 @@ public class WebImageParser {
     Document doc = Jsoup.parse(html, baseUrl);
     String title = doc.title();
     Elements images = doc.select("img");
+    Elements videos = doc.select("video, video source");
     Set<String> urls = new LinkedHashSet<>();
     for (Element img : images) {
       addIfPresent(urls, img.absUrl("src"));
       addIfPresent(urls, img.absUrl("data-src"));
       addIfPresent(urls, img.absUrl("data-lazy-src"));
+    }
+    for (Element video : videos) {
+      if ("video".equalsIgnoreCase(video.tagName())) {
+        addIfPresent(urls, video.absUrl("src"));
+        addIfPresent(urls, video.absUrl("data-src"));
+        addIfPresent(urls, video.absUrl("data-video"));
+      } else if ("source".equalsIgnoreCase(video.tagName())) {
+        addIfPresent(urls, video.absUrl("src"));
+        addIfPresent(urls, video.absUrl("data-src"));
+      }
     }
     List<ParsedAttachment> attachments = urls.stream()
         .map(ParsedAttachment::new)

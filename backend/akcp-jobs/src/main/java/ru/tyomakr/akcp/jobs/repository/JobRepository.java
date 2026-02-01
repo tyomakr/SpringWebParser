@@ -32,6 +32,13 @@ public class JobRepository {
     return spec.map(JobRowMappers::toJobRow).one();
   }
 
+  public Mono<JobRow> findById(UUID id) {
+    return databaseClient.sql("SELECT * FROM jobs WHERE id = :id")
+        .bind("id", id)
+        .map(JobRowMappers::toJobRow)
+        .one();
+  }
+
   public Flux<JobRow> findQueued(int limit) {
     return databaseClient.sql("""
             SELECT * FROM jobs
@@ -54,6 +61,18 @@ public class JobRepository {
         .bind("updatedAt", Instant.now())
         .bind("id", id);
     spec = bindNullable(spec, "lastError", lastError, String.class);
+    return spec.then();
+  }
+
+  public Mono<Void> updatePayload(UUID id, String payload) {
+    DatabaseClient.GenericExecuteSpec spec = databaseClient.sql("""
+            UPDATE jobs
+            SET payload = :payload, updated_at = :updatedAt
+            WHERE id = :id
+            """)
+        .bind("payload", payload)
+        .bind("updatedAt", Instant.now())
+        .bind("id", id);
     return spec.then();
   }
 

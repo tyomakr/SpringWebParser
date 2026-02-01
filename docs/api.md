@@ -46,7 +46,40 @@
 
 Возвращает список найденных изображений и `createdItemId` при `createItem=true`.
 
+### Fishki strategy
+
+`POST /api/ingestion/web/fishki/parse`
+
+```json
+{"pageFrom":1,"pageTo":3,"createItem":true}
+```
+
+Парсит диапазон страниц `http://fishki.net/mix/{page}` (по умолчанию) с задержками и ротацией User‑Agent.
+
+Для больших диапазонов используйте асинхронный режим:
+
+`POST /api/ingestion/web/fishki/parse-async`
+
+```json
+{"pageFrom":1,"pageTo":50,"createItem":true}
+```
+
+Ответ:
+
+```json
+{"jobId":"...","status":"QUEUED"}
+```
+
+Проверка статуса:
+
+`GET /api/ingestion/web/fishki/jobs/{id}`
+
+Ответ:
+
+```json
+{"jobId":"...","status":"IN_PROGRESS","pageFrom":1,"pageTo":50,"createdItemId":null,"attachmentsCount":null,"lastError":null}
+```
+
 ## Publishing VK
 
 `POST /api/publish/vk/{itemId}` — создаёт job со статусом QUEUED.
-

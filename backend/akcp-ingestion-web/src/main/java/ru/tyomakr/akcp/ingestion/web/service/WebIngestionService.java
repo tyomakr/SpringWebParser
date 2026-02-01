@@ -1,10 +1,11 @@
 package ru.tyomakr.akcp.ingestion.web.service;
 
+import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.time.Duration;
-import java.net.URI;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -22,20 +23,31 @@ public class WebIngestionService {
   private final WebClient webClient;
   private final ItemService itemService;
   private final WebImageParser webImageParser;
+  private final RequestDelayService requestDelayService;
+  private final UserAgentService userAgentService;
 
-  public WebIngestionService(WebClient.Builder webClientBuilder, ItemService itemService, WebImageParser webImageParser) {
+  public WebIngestionService(WebClient.Builder webClientBuilder,
+                             ItemService itemService,
+                             WebImageParser webImageParser,
+                             RequestDelayService requestDelayService,
+                             UserAgentService userAgentService) {
     this.webClient = webClientBuilder.build();
     this.itemService = itemService;
     this.webImageParser = webImageParser;
+    this.requestDelayService = requestDelayService;
+    this.userAgentService = userAgentService;
   }
 
   public Mono<WebParseResult> parse(String url) {
-    return validateUrl(url).then(webClient.get()
-        .uri(url)
-        .retrieve()
-        .bodyToMono(String.class)
-        .timeout(REQUEST_TIMEOUT)
-        .flatMap(html -> parseHtml(url, html)));
+    return validateUrl(url)
+        .flatMap(uri -> requestDelayService.maybeDelay(uri)
+            .then(webClient.get()
+                .uri(uri)
+                .headers(headers -> headers.set(HttpHeaders.USER_AGENT, userAgentService.getRandomUserAgent()))
+                .retrieve()
+                .bodyToMono(String.class)
+                .timeout(REQUEST_TIMEOUT)
+                .flatMap(html -> parseHtml(uri.toString(), html))));
   }
 
   public Mono<WebParseResult> parseAndMaybeCreate(String url, boolean createItem) {
@@ -61,7 +73,10 @@ public class WebIngestionService {
       title = url;
     }
     List<CreateItemCommand.CreateAttachment> attachments = result.attachments().stream()
-        .map(attachment -> new CreateItemCommand.CreateAttachment(AttachmentType.IMAGE, attachment.url(), null))
+        .map(attachment -> new CreateItemCommand.CreateAttachment(
+            AttachmentTypeResolver.resolve(attachment.url()),
+            attachment.url(),
+            null))
         .toList();
     CreateItemCommand command = new CreateItemCommand(
         title,
@@ -74,7 +89,7 @@ public class WebIngestionService {
     return itemService.createItem(command).map(item -> item.id());
   }
 
-  private Mono<Void> validateUrl(String url) {
+  private Mono<URI> validateUrl(String url) {
     if (url == null || url.isBlank()) {
       return Mono.error(new IllegalArgumentException("URL is required"));
     }
@@ -88,7 +103,7 @@ public class WebIngestionService {
     if (!scheme.equals("http") && !scheme.equals("https")) {
       return Mono.error(new IllegalArgumentException("Only http/https URLs are supported"));
     }
-    return Mono.empty();
+    return Mono.just(uri);
   }
 
   public record WebParseResult(

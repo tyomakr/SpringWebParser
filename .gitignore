@@ -10,6 +10,7 @@ ui/dist/
 # Secrets
 .env
 .env.*
+!.env.example
 **/application-secret*.yml
 
 # Editors
@@ -17,7 +18,7 @@ ui/dist/
 .idea
 
 # Logs
-.codex-logs/**
+logs/codex/**
 *.log
 
 

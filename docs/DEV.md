@@ -42,3 +42,17 @@ mvn test
 - Убедись, что `docker` доступен в WSL: `docker info` без ошибок.
 - Если контейнеры не стартуют — перезапусти Docker Desktop и WSL (`wsl --shutdown`).
 - Медленный доступ к диску: держи проект в `/mnt/c` только при необходимости; иначе лучше в `~/projects`.
+
+## UI dev
+Локальный dev‑сервер (Vite):
+```
+cd ui
+npm install
+npm run dev
+```
+Порт по умолчанию: 5173.
+
+API URL:
+- через `.env` в `ui/`: `VITE_API_BASE_URL=http://localhost:8280`
+- через Docker: прокидывается из `docker-compose.yml` (будет использован на этапе сборки).
+- Если браузер блокирует запросы (CORS), задай `AKCP_CORS_ALLOWED_ORIGINS=http://localhost:3333`.

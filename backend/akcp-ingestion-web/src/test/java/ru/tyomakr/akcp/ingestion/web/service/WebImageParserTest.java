@@ -25,4 +25,21 @@ class WebImageParserTest {
     assertThat(result.attachments()).hasSize(2);
     assertThat(result.attachments().get(0).url()).isEqualTo("https://example.com/img/a.png");
   }
+
+  @Test
+  void parsesVideoSources() {
+    String html = """
+        <html>
+          <body>
+            <video src=\"/video/a.mp4\"></video>
+            <video><source src=\"https://cdn.example.com/b.webm\"></video>
+          </body>
+        </html>
+        """;
+
+    WebIngestionService.WebParseResult result = parser.parse("https://example.com/page", html);
+
+    assertThat(result.attachments()).hasSize(2);
+    assertThat(result.attachments().get(0).url()).isEqualTo("https://example.com/video/a.mp4");
+  }
 }

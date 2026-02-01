@@ -1,25 +1,37 @@
 import React from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AuthProvider, useAuth } from './store/auth.jsx';
+import { ThemeProvider } from './store/theme.jsx';
+import LoginPage from './pages/LoginPage.jsx';
+import PipelinePage from './pages/PipelinePage.jsx';
+
+function RequireAuth({ children }) {
+  const { token } = useAuth();
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
 
 export default function App() {
   return (
-    <main className="app">
-      <section className="hero">
-        <p className="eyebrow">AK Content Pipeline</p>
-        <h1>Минимальный UI‑скелет для AKCP</h1>
-        <p className="lead">
-          Этот интерфейс — заглушка для будущего фронтенда. Сейчас фокус на backend‑MVP.
-        </p>
-        <div className="card">
-          <div>
-            <h2>Backend</h2>
-            <p>Swagger: <code>/swagger-ui.html</code></p>
-          </div>
-          <div>
-            <h2>Статус</h2>
-            <p>Запуск через Docker Compose</p>
-          </div>
-        </div>
-      </section>
-    </main>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/pipeline"
+              element={(
+                <RequireAuth>
+                  <PipelinePage />
+                </RequireAuth>
+              )}
+            />
+            <Route path="/" element={<Navigate to="/pipeline" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

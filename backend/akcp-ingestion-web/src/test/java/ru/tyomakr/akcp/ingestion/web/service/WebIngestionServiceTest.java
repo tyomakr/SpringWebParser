@@ -88,6 +88,8 @@ class WebIngestionServiceTest {
         .body(html)
         .build());
     WebClient.Builder builder = WebClient.builder().exchangeFunction(exchangeFunction);
-    return new WebIngestionService(builder, itemService, new WebImageParser());
+    RequestDelayService delayService = uri -> Mono.empty();
+    UserAgentService userAgentService = () -> "Test UA";
+    return new WebIngestionService(builder, itemService, new WebImageParser(), delayService, userAgentService);
   }
 }

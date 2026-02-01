@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -31,6 +32,7 @@ public class SecurityConfig {
         .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
         .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
         .authorizeExchange(exchange -> exchange
+            .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .pathMatchers("/api/auth/login").permitAll()
             .pathMatchers("/actuator/health").permitAll()
             .pathMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
