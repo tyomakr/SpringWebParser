@@ -1,0 +1,5 @@
+ALTER TABLE jobs
+  ADD COLUMN IF NOT EXISTS external_result TEXT,
+  ADD COLUMN IF NOT EXISTS reconciled_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS reconciled_by TEXT,
+  ADD COLUMN IF NOT EXISTS reconciliation_note TEXT;
