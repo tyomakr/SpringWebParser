@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import ru.tyomakr.akcp.core.content.CatalogRegistration;
 import ru.tyomakr.akcp.core.content.MediaAsset;
 import ru.tyomakr.akcp.core.content.MediaCatalogPort;
@@ -22,7 +24,7 @@ public final class InMemoryMediaCatalogAdapter implements MediaCatalogPort {
   private final Map<UUID, SourceOccurrence> occurrencesById = new HashMap<>();
 
   @Override
-  public synchronized CatalogRegistration register(
+  public synchronized CompletionStage<CatalogRegistration> register(
       MediaAsset candidate,
       SourceOccurrence sourceOccurrence
   ) {
@@ -49,7 +51,9 @@ public final class InMemoryMediaCatalogAdapter implements MediaCatalogPort {
       if (!hasCompatibleMetadata(existingAsset, candidate)) {
         throw new IllegalStateException("content metadata conflicts with canonical media asset");
       }
-      return new CatalogRegistration(existingAsset, existingSource, false, false);
+      return CompletableFuture.completedFuture(
+          new CatalogRegistration(existingAsset, existingSource, false, false)
+      );
     }
 
     SourceOccurrence idCollision = occurrencesById.get(sourceOccurrence.id());
@@ -73,22 +77,30 @@ public final class InMemoryMediaCatalogAdapter implements MediaCatalogPort {
     );
     occurrencesBySource.put(sourceKey, canonicalSource);
     occurrencesById.put(canonicalSource.id(), canonicalSource);
-    return new CatalogRegistration(canonicalAsset, canonicalSource, assetCreated, true);
+    return CompletableFuture.completedFuture(
+        new CatalogRegistration(canonicalAsset, canonicalSource, assetCreated, true)
+    );
   }
 
   @Override
-  public synchronized Optional<MediaAsset> findBySha256(String sha256) {
-    return Optional.ofNullable(assetsBySha256.get(normalizeSha256(sha256)));
+  public synchronized CompletionStage<Optional<MediaAsset>> findBySha256(String sha256) {
+    return CompletableFuture.completedFuture(
+        Optional.ofNullable(assetsBySha256.get(normalizeSha256(sha256)))
+    );
   }
 
   @Override
-  public synchronized List<SourceOccurrence> findSourceOccurrences(UUID mediaAssetId) {
+  public synchronized CompletionStage<List<SourceOccurrence>> findSourceOccurrences(
+      UUID mediaAssetId
+  ) {
     Objects.requireNonNull(mediaAssetId, "mediaAssetId is required");
-    return occurrencesById.values().stream()
-        .filter(occurrence -> occurrence.mediaAssetId().equals(mediaAssetId))
-        .sorted(Comparator.comparing(SourceOccurrence::discoveredAt)
-            .thenComparing(SourceOccurrence::id))
-        .toList();
+    return CompletableFuture.completedFuture(
+        occurrencesById.values().stream()
+            .filter(occurrence -> occurrence.mediaAssetId().equals(mediaAssetId))
+            .sorted(Comparator.comparing(SourceOccurrence::discoveredAt)
+                .thenComparing(SourceOccurrence::id))
+            .toList()
+    );
   }
 
   synchronized int assetCount() {

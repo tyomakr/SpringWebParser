@@ -7,6 +7,8 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import org.junit.jupiter.api.Test;
 import ru.tyomakr.akcp.core.content.CatalogRegistration;
 import ru.tyomakr.akcp.core.content.SourceOccurrence;
@@ -26,25 +28,25 @@ class MediaCatalogImportCoordinatorTest {
         catalog
     );
 
-    CatalogRegistration vk = coordinator.importMedia(
+    CatalogRegistration vk = await(coordinator.importMedia(
         new ByteArrayInputStream(IMAGE_BYTES),
         "image/jpeg",
         1280,
         720,
         source(UUID.randomUUID(), SourcePlatform.VK, "vk:photo:10")
-    );
-    CatalogRegistration web = coordinator.importMedia(
+    ));
+    CatalogRegistration web = await(coordinator.importMedia(
         new ByteArrayInputStream(IMAGE_BYTES),
         "image/jpeg",
         1280,
         720,
         source(UUID.randomUUID(), SourcePlatform.WEB, "web:image:10")
-    );
+    ));
 
     assertThat(vk.mediaAssetCreated()).isTrue();
     assertThat(web.mediaAssetCreated()).isFalse();
     assertThat(web.mediaAsset().id()).isEqualTo(vk.mediaAsset().id());
-    assertThat(catalog.findSourceOccurrences(vk.mediaAsset().id())).hasSize(2);
+    assertThat(await(catalog.findSourceOccurrences(vk.mediaAsset().id()))).hasSize(2);
     assertThat(storage.objectCount()).isEqualTo(1);
   }
 
@@ -62,20 +64,20 @@ class MediaCatalogImportCoordinatorTest {
         "vk:photo:11"
     );
 
-    CatalogRegistration first = coordinator.importMedia(
+    CatalogRegistration first = await(coordinator.importMedia(
         new ByteArrayInputStream(IMAGE_BYTES),
         "image/jpeg",
         1280,
         720,
         source
-    );
-    CatalogRegistration repeated = coordinator.importMedia(
+    ));
+    CatalogRegistration repeated = await(coordinator.importMedia(
         new ByteArrayInputStream(IMAGE_BYTES),
         "image/jpeg",
         1280,
         720,
         source
-    );
+    ));
 
     assertThat(first.sourceOccurrenceCreated()).isTrue();
     assertThat(repeated.sourceOccurrenceCreated()).isFalse();
@@ -116,29 +118,40 @@ class MediaCatalogImportCoordinatorTest {
         SourcePlatform.VK,
         "vk:photo:13"
     );
-    CatalogRegistration accepted = coordinator.importMedia(
+    CatalogRegistration accepted = await(coordinator.importMedia(
         new ByteArrayInputStream(IMAGE_BYTES),
         "image/jpeg",
         1280,
         720,
         source
-    );
+    ));
     byte[] changedBytes = "changed-image".getBytes(StandardCharsets.UTF_8);
 
-    assertThatThrownBy(() -> coordinator.importMedia(
+    assertThatThrownBy(() -> await(coordinator.importMedia(
         new ByteArrayInputStream(changedBytes),
         "image/jpeg",
         1280,
         720,
         source
-    ))
+    )))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("media asset ID is already registered with different content");
     assertThat(storage.objectCount()).isEqualTo(2);
     assertThat(catalog.assetCount()).isEqualTo(1);
-    assertThat(catalog.findSourceOccurrences(accepted.mediaAsset().id())).containsExactly(
+    assertThat(await(catalog.findSourceOccurrences(accepted.mediaAsset().id()))).containsExactly(
         accepted.sourceOccurrence()
     );
+  }
+
+  private static <T> T await(CompletionStage<T> stage) {
+    try {
+      return stage.toCompletableFuture().join();
+    } catch (CompletionException exception) {
+      if (exception.getCause() instanceof RuntimeException runtimeException) {
+        throw runtimeException;
+      }
+      throw exception;
+    }
   }
 
   private static SourceOccurrence source(

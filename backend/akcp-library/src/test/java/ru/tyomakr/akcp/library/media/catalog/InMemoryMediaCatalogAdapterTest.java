@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import org.junit.jupiter.api.Test;
 import ru.tyomakr.akcp.core.content.CatalogRegistration;
 import ru.tyomakr.akcp.core.content.MediaAsset;
@@ -21,14 +23,14 @@ class InMemoryMediaCatalogAdapterTest {
     MediaAsset firstCandidate = asset(UUID.randomUUID(), "a".repeat(64));
     MediaAsset duplicateCandidate = asset(UUID.randomUUID(), "a".repeat(64));
 
-    CatalogRegistration first = catalog.register(
+    CatalogRegistration first = await(catalog.register(
         firstCandidate,
         source(firstCandidate.id(), SourcePlatform.VK, "vk:photo:1")
-    );
-    CatalogRegistration duplicate = catalog.register(
+    ));
+    CatalogRegistration duplicate = await(catalog.register(
         duplicateCandidate,
         source(duplicateCandidate.id(), SourcePlatform.WEB, "web:image:1")
-    );
+    ));
 
     assertThat(first.mediaAssetCreated()).isTrue();
     assertThat(duplicate.mediaAssetCreated()).isFalse();
@@ -45,8 +47,8 @@ class InMemoryMediaCatalogAdapterTest {
     MediaAsset candidate = asset(UUID.randomUUID(), "b".repeat(64));
     SourceOccurrence occurrence = source(candidate.id(), SourcePlatform.VK, "vk:photo:2");
 
-    CatalogRegistration first = catalog.register(candidate, occurrence);
-    CatalogRegistration repeated = catalog.register(candidate, occurrence);
+    CatalogRegistration first = await(catalog.register(candidate, occurrence));
+    CatalogRegistration repeated = await(catalog.register(candidate, occurrence));
 
     assertThat(first.sourceOccurrenceCreated()).isTrue();
     assertThat(repeated.mediaAssetCreated()).isFalse();
@@ -59,12 +61,12 @@ class InMemoryMediaCatalogAdapterTest {
     InMemoryMediaCatalogAdapter catalog = new InMemoryMediaCatalogAdapter();
     MediaAsset original = asset(UUID.randomUUID(), "c".repeat(64));
     MediaAsset changed = asset(UUID.randomUUID(), "d".repeat(64));
-    catalog.register(original, source(original.id(), SourcePlatform.VK, "vk:photo:3"));
+    await(catalog.register(original, source(original.id(), SourcePlatform.VK, "vk:photo:3")));
 
-    assertThatThrownBy(() -> catalog.register(
+    assertThatThrownBy(() -> await(catalog.register(
         changed,
         source(changed.id(), SourcePlatform.VK, "vk:photo:3")
-    ))
+    )))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("source record already points to different content");
     assertThat(catalog.assetCount()).isEqualTo(1);
@@ -76,14 +78,14 @@ class InMemoryMediaCatalogAdapterTest {
     InMemoryMediaCatalogAdapter catalog = new InMemoryMediaCatalogAdapter();
     MediaAsset first = asset(UUID.randomUUID(), "e".repeat(64));
     MediaAsset second = asset(UUID.randomUUID(), "f".repeat(64));
-    catalog.register(first, source(first.id(), SourcePlatform.VK, "vk:photo:4"));
-    catalog.register(second, source(second.id(), SourcePlatform.WEB, "web:image:4"));
+    await(catalog.register(first, source(first.id(), SourcePlatform.VK, "vk:photo:4")));
+    await(catalog.register(second, source(second.id(), SourcePlatform.WEB, "web:image:4")));
     MediaAsset collidingCandidate = asset(second.id(), first.sha256());
 
-    assertThatThrownBy(() -> catalog.register(
+    assertThatThrownBy(() -> await(catalog.register(
         collidingCandidate,
         source(collidingCandidate.id(), SourcePlatform.MANUAL, "manual:image:4")
-    ))
+    )))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("media asset ID is already registered with different content");
     assertThat(catalog.assetCount()).isEqualTo(2);
@@ -94,10 +96,10 @@ class InMemoryMediaCatalogAdapterTest {
   void equalShaWithConflictingDimensionsIsRejected() {
     InMemoryMediaCatalogAdapter catalog = new InMemoryMediaCatalogAdapter();
     MediaAsset canonical = asset(UUID.randomUUID(), "1".repeat(64));
-    catalog.register(
+    await(catalog.register(
         canonical,
         source(canonical.id(), SourcePlatform.VK, "vk:photo:5")
-    );
+    ));
     MediaAsset conflicting = new MediaAsset(
         UUID.randomUUID(),
         canonical.sha256(),
@@ -107,10 +109,10 @@ class InMemoryMediaCatalogAdapterTest {
         canonical.storageReference()
     );
 
-    assertThatThrownBy(() -> catalog.register(
+    assertThatThrownBy(() -> await(catalog.register(
         conflicting,
         source(conflicting.id(), SourcePlatform.WEB, "web:image:5")
-    ))
+    )))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("content metadata conflicts with canonical media asset");
     assertThat(catalog.assetCount()).isEqualTo(1);
@@ -126,7 +128,7 @@ class InMemoryMediaCatalogAdapterTest {
         SourcePlatform.VK,
         "vk:photo:6"
     );
-    catalog.register(canonical, occurrence);
+    await(catalog.register(canonical, occurrence));
     MediaAsset conflicting = new MediaAsset(
         UUID.randomUUID(),
         canonical.sha256(),
@@ -136,10 +138,10 @@ class InMemoryMediaCatalogAdapterTest {
         canonical.storageReference()
     );
 
-    assertThatThrownBy(() -> catalog.register(
+    assertThatThrownBy(() -> await(catalog.register(
         conflicting,
         source(conflicting.id(), SourcePlatform.VK, "vk:photo:6")
-    ))
+    )))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("content metadata conflicts with canonical media asset");
     assertThat(catalog.assetCount()).isEqualTo(1);
@@ -155,6 +157,17 @@ class InMemoryMediaCatalogAdapterTest {
         720,
         StorageReference.fromSha256(sha256)
     );
+  }
+
+  private static <T> T await(CompletionStage<T> stage) {
+    try {
+      return stage.toCompletableFuture().join();
+    } catch (CompletionException exception) {
+      if (exception.getCause() instanceof RuntimeException runtimeException) {
+        throw runtimeException;
+      }
+      throw exception;
+    }
   }
 
   private static SourceOccurrence source(

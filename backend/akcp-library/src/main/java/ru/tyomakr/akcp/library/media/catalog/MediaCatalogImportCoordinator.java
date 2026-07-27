@@ -3,6 +3,7 @@ package ru.tyomakr.akcp.library.media.catalog;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 import ru.tyomakr.akcp.core.content.CatalogRegistration;
 import ru.tyomakr.akcp.core.content.MediaAsset;
 import ru.tyomakr.akcp.core.content.MediaCatalogPort;
@@ -24,7 +25,7 @@ public final class MediaCatalogImportCoordinator {
     this.catalog = Objects.requireNonNull(catalog, "catalog is required");
   }
 
-  public CatalogRegistration importMedia(
+  public CompletionStage<CatalogRegistration> importMedia(
       InputStream content,
       String mimeType,
       int width,
