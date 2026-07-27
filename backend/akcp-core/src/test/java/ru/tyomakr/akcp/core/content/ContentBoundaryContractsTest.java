@@ -2,6 +2,7 @@ package ru.tyomakr.akcp.core.content;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
@@ -73,6 +74,26 @@ class ContentBoundaryContractsTest {
             StorageReference.fromSha256("b".repeat(64))
         )
     );
+  }
+
+  @Test
+  void sourceIdentityNormalizesConnectionScopeAndRecordWhitespace() {
+    SourceOccurrence occurrence = new SourceOccurrence(
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        SourcePlatform.VK,
+        "  owner:1/photo:2  ",
+        "   ",
+        null,
+        null,
+        null,
+        "https://example.test/image.jpg",
+        null,
+        NOW
+    );
+
+    assertEquals("owner:1/photo:2", occurrence.sourceRecordId());
+    assertNull(occurrence.sourceConnectionId());
   }
 
   private static SourceOccurrence occurrence(
