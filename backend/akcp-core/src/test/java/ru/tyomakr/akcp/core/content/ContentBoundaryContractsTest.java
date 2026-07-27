@@ -2,6 +2,7 @@ package ru.tyomakr.akcp.core.content;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -52,10 +53,26 @@ class ContentBoundaryContractsTest {
         "image/jpeg",
         1280,
         720,
-        "sha256/ab/cd/image"
+        StorageReference.fromSha256(upperSha)
     );
 
     assertEquals(upperSha.toLowerCase(), asset.sha256());
+    assertEquals(asset.sha256(), asset.storageReference().sha256());
+  }
+
+  @Test
+  void mediaIdentityRejectsStorageReferenceForDifferentContent() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new MediaAsset(
+            UUID.randomUUID(),
+            "a".repeat(64),
+            "image/jpeg",
+            1280,
+            720,
+            StorageReference.fromSha256("b".repeat(64))
+        )
+    );
   }
 
   private static SourceOccurrence occurrence(

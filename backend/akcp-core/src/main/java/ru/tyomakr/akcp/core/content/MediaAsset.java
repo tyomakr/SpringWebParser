@@ -10,7 +10,7 @@ public record MediaAsset(
     String mimeType,
     int width,
     int height,
-    String storageReference
+    StorageReference storageReference
 ) {
   public MediaAsset {
     Objects.requireNonNull(id, "id is required");
@@ -26,9 +26,9 @@ public record MediaAsset(
     if (width <= 0 || height <= 0) {
       throw new IllegalArgumentException("width and height must be positive");
     }
-    if (storageReference.isBlank()) {
-      throw new IllegalArgumentException("storageReference must not be blank");
-    }
     sha256 = sha256.toLowerCase(Locale.ROOT);
+    if (!storageReference.sha256().equals(sha256)) {
+      throw new IllegalArgumentException("storageReference must match sha256");
+    }
   }
 }
