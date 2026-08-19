@@ -1,0 +1,121 @@
+.recommendations-page {
+  min-height: 100vh;
+}
+
+.recommendations-page .rec-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.recommendations-page .rec-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.recommendations-page .rec-column {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.recommendations-page .rec-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--stroke, #d6dbe5);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+
+.recommendations-page .rec-section-head,
+.recommendations-page .rec-input-row,
+.recommendations-page .recommendation-card-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.recommendations-page .rec-section-head {
+  justify-content: space-between;
+}
+
+.recommendations-page .rec-item-list,
+.recommendations-page .recommendation-grid {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.recommendations-page .rec-item-card,
+.recommendations-page .rec-reference-card {
+  border: 1px solid var(--stroke, #d6dbe5);
+  border-radius: 10px;
+  background: transparent;
+}
+
+.recommendations-page .rec-item-card {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.7rem;
+  text-align: left;
+  color: inherit;
+}
+
+.recommendations-page .rec-item-card.active,
+.recommendations-page .rec-reference-card.active,
+.recommendations-page .recommendation-card.selected {
+  border-color: var(--accent, #ff7a45);
+}
+
+.recommendations-page .rec-reference-grid,
+.recommendations-page .recommendation-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.recommendations-page .rec-reference-card {
+  overflow: hidden;
+  padding: 0;
+  aspect-ratio: 4 / 3;
+}
+
+.recommendations-page .rec-reference-card img,
+.recommendations-page .recommendation-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recommendations-page .recommendation-card {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.7rem;
+  border: 1px solid var(--stroke, #d6dbe5);
+  border-radius: 12px;
+}
+
+.recommendations-page .recommendation-preview {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.recommendations-page .recommendation-meta {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.recommendations-page .recommendation-meta p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.recommendations-page .error {
+  color: #b42318;
+}
+
+@media (max-width: 900px) {
+  .recommendations-page .rec-workspace {
+    grid-template-columns: 1fr;
+  }
+}

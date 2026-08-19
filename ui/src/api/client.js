@@ -28,3 +28,28 @@ export async function apiRequest(path, options = {}) {
   }
   return response.json();
 }
+
+export function recommendationBackfill(token, limit) {
+  const body = typeof limit === 'number' ? { limit } : undefined;
+  return apiRequest('/api/recommendations/backfill', {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
+export function recommendationTop(token, referenceAttachmentId, limit = 20) {
+  const query = new URLSearchParams({
+    referenceAttachmentId,
+    limit: String(limit),
+  });
+  return apiRequest(`/api/recommendations/top?${query.toString()}`, { token });
+}
+
+export function recommendationFeedback(token, payload) {
+  return apiRequest('/api/recommendations/feedback', {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}

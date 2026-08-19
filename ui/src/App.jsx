@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './store/auth.jsx';
 import { ThemeProvider } from './store/theme.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import PipelinePage from './pages/PipelinePage.jsx';
+import RecommendationsPage from './pages/RecommendationsPage.jsx';
 
 function RequireAuth({ children }) {
   const { token } = useAuth();
@@ -25,6 +26,14 @@ export default function App() {
               element={(
                 <RequireAuth>
                   <PipelinePage />
+                </RequireAuth>
+              )}
+            />
+            <Route
+              path="/recommendations"
+              element={(
+                <RequireAuth>
+                  <RecommendationsPage />
                 </RequireAuth>
               )}
             />
