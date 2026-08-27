@@ -6,6 +6,7 @@ import reactor.core.publisher.Mono;
 import ru.tyomakr.akcp.core.model.Job;
 import ru.tyomakr.akcp.core.model.JobType;
 import ru.tyomakr.akcp.jobs.service.JobHandler;
+import ru.tyomakr.akcp.jobs.service.JobExecutionResult;
 
 @Component
 public class VkPublishJobHandler implements JobHandler {
@@ -21,9 +22,9 @@ public class VkPublishJobHandler implements JobHandler {
   }
 
   @Override
-  public Mono<Void> handle(Job job) {
+  public Mono<JobExecutionResult> handle(Job job) {
     UUID itemId = extractItemId(job.payload());
-    return vkPublisher.publish(itemId);
+    return vkPublisher.publish(itemId).thenReturn(JobExecutionResult.done());
   }
 
   private UUID extractItemId(String payload) {

@@ -39,10 +39,15 @@ public class JobRepository {
         .one();
   }
 
-  public Flux<JobRow> findQueued(int limit) {
+  public Flux<JobRow> findClaimable(int limit) {
     return databaseClient.sql("""
             SELECT * FROM jobs
             WHERE status = 'QUEUED'
+               OR (
+                 status = 'IN_PROGRESS'
+                 AND type <> 'PUBLISH_VK'
+                 AND (lease_until IS NULL OR lease_until <= CURRENT_TIMESTAMP)
+               )
             ORDER BY created_at ASC
             LIMIT :limit
             """)
@@ -51,17 +56,70 @@ public class JobRepository {
         .all();
   }
 
-  public Mono<Void> updateStatus(UUID id, String status, String lastError) {
+  public Mono<JobRow> claim(UUID id, UUID token, long leaseMillis) {
+    return databaseClient.sql("""
+            UPDATE jobs
+            SET status = 'IN_PROGRESS',
+                attempt_count = attempt_count + 1,
+                lease_until = CURRENT_TIMESTAMP + (:leaseMillis * INTERVAL '1 millisecond'),
+                claim_token = :token,
+                last_error = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+              AND (
+                status = 'QUEUED'
+                OR (
+                  status = 'IN_PROGRESS'
+                  AND type <> 'PUBLISH_VK'
+                  AND (lease_until IS NULL OR lease_until <= CURRENT_TIMESTAMP)
+                )
+              )
+            RETURNING *
+            """)
+        .bind("id", id)
+        .bind("token", token)
+        .bind("leaseMillis", leaseMillis)
+        .map(JobRowMappers::toJobRow)
+        .one();
+  }
+
+  public Mono<Boolean> completeClaim(UUID id, UUID token, String externalResult) {
+    return updateClaimStatus(id, token, "DONE", null, externalResult);
+  }
+
+  public Mono<Boolean> failClaim(UUID id, UUID token, String lastError) {
+    return updateClaimStatus(id, token, "FAILED", lastError, null);
+  }
+
+  public Mono<Boolean> unknownClaim(UUID id, UUID token, String externalResult, String detail) {
+    return updateClaimStatus(id, token, "UNKNOWN", detail, externalResult);
+  }
+
+  private Mono<Boolean> updateClaimStatus(
+      UUID id,
+      UUID token,
+      String status,
+      String lastError,
+      String externalResult
+  ) {
     DatabaseClient.GenericExecuteSpec spec = databaseClient.sql("""
             UPDATE jobs
-            SET status = :status, last_error = :lastError, updated_at = :updatedAt
+            SET status = :status,
+                last_error = :lastError,
+                external_result = :externalResult,
+                lease_until = NULL,
+                claim_token = NULL,
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
+              AND status = 'IN_PROGRESS'
+              AND claim_token = :token
             """)
         .bind("status", status)
-        .bind("updatedAt", Instant.now())
-        .bind("id", id);
+        .bind("id", id)
+        .bind("token", token);
     spec = bindNullable(spec, "lastError", lastError, String.class);
-    return spec.then();
+    spec = bindNullable(spec, "externalResult", externalResult, String.class);
+    return spec.fetch().rowsUpdated().map(updated -> updated == 1);
   }
 
   public Mono<Void> updatePayload(UUID id, String payload) {

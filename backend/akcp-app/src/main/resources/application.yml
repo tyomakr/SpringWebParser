@@ -42,6 +42,7 @@ akcp:
       url: ${AKCP_AI_REMOTE_URL:}
   jobs:
     poll-interval-ms: ${AKCP_JOBS_POLL_INTERVAL_MS:10000}
+    lease-duration: ${AKCP_JOBS_LEASE_DURATION:PT30M}
   vk:
     access-token: ${VK_ACCESS_TOKEN:}
   ingestion:

@@ -27,23 +27,46 @@ public class JobRunner {
 
   @Scheduled(fixedDelayString = "${akcp.jobs.poll-interval-ms:10000}")
   public void runTick() {
-    jobService.fetchQueued(10)
+    jobService.fetchClaimable(10)
+        .flatMap(job -> jobService.claimJob(job.id()))
         .flatMap(this::processJob)
         .subscribe();
   }
 
-  private Mono<Void> processJob(Job job) {
+  private Mono<Void> processJob(JobClaim claim) {
+    Job job = claim.job();
     JobHandler handler = handlers.get(job.type());
     if (handler == null) {
       log.warn("No handler for job type {}", job.type());
-      return jobService.markFailed(job.id(), "No handler for job type " + job.type());
+      return jobService.markFailed(claim, "No handler for job type " + job.type())
+          .then();
     }
-    return jobService.markInProgress(job.id())
-        .then(handler.handle(job))
-        .then(jobService.markDone(job.id()))
+    return handler.handle(job)
         .onErrorResume(ex -> {
           log.warn("Job {} failed", job.id(), ex);
-          return jobService.markFailed(job.id(), ex.getMessage());
-        });
+          return jobService.markFailed(claim, ex.getMessage()).then(Mono.empty());
+        })
+        .flatMap(result -> persistResult(claim, result))
+        .then();
+  }
+
+  private Mono<Boolean> persistResult(JobClaim claim, JobExecutionResult result) {
+    Mono<Boolean> update = switch (result.status()) {
+      case DONE -> jobService.markDone(claim, result.externalResult());
+      case UNKNOWN -> jobService.markUnknown(
+          claim,
+          result.externalResult(),
+          result.detail()
+      );
+      default -> Mono.error(new IllegalArgumentException(
+          "Unsupported handler result status " + result.status()
+      ));
+    };
+    return update.doOnNext(updated -> {
+      if (!updated) {
+        log.warn("Job {} outcome {} ignored because its claim is no longer current",
+            claim.job().id(), result.status());
+      }
+    });
   }
 }

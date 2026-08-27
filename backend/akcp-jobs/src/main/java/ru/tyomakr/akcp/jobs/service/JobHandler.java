@@ -7,5 +7,5 @@ import ru.tyomakr.akcp.core.model.JobType;
 public interface JobHandler {
   JobType type();
 
-  Mono<Void> handle(Job job);
+  Mono<JobExecutionResult> handle(Job job);
 }

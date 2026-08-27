@@ -6,6 +6,7 @@ import reactor.core.publisher.Mono;
 import ru.tyomakr.akcp.core.model.Job;
 import ru.tyomakr.akcp.core.model.JobType;
 import ru.tyomakr.akcp.jobs.service.JobHandler;
+import ru.tyomakr.akcp.jobs.service.JobExecutionResult;
 import ru.tyomakr.akcp.jobs.service.JobService;
 
 @Component
@@ -30,7 +31,7 @@ public class FishkiParseJobHandler implements JobHandler {
   }
 
   @Override
-  public Mono<Void> handle(Job job) {
+  public Mono<JobExecutionResult> handle(Job job) {
     return Mono.fromCallable(() -> objectMapper.readValue(job.payload(), FishkiParseJobPayload.class))
         .flatMap(payload -> fishkiIngestionService
             .parseRange(payload.pageFrom(), payload.pageTo(), payload.createItem())
@@ -39,6 +40,6 @@ public class FishkiParseJobHandler implements JobHandler {
               return Mono.fromCallable(() -> objectMapper.writeValueAsString(updated));
             })
             .flatMap(updatedJson -> jobService.updatePayload(job.id(), updatedJson)))
-        .then();
+        .thenReturn(JobExecutionResult.done());
   }
 }

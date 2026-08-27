@@ -13,7 +13,7 @@ public class PlaceholderEmbeddingJobHandler implements JobHandler {
   }
 
   @Override
-  public Mono<Void> handle(Job job) {
-    return Mono.empty();
+  public Mono<JobExecutionResult> handle(Job job) {
+    return Mono.just(JobExecutionResult.done());
   }
 }

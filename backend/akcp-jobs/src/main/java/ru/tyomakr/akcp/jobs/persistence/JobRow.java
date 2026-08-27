@@ -10,6 +10,10 @@ public record JobRow(
     String payload,
     Instant createdAt,
     Instant updatedAt,
-    String lastError
+    String lastError,
+    int attemptCount,
+    Instant leaseUntil,
+    UUID claimToken,
+    String externalResult
 ) {
 }
