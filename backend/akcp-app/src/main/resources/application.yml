@@ -1,0 +1,58 @@
+server:
+  port: ${AKCP_SERVER_PORT:8080}
+
+spring:
+  r2dbc:
+    url: ${AKCP_R2DBC_URL:r2dbc:postgresql://${AKCP_DB_HOST:localhost}:${AKCP_DB_PORT:5432}/${POSTGRES_DB:akcp}}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  flyway:
+    enabled: true
+    url: ${AKCP_FLYWAY_URL:jdbc:postgresql://${AKCP_DB_HOST:localhost}:${AKCP_DB_PORT:5432}/${POSTGRES_DB:akcp}}
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+akcp:
+  cors:
+    allowed-origins: ${AKCP_CORS_ALLOWED_ORIGINS:http://localhost:3333}
+  http:
+    max-in-memory-bytes: ${AKCP_HTTP_MAX_IN_MEMORY_BYTES:2097152}
+  jwt:
+    secret: ${AKCP_JWT_SECRET}
+    issuer: ${AKCP_JWT_ISSUER:akcp}
+    ttl: ${AKCP_JWT_TTL:PT12H}
+  admin:
+    username: ${AKCP_ADMIN_USERNAME}
+    password: ${AKCP_ADMIN_PASSWORD}
+  ai:
+    mode: ${AKCP_AI_MODE:local}
+    remote:
+      url: ${AKCP_AI_REMOTE_URL:}
+  jobs:
+    poll-interval-ms: ${AKCP_JOBS_POLL_INTERVAL_MS:10000}
+    lease-duration: ${AKCP_JOBS_LEASE_DURATION:PT30M}
+  vk:
+    access-token: ${VK_ACCESS_TOKEN:}
+  ingestion:
+    web:
+      user-agents-file: ${AKCP_INGESTION_USER_AGENTS_FILE:classpath:user-agents.txt}
+      delay:
+        enabled: ${AKCP_INGESTION_DELAY_ENABLED:true}
+        min-ms: ${AKCP_INGESTION_MIN_PARSE_DELAY_MS:1500}
+        max-ms: ${AKCP_INGESTION_MAX_PARSE_DELAY_MS:4000}
+        hosts: ${AKCP_INGESTION_DELAY_HOSTS:fishki.net}
+    fishki:
+      base-url: ${AKCP_INGESTION_FISHKI_BASE_URL:https://fishki.net/mix/}
+      container-selector: ${AKCP_INGESTION_FISHKI_CONTAINER_SELECTOR:div.embed-image-single, a.tiny__info__img img, img.lazy_load_image_past, img.lazy_load_image_future, img.lazy_load_image}

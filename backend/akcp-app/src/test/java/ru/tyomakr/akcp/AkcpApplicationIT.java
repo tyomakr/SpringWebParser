@@ -1,0 +1,253 @@
+package ru.tyomakr.akcp;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import ru.tyomakr.akcp.auth.dto.LoginRequest;
+import ru.tyomakr.akcp.auth.dto.LoginResponse;
+import ru.tyomakr.akcp.auth.service.JwtService;
+import ru.tyomakr.akcp.core.model.UserRole;
+import ru.tyomakr.akcp.library.dto.AttachmentRequest;
+import ru.tyomakr.akcp.library.dto.CreateItemRequest;
+import ru.tyomakr.akcp.library.dto.ItemListResponse;
+import ru.tyomakr.akcp.library.dto.ItemResponse;
+import ru.tyomakr.akcp.library.dto.SavedSelectionListResponse;
+import ru.tyomakr.akcp.library.dto.SavedSelectionRequest;
+import ru.tyomakr.akcp.library.dto.SavedSelectionResponse;
+import ru.tyomakr.akcp.publishing.vk.dto.PublishJobResponse;
+
+@Testcontainers
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+class AkcpApplicationIT {
+  @Container
+  static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16")
+      .withDatabaseName("akcp")
+      .withUsername("akcp")
+      .withPassword("akcp");
+
+  @DynamicPropertySource
+  static void registerProps(DynamicPropertyRegistry registry) {
+    registry.add("spring.r2dbc.url", () ->
+        String.format("r2dbc:postgresql://%s:%d/%s", POSTGRES.getHost(), POSTGRES.getFirstMappedPort(), POSTGRES.getDatabaseName()));
+    registry.add("spring.r2dbc.username", POSTGRES::getUsername);
+    registry.add("spring.r2dbc.password", POSTGRES::getPassword);
+    registry.add("spring.flyway.url", () ->
+        String.format("jdbc:postgresql://%s:%d/%s", POSTGRES.getHost(), POSTGRES.getFirstMappedPort(), POSTGRES.getDatabaseName()));
+    registry.add("spring.flyway.user", POSTGRES::getUsername);
+    registry.add("spring.flyway.password", POSTGRES::getPassword);
+    registry.add("akcp.jwt.secret", () -> "test-secret");
+    registry.add("akcp.admin.username", () -> "admin");
+    registry.add("akcp.admin.password", () -> "admin");
+  }
+
+  @LocalServerPort
+  private int port;
+
+  private WebTestClient webTestClient;
+
+  @Autowired
+  private JwtService jwtService;
+
+  @BeforeEach
+  void setUp() {
+    this.webTestClient = WebTestClient.bindToServer()
+        .baseUrl("http://localhost:" + port)
+        .build();
+  }
+
+  @Test
+  void loginCreateAndListItems() {
+    LoginResponse login = loginAsAdmin();
+
+    assertThat(login).isNotNull();
+
+    CreateItemRequest createRequest = new CreateItemRequest(
+        "Test title",
+        "Test content",
+        null,
+        null,
+        List.of(new AttachmentRequest("IMAGE", "https://example.com/a.jpg", null)),
+        List.of("test")
+    );
+
+    ItemResponse created = webTestClient.post()
+        .uri("/api/items")
+        .header("Authorization", "Bearer " + login.token())
+        .bodyValue(createRequest)
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(ItemResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(created).isNotNull();
+
+    ItemListResponse listResponse = webTestClient.get()
+        .uri(uriBuilder -> uriBuilder.path("/api/items").queryParam("limit", 1).build())
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(ItemListResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(listResponse).isNotNull();
+    assertThat(listResponse.items()).hasSize(1);
+  }
+
+  @Test
+  void anonymousRequestsAreRejected() {
+    webTestClient.get()
+        .uri("/api/items")
+        .exchange()
+        .expectStatus().isUnauthorized();
+  }
+
+  @Test
+  void publishRequiresAdminRole() {
+    LoginResponse login = loginAsAdmin();
+
+    ItemResponse created = createItem("Publish title");
+    assertThat(created).isNotNull();
+
+    String moderatorToken = jwtService.issueToken("moderator", List.of(UserRole.MODERATOR.name()));
+
+    webTestClient.post()
+        .uri("/api/publish/vk/" + created.id())
+        .header("Authorization", "Bearer " + moderatorToken)
+        .exchange()
+        .expectStatus().isForbidden();
+
+    PublishJobResponse response = webTestClient.post()
+        .uri("/api/publish/vk/" + created.id())
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(PublishJobResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(response).isNotNull();
+    assertThat(response.type()).isEqualTo("PUBLISH_VK");
+    assertThat(response.status()).isEqualTo("QUEUED");
+    assertThat(response.createdAt()).isNotNull();
+  }
+
+  @Test
+  void publishUnknownItemReturnsNotFound() {
+    LoginResponse login = loginAsAdmin();
+    UUID missing = UUID.randomUUID();
+
+    webTestClient.post()
+        .uri("/api/publish/vk/" + missing)
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isNotFound();
+  }
+
+  @Test
+  void savedSelectionsCrudFlowWorks() {
+    LoginResponse login = loginAsAdmin();
+    ItemResponse created = createItem("Selection title");
+    assertThat(created).isNotNull();
+    assertThat(created.attachments()).isNotEmpty();
+
+    UUID attachmentId = created.attachments().getFirst().id();
+    SavedSelectionRequest request = new SavedSelectionRequest(
+        created.id(),
+        List.of(attachmentId),
+        "VK"
+    );
+
+    SavedSelectionResponse saved = webTestClient.post()
+        .uri("/api/selections")
+        .header("Authorization", "Bearer " + login.token())
+        .bodyValue(request)
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(SavedSelectionResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(saved).isNotNull();
+    assertThat(saved.itemId()).isEqualTo(created.id());
+    assertThat(saved.attachmentIds()).containsExactly(attachmentId);
+
+    SavedSelectionListResponse listBeforeDelete = webTestClient.get()
+        .uri("/api/selections")
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(SavedSelectionListResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(listBeforeDelete).isNotNull();
+    assertThat(listBeforeDelete.items().stream().map(SavedSelectionResponse::id))
+        .contains(saved.id());
+
+    webTestClient.delete()
+        .uri("/api/selections/" + saved.id())
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isOk();
+
+    SavedSelectionListResponse listAfterDelete = webTestClient.get()
+        .uri("/api/selections")
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(SavedSelectionListResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(listAfterDelete).isNotNull();
+    assertThat(listAfterDelete.items().stream().map(SavedSelectionResponse::id))
+        .doesNotContain(saved.id());
+  }
+
+  private LoginResponse loginAsAdmin() {
+    return webTestClient.post()
+        .uri("/api/auth/login")
+        .bodyValue(new LoginRequest("admin", "admin"))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(LoginResponse.class)
+        .returnResult()
+        .getResponseBody();
+  }
+
+  private ItemResponse createItem(String title) {
+    LoginResponse login = loginAsAdmin();
+    CreateItemRequest createRequest = new CreateItemRequest(
+        title,
+        "Content",
+        null,
+        null,
+        List.of(new AttachmentRequest("IMAGE", "https://example.com/p.jpg", null)),
+        List.of("publish")
+    );
+    return webTestClient.post()
+        .uri("/api/items")
+        .header("Authorization", "Bearer " + login.token())
+        .bodyValue(createRequest)
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(ItemResponse.class)
+        .returnResult()
+        .getResponseBody();
+  }
+}

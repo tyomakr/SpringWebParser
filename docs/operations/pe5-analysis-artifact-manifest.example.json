@@ -1,0 +1,5 @@
+{
+  "manifestVersion": "1",
+  "artifacts": [],
+  "note": "Fixture provider has no external artifacts. Production OCR or embedding artifacts require a reviewed license, size, lowercase SHA-256 and local/classpath location before activation."
+}
