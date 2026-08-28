@@ -15,7 +15,10 @@ public class SavedSelectionCleanupJob {
     this.service = service;
   }
 
-  @Scheduled(fixedDelayString = "#{@selectionsProperties.cleanupIntervalMs}")
+  @Scheduled(
+      initialDelayString = "#{@selectionsProperties.cleanupIntervalMs}",
+      fixedDelayString = "#{@selectionsProperties.cleanupIntervalMs}"
+  )
   public void runTick() {
     service.cleanupExpired()
         .doOnError(error -> log.warn("Saved selections cleanup failed", error))
