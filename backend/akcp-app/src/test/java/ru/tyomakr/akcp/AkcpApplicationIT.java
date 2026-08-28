@@ -24,6 +24,9 @@ import ru.tyomakr.akcp.library.dto.AttachmentRequest;
 import ru.tyomakr.akcp.library.dto.CreateItemRequest;
 import ru.tyomakr.akcp.library.dto.ItemListResponse;
 import ru.tyomakr.akcp.library.dto.ItemResponse;
+import ru.tyomakr.akcp.library.dto.SavedSelectionListResponse;
+import ru.tyomakr.akcp.library.dto.SavedSelectionRequest;
+import ru.tyomakr.akcp.library.dto.SavedSelectionResponse;
 import ru.tyomakr.akcp.publishing.vk.dto.PublishJobResponse;
 
 @Testcontainers
@@ -153,6 +156,67 @@ class AkcpApplicationIT {
         .header("Authorization", "Bearer " + login.token())
         .exchange()
         .expectStatus().isNotFound();
+  }
+
+  @Test
+  void savedSelectionsCrudFlowWorks() {
+    LoginResponse login = loginAsAdmin();
+    ItemResponse created = createItem("Selection title");
+    assertThat(created).isNotNull();
+    assertThat(created.attachments()).isNotEmpty();
+
+    UUID attachmentId = created.attachments().getFirst().id();
+    SavedSelectionRequest request = new SavedSelectionRequest(
+        created.id(),
+        List.of(attachmentId),
+        "VK"
+    );
+
+    SavedSelectionResponse saved = webTestClient.post()
+        .uri("/api/selections")
+        .header("Authorization", "Bearer " + login.token())
+        .bodyValue(request)
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(SavedSelectionResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(saved).isNotNull();
+    assertThat(saved.itemId()).isEqualTo(created.id());
+    assertThat(saved.attachmentIds()).containsExactly(attachmentId);
+
+    SavedSelectionListResponse listBeforeDelete = webTestClient.get()
+        .uri("/api/selections")
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(SavedSelectionListResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(listBeforeDelete).isNotNull();
+    assertThat(listBeforeDelete.items().stream().map(SavedSelectionResponse::id))
+        .contains(saved.id());
+
+    webTestClient.delete()
+        .uri("/api/selections/" + saved.id())
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isOk();
+
+    SavedSelectionListResponse listAfterDelete = webTestClient.get()
+        .uri("/api/selections")
+        .header("Authorization", "Bearer " + login.token())
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(SavedSelectionListResponse.class)
+        .returnResult()
+        .getResponseBody();
+
+    assertThat(listAfterDelete).isNotNull();
+    assertThat(listAfterDelete.items().stream().map(SavedSelectionResponse::id))
+        .doesNotContain(saved.id());
   }
 
   private LoginResponse loginAsAdmin() {
