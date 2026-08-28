@@ -18,4 +18,3 @@ docker compose up --build
 - `backend` — Spring Boot (AKCP)
 
 По умолчанию приложение слушает `http://localhost:8080`.
-

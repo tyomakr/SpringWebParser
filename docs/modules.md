@@ -18,4 +18,3 @@
 Исторические границы и checkpoints описаны в
 [`docs/architecture.md`](architecture.md). Legacy-MVP и текущий AKCP baseline
 не смешиваются с незакоммиченным пользовательским snapshot.
-

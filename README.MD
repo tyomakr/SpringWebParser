@@ -50,4 +50,3 @@ Swagger UI доступен по:
 - `PATCH /api/items/{id}/tags` — добавить/удалить теги
 - `POST /api/ingestion/web/parse` — парсинг URL, опционально создание Item
 - `POST /api/publish/vk/{itemId}` — постановка job на публикацию в VK
-

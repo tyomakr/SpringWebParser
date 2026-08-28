@@ -20,4 +20,3 @@
 - `akcp.ai.remote.url`
 
 В базу данных добавлен тип job `COMPUTE_EMBEDDING` и `COMPUTE_PHASH`.
-
