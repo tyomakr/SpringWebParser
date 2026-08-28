@@ -4,13 +4,13 @@ server:
 spring:
   r2dbc:
     url: ${AKCP_R2DBC_URL:r2dbc:postgresql://${AKCP_DB_HOST:localhost}:${AKCP_DB_PORT:5432}/${POSTGRES_DB:akcp}}
-    username: ${POSTGRES_USER:akcp}
-    password: ${POSTGRES_PASSWORD:akcp}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
   flyway:
     enabled: true
     url: ${AKCP_FLYWAY_URL:jdbc:postgresql://${AKCP_DB_HOST:localhost}:${AKCP_DB_PORT:5432}/${POSTGRES_DB:akcp}}
-    user: ${POSTGRES_USER:akcp}
-    password: ${POSTGRES_PASSWORD:akcp}
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
 
 management:
   endpoints:
@@ -30,12 +30,12 @@ akcp:
   http:
     max-in-memory-bytes: ${AKCP_HTTP_MAX_IN_MEMORY_BYTES:2097152}
   jwt:
-    secret: ${AKCP_JWT_SECRET:change-me}
+    secret: ${AKCP_JWT_SECRET}
     issuer: ${AKCP_JWT_ISSUER:akcp}
     ttl: ${AKCP_JWT_TTL:PT12H}
   admin:
-    username: ${AKCP_ADMIN_USERNAME:admin}
-    password: ${AKCP_ADMIN_PASSWORD:admin}
+    username: ${AKCP_ADMIN_USERNAME}
+    password: ${AKCP_ADMIN_PASSWORD}
   ai:
     mode: ${AKCP_AI_MODE:local}
     remote:

@@ -3,12 +3,12 @@ services:
     image: postgres:16
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-akcp}
-      POSTGRES_USER: ${POSTGRES_USER:-akcp}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-akcp}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   backend:
     build:
@@ -18,16 +18,16 @@ services:
       AKCP_DB_HOST: db
       AKCP_DB_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-akcp}
-      POSTGRES_USER: ${POSTGRES_USER:-akcp}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-akcp}
-      AKCP_JWT_SECRET: ${AKCP_JWT_SECRET:-change-me}
-      AKCP_ADMIN_USERNAME: ${AKCP_ADMIN_USERNAME:-admin}
-      AKCP_ADMIN_PASSWORD: ${AKCP_ADMIN_PASSWORD:-admin}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      AKCP_JWT_SECRET: ${AKCP_JWT_SECRET:?AKCP_JWT_SECRET must be set in .env}
+      AKCP_ADMIN_USERNAME: ${AKCP_ADMIN_USERNAME:?AKCP_ADMIN_USERNAME must be set in .env}
+      AKCP_ADMIN_PASSWORD: ${AKCP_ADMIN_PASSWORD:?AKCP_ADMIN_PASSWORD must be set in .env}
       AKCP_AI_MODE: ${AKCP_AI_MODE:-local}
       AKCP_AI_REMOTE_URL: ${AKCP_AI_REMOTE_URL:-}
       VK_ACCESS_TOKEN: ${VK_ACCESS_TOKEN:-}
     ports:
-      - "8280:8080"
+      - "127.0.0.1:8280:8080"
     depends_on:
       - db
 
@@ -36,7 +36,7 @@ services:
       context: ./ui
       dockerfile: Dockerfile
     ports:
-      - "3333:80"
+      - "127.0.0.1:3333:80"
     depends_on:
       - backend
 

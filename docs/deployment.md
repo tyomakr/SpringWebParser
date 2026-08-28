@@ -1,6 +1,6 @@
 # Развертывание (Docker Compose)
 
-1) Создайте `.env`:
+1) Создайте `.env` и заполните обязательные секреты:
 
 ```bash
 cp .env.example .env
@@ -17,4 +17,12 @@ docker compose up --build
 - `db` — PostgreSQL
 - `backend` — Spring Boot (AKCP)
 
-По умолчанию приложение слушает `http://localhost:8080`.
+Порты хоста доступны только через loopback:
+
+- UI: `http://localhost:3333`
+- backend/Swagger: `http://localhost:8280`
+- PostgreSQL: `localhost:5432` только для локальной диагностики.
+
+Compose завершает обработку конфигурации, если не заданы `POSTGRES_USER`,
+`POSTGRES_PASSWORD`, `AKCP_JWT_SECRET`, `AKCP_ADMIN_USERNAME` или
+`AKCP_ADMIN_PASSWORD`.

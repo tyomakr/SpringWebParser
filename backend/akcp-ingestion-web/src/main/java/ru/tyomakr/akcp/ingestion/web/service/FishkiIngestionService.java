@@ -12,11 +12,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.netty.http.client.HttpClient;
 import ru.tyomakr.akcp.core.model.AttachmentType;
 import ru.tyomakr.akcp.core.model.SourceType;
 import ru.tyomakr.akcp.ingestion.web.dto.FishkiParseResult;
@@ -36,6 +38,7 @@ public class FishkiIngestionService {
   private final FishkiImageParser fishkiImageParser;
   private final RequestDelayService requestDelayService;
   private final UserAgentService userAgentService;
+  private final UrlSafetyPolicy urlSafetyPolicy;
 
   @Value("${akcp.ingestion.fishki.base-url:http://fishki.net/mix/}")
   private String baseUrl;
@@ -47,12 +50,19 @@ public class FishkiIngestionService {
                                 ItemService itemService,
                                 FishkiImageParser fishkiImageParser,
                                 RequestDelayService requestDelayService,
-                                UserAgentService userAgentService) {
-    this.webClient = webClientBuilder.build();
+                                UserAgentService userAgentService,
+                                UrlSafetyPolicy urlSafetyPolicy) {
+    HttpClient httpClient = HttpClient.create()
+        .resolvedAddressesSelector((configuration, addresses) ->
+            urlSafetyPolicy.requirePublicSocketAddresses(addresses));
+    this.webClient = webClientBuilder
+        .clientConnector(new ReactorClientHttpConnector(httpClient))
+        .build();
     this.itemService = itemService;
     this.fishkiImageParser = fishkiImageParser;
     this.requestDelayService = requestDelayService;
     this.userAgentService = userAgentService;
+    this.urlSafetyPolicy = urlSafetyPolicy;
   }
 
   public Mono<FishkiParseResult> parseRange(int pageFrom, int pageTo, boolean createItem) {
@@ -85,8 +95,9 @@ public class FishkiIngestionService {
     String url = buildPageUrl(page);
     URI uri = URI.create(url);
     String userAgent = userAgentService.getRandomUserAgent();
-    return requestDelayService.maybeDelay(uri)
-        .then(fetchHtml(uri, userAgent, 2))
+    return urlSafetyPolicy.validate(uri.toString())
+        .flatMap(validated -> requestDelayService.maybeDelay(validated)
+            .then(fetchHtml(validated, userAgent, 2)))
         .flatMap(response -> parseWithDiagnostics(page, response)
             .flatMap(result -> {
               if (!result.attachments().isEmpty()) {
@@ -94,7 +105,7 @@ public class FishkiIngestionService {
               }
               if (shouldRetry(response)) {
                 log.info("Fishki page {} retrying with fallback UA", page);
-                return fetchHtml(uri, FALLBACK_UA, 2)
+                return fetchHtml(response.uri(), FALLBACK_UA, 2)
                     .flatMap(fallback -> parseWithDiagnostics(page, fallback))
                     .map(ParseResult::attachments);
               }
@@ -186,8 +197,9 @@ public class FishkiIngestionService {
                 return Mono.just(new HtmlResponse(uri, status.value(), contentType, ""));
               }
               URI next = uri.resolve(location);
-              log.info("Fishki redirect {} -> {}", uri, next);
-              return fetchHtml(next, userAgent, redirectsLeft - 1);
+              return urlSafetyPolicy.validate(next.toString())
+                  .doOnNext(validated -> log.info("Fishki redirect to host {}", validated.getHost()))
+                  .flatMap(validated -> fetchHtml(validated, userAgent, redirectsLeft - 1));
             }));
           }
           return response.bodyToMono(String.class)
